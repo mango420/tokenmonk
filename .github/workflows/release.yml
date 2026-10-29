@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -41,23 +41,50 @@ jobs:
             exit 1
           fi
           if [ -z "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" ]; then
-            echo "::warning::Secret TAURI_SIGNING_PRIVATE_KEY_PASSWORD is empty (only valid for a key without a password)"
+            echo "::error::Secret TAURI_SIGNING_PRIVATE_KEY_PASSWORD is not set"
+            exit 1
           fi
+
+      - name: Check updater config is release-ready
+        run: |
+          node -e "
+            const c = require('./src-tauri/tauri.conf.json');
+            const errors = [];
+            const pubkey = c.plugins && c.plugins.updater && c.plugins.updater.pubkey;
+            if (typeof pubkey !== 'string' || pubkey.trim() === '') {
+              errors.push('plugins.updater.pubkey is empty');
+            }
+            if (!c.bundle || c.bundle.createUpdaterArtifacts !== true) {
+              errors.push('bundle.createUpdaterArtifacts is not true');
+            }
+            for (const e of errors) console.log('::error::tauri.conf.json: ' + e);
+            process.exit(errors.length ? 1 : 0);
+          "
 
       - name: Check tag matches the app version
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          app="$(node -p "require('./src-tauri/tauri.conf.json').version")"
-          if [ "${GITHUB_REF_NAME}" != "v${app}" ]; then
-            echo "::error::Tag ${GITHUB_REF_NAME} does not match tauri.conf.json version v${app}"
-            exit 1
-          fi
+          conf="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          pkg="$(node -p "require('./package.json').version")"
+          cargo="$(sed -n 's/^version = "\(.*\)"$/\1/p' src-tauri/Cargo.toml | head -n 1)"
+          status=0
+          for pair in "tauri.conf.json:${conf}" "package.json:${pkg}" "Cargo.toml:${cargo}"; do
+            file="${pair%%:*}"
+            ver="${pair#*:}"
+            if [ "${GITHUB_REF_NAME}" != "v${ver}" ]; then
+              echo "::error::Tag ${GITHUB_REF_NAME} does not match ${file} version v${ver}"
+              status=1
+            fi
+          done
+          exit "$status"
 
   build:
     name: build (${{ matrix.name }})
     needs: guard
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:

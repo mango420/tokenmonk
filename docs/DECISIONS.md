@@ -66,10 +66,10 @@ CSP is strict: `default-src 'self'`, images and fonts from `self` and `data:`, i
 
 ## Release
 
-- `.github/workflows/release.yml` runs on pushed tags `v*` (and `workflow_dispatch`). A `guard` job runs `scripts/guard.mjs --all`, checks that both signing secrets are set and that the tag equals `v<tauri.conf.json version>`; the build jobs only start after it passes.
+- `.github/workflows/release.yml` runs on pushed tags `v*` (and `workflow_dispatch`). A `guard` job runs `scripts/guard.mjs --all`, checks that both signing secrets are set and non-empty (the key is always password-protected), that `plugins.updater.pubkey` is non-empty and `bundle.createUpdaterArtifacts` is `true`, and (on tags) that the tag equals `v<version>` in `tauri.conf.json`, `Cargo.toml` and `package.json`; the build jobs only start after it passes. Until the release-phase config changes below are on `main`, the guard fails on purpose.
 - Builds: macOS universal (`--target universal-apple-darwin`, both Rust targets installed) and Windows, via `tauri-apps/tauri-action@v1` (also `actions/checkout@v7`, `actions/setup-node@v7`, `Swatinem/rust-cache@v2`, `dtolnay/rust-toolchain@stable`). macOS builds exist only here, never in PR CI.
 - Binaries are unsigned: no Apple or Windows code-signing secrets. Only the updater artifacts are signed. The action creates a draft release `Tokenmonk v<version>` and uploads installers, `.sig` files and `latest.json` (`uploadUpdaterJson: true`, `updaterJsonPreferNsis: true`).
-- Secrets (repository Actions secrets, never in the repo): `TAURI_SIGNING_PRIVATE_KEY` (key content) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. `GITHUB_TOKEN` is the built-in one (`permissions: contents: write`).
+- Secrets (repository Actions secrets, never in the repo): `TAURI_SIGNING_PRIVATE_KEY` (key content) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. `GITHUB_TOKEN` is the built-in one; the workflow is `contents: read` by default and only the build job gets `contents: write`.
 
 ### Cutting a release
 
