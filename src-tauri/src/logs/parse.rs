@@ -48,9 +48,21 @@ pub enum ParseOutcome {
 }
 
 #[derive(Deserialize)]
-struct RawLine {
-    #[serde(rename = "type")]
+struct TypeProbe {
+    #[serde(rename = "type", default, deserialize_with = "string_or_none")]
     kind: Option<String>,
+}
+
+/// A `type` that is not a string counts as absent.
+fn string_or_none<'de, D: Deserializer<'de>>(d: D) -> Result<Option<String>, D::Error> {
+    Ok(match serde_json::Value::deserialize(d)? {
+        serde_json::Value::String(s) => Some(s),
+        _ => None,
+    })
+}
+
+#[derive(Deserialize)]
+struct RawLine {
     timestamp: Option<String>,
     #[serde(rename = "sessionId")]
     session_id: Option<String>,
@@ -98,13 +110,16 @@ pub fn parse_line(line: &str) -> ParseOutcome {
     if line.is_empty() {
         return Skip(SkipReason::Blank);
     }
+    // Decide on `type` first: other line types may have any shape elsewhere.
+    match serde_json::from_str::<TypeProbe>(line) {
+        Ok(TypeProbe { kind: Some(k) }) if k == "assistant" => {}
+        Ok(_) => return Skip(SkipReason::NotAssistant),
+        Err(_) => return Skip(SkipReason::Malformed),
+    }
     let raw: RawLine = match serde_json::from_str(line) {
         Ok(raw) => raw,
         Err(_) => return Skip(SkipReason::Malformed),
     };
-    if raw.kind.as_deref() != Some("assistant") {
-        return Skip(SkipReason::NotAssistant);
-    }
     if raw.is_api_error == Some(true) {
         return Skip(SkipReason::Synthetic);
     }
@@ -273,6 +288,19 @@ mod tests {
             );
             assert_eq!(skip(&line), SkipReason::NotAssistant, "{t}");
         }
+    }
+
+    #[test]
+    fn other_types_are_skipped_whatever_their_shape() {
+        assert_eq!(
+            skip(r#"{"type":"user","message":"text"}"#),
+            SkipReason::NotAssistant
+        );
+        assert_eq!(
+            skip(r#"{"type":7,"message":[1]}"#),
+            SkipReason::NotAssistant
+        );
+        assert_eq!(skip(r#"{"message":"x"}"#), SkipReason::NotAssistant);
     }
 
     #[test]
