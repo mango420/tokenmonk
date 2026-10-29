@@ -228,6 +228,46 @@ const diyGame: GameState = {
   retroDone: true,
 };
 
+/** A fresh install: nothing unlocked, nothing counted yet. */
+const freshGame: GameState = {
+  ...maxGame,
+  mode: "max",
+  level: 1,
+  title: "Novice Monk",
+  xpTotal: 0,
+  xpIntoLevel: 0,
+  xpForLevel: 100,
+  progress: 0,
+  recentUnlocks: [],
+  achievements: achievements.map((a) => ({ ...a, unlockedAt: null })),
+  retroDone: true,
+};
+
+const importing = (filesDone: number): DashboardSnapshot["data"] => ({
+  state: "importing",
+  filesTotal: 38,
+  filesDone,
+  lastMessageAt: null,
+  detail: null,
+});
+
+const noLogsData: DashboardSnapshot["data"] = {
+  state: "noLogs",
+  filesTotal: 0,
+  filesDone: 0,
+  lastMessageAt: null,
+  detail: null,
+};
+
+const noLogsSnapshot = (): DashboardSnapshot =>
+  snapshot({
+    today: tokens(0),
+    session: null,
+    burnRate: { tokensPerMinute: 0, windowMinutes: 10, limitEtaMinutes: null },
+    limits: noLimits,
+    data: noLogsData,
+  });
+
 export interface MockScenario {
   label: string;
   settings: Settings;
@@ -335,6 +375,51 @@ export const mockScenarios = {
       limits: noLimits,
     }),
     game: { ...diyGame, dailyXpPreview: null },
+  },
+  onboarding: {
+    label: "Onboarding, importing",
+    settings: { mode: "noneYet", sound: true, autostart: false },
+    appInfo,
+    dashboard: snapshot({ data: importing(24), limits: noLimits }),
+    game: { ...freshGame, retroDone: false },
+  },
+  onboardingReady: {
+    label: "Onboarding, logs found",
+    settings: { mode: "noneYet", sound: true, autostart: false },
+    appInfo,
+    dashboard: snapshot({ limits: noLimits }),
+    game: { ...freshGame, retroDone: false },
+  },
+  onboardingNoLogs: {
+    label: "Onboarding, no logs",
+    settings: { mode: "noneYet", sound: true, autostart: false },
+    appInfo: { ...appInfo, logsFound: false },
+    dashboard: noLogsSnapshot(),
+    game: freshGame,
+  },
+  importingMax: {
+    label: "Max it out, importing",
+    settings: maxSettings,
+    appInfo,
+    dashboard: snapshot({ data: importing(24), limits: noLimits }),
+    game: { ...freshGame, retroDone: false },
+  },
+  noLogs: {
+    label: "Max it out, no logs yet",
+    settings: maxSettings,
+    appInfo: { ...appInfo, logsFound: false },
+    dashboard: noLogsSnapshot(),
+    game: freshGame,
+  },
+  logError: {
+    label: "Max it out, logs unreadable",
+    settings: maxSettings,
+    appInfo,
+    dashboard: snapshot({
+      limits: noLimits,
+      data: { state: "error", filesTotal: 12, filesDone: 4, lastMessageAt: null, detail: null },
+    }),
+    game: maxGame,
   },
 } satisfies Record<string, MockScenario>;
 
