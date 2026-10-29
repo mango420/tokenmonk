@@ -126,10 +126,12 @@ The same API message appears on several lines, and in several files:
    `sessionId` differs from its file name, and one `message.id` can occur in
    several main files.
 
-Rule: one row per `message.id`, global across all files. On a repeat keep
-the first `timestamp`, `sessionId` and `cwd`, and take the maximum of each
-token field (in practice only `output_tokens` changes). Because lines arrive
-incrementally, this is an upsert, not a read-ahead.
+Rule: one row per `message.id`, global across all files. On a repeat take
+the minimum `timestamp` and the maximum of each token field (in practice
+only `output_tokens` changes); `sessionId`, `agentId`, `model` and `cwd` are
+identical on every copy. Because lines arrive incrementally and files are
+read in no fixed order, this is an order-independent upsert, not a
+read-ahead.
 
 ## Lines to skip for tokens
 

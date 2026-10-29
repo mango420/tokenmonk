@@ -14,14 +14,16 @@ CREATE TABLE source_files (
 );
 
 -- One row per API response (assistant message), deduplicated by message id
--- across all files. Re-reading a message keeps the largest output count.
+-- across all files. Upsert is read-order independent: ts = MIN(old, new),
+-- every token column = MAX(old, new); the other columns are identical on
+-- every copy of a message and keep their stored value.
 CREATE TABLE messages (
     message_id            TEXT    PRIMARY KEY, -- message.id
     request_id            TEXT,                -- requestId, if present
     session_id            TEXT    NOT NULL,    -- sessionId
     agent_id              TEXT,                -- agentId for subagent sidechains, else NULL
     is_sidechain          INTEGER NOT NULL DEFAULT 0,
-    ts                    INTEGER NOT NULL,    -- timestamp of the first line seen
+    ts                    INTEGER NOT NULL,    -- earliest timestamp of the message's lines
     model                 TEXT    NOT NULL,    -- message.model
     project_path          TEXT    NOT NULL,    -- cwd
     input_tokens          INTEGER NOT NULL DEFAULT 0,

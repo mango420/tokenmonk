@@ -78,19 +78,22 @@ The database runs in WAL mode so reads never wait for the writer.
 5. The first import may take a while; `DataStatus.state` is `importing`
    with file counts until it finishes, then `ready`.
 
-Upsert: `INSERT ... ON CONFLICT(message_id) DO UPDATE` setting each token
-column to `MAX(old, new)` and keeping the first timestamp, session and
-project (LOG-FORMAT.md, "Deduplication").
+Upsert: `INSERT ... ON CONFLICT(message_id) DO UPDATE` setting
+`ts = MIN(old, new)` and each token column to `MAX(old, new)`. Session,
+agent, model and project are identical on every copy of a message, so the
+stored values stay. The result does not depend on the order in which files
+or lines are read (LOG-FORMAT.md, "Deduplication").
 
 ## Aggregates
 
 All definitions use local time for calendar boundaries and UTC epoch ms for
 storage.
 
-- **Headline tokens** = input + output + cache creation. Cache reads are
-  carried in `TokenBreakdown.cacheRead` but excluded from `total` and from
-  the burn rate, because they dwarf everything else and would make the
-  numbers meaningless.
+- **Headline tokens** = input + output + cache creation (decided). Cache
+  reads are stored (`messages.cache_read_tokens`) and carried in
+  `TokenBreakdown.cacheRead`, but excluded from `total`, "Tokens today",
+  "This session" and the burn rate, because they dwarf everything else and
+  would make the numbers meaningless.
 - **Tokens today**: messages with a timestamp in the current local day.
 - **This session**: the logs have no "session ended" marker, so: take the
   `sessionId` of the most recent assistant message overall (main and
@@ -116,7 +119,8 @@ storage.
     `allowance = (100 - W0) / daysLeft`; `usedToday = Wnow - W0`;
     `usedPercent = usedToday / allowance x 100`. If the weekly window resets
     during the day, `W0` restarts at the reset.
-  - `tokenHistory` basis (no weekly reading): `allowance` = average
+  - `tokenHistory` basis (no weekly reading; decided fallback, used by Do
+    it yourself when there is no limit data): `allowance` = average
     headline tokens per active day over the previous 7 local days (today
     excluded); `usedToday` = headline tokens today; `daysLeft = 1`,
     `resetsAt = null`. `dailyBudget` is `null` if there is no active day
