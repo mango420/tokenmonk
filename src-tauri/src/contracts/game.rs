@@ -5,8 +5,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::EpochMs;
 use super::settings::Mode;
+use super::EpochMs;
 
 /// Achievement identifiers. Stored as these strings in the database.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
