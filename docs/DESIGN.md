@@ -235,12 +235,12 @@ Shared building blocks used below:
 - **Primary button**: min height `hit-target`, padding 0 `space-6`,
   `radius-md`, `--accent` fill, `on-accent` text, Manrope 700 14/20.
   Disabled: `surface-300` fill, `ink-muted` text. Full width where stated.
-- **Icon button**: `hit-target` square, `radius-md`, 20 px line icon in
+- **Icon button**: `hit-target` square, `radius-md`, `icon-size` line icon in
   `ink-muted`, hover `surface-300` (as the settings button).
 - **Choice tile**: `surface-200`, `radius-lg`, padding `space-4`, gap
   `space-2`, min height `hit-target`. Hover `surface-300`. Selected: 2 px
-  inset ring in the tile's mode fill (`--saffron` or `--jade`) plus a 20 px
-  check icon in the mode's text colour, so selection never relies on colour
+  inset ring in the tile's mode fill (`--saffron` or `--jade`) plus an
+  `icon-size` check icon in the mode's text colour, so selection never relies on colour
   alone.
 - **Toggle** (not in the mockups, derived): track `space-8 + space-2` x
   `space-6` (40 x 24), `radius-sm`; knob `space-4` (16), `radius-sm`, inset
@@ -249,21 +249,27 @@ Shared building blocks used below:
 - **Overlay**: covers the whole popup, `--scrim`, padding `space-8`,
   centred column, gap `space-4` (as the ghost overlay).
 
-Motion: the design system has no motion values. In v0.1 toasts and
-overlays appear and disappear without animation.
+Motion: toasts and overlays fade in and out on opacity only, duration from
+one named UI constant (`FADE_MS = 150`), not a design token. Nothing else
+animates. With `prefers-reduced-motion: reduce` they appear and disappear
+without the fade.
+
+Sound: one short synthesized tone per unlock or level-up (generated in the
+UI, no audio file). It plays only when `Settings.sound` is on, once per
+event, whether the popup is open or hidden.
 
 ### Onboarding
 
 Shown while `Settings.mode = noneYet` (`View = onboarding`). The accent is
 saffron (brand) until a mode is chosen.
 
-Layout (360 x 680, padding 16, column, gap `space-6`):
+Layout (360 x 680, padding `popup-padding`, column, gap `space-6`):
 
 1. Header: logo button and wordmark as on the dashboard, no mode label, no
    settings button. The logo halo shows the import progress (below).
 2. Title "How do you want to vibe?" (title style, `ink`).
 3. Two choice tiles, full width, stacked, gap `space-3`. Each: row with the
-   20 px mode icon in the mode text colour (`--saffron-text`,
+   `icon-size` mode icon in the mode text colour (`--saffron-text`,
    `--jade-text`) and the name (heading, `ink`), then the description
    (body, `ink-muted`).
    - "🔥 Max it out": "Use every token you pay for. XP for burning the
@@ -295,9 +301,9 @@ Fed by: `Settings`, `complete_onboarding`, `DashboardSnapshot.data`,
 `View = settings`, opened by the header settings button or by the tray menu
 (`navigate`). Back to the dashboard: the back button or Esc.
 
-Layout (360 x 680, padding 16, column, gap `space-6`):
+Layout (360 x 680, padding `popup-padding`, column, gap `space-6`):
 
-1. Header row (height 44): icon button with a chevron-left icon
+1. Header row (height `header-height`): icon button with a chevron-left icon
    (aria-label "Back to dashboard"), title "Settings" (title style).
 2. Number block: counter "12,400" (`GameState.xpTotal`) over the caption
    "XP total. Kept when you switch modes." (`ink-muted`).
@@ -305,7 +311,7 @@ Layout (360 x 680, padding 16, column, gap `space-6`):
    side, gap `space-3`, padding `space-3`; icon and name only ("🔥 Max it
    out", "🛠️ Do it yourself"); the current mode is selected. Caption below:
    "Titles follow the mode. XP stays."
-4. Hairline (`line`), then the toggle rows, each min height 44, label
+4. Hairline (`line`), then the toggle rows, each min height `hit-target`, label
    (Manrope 700 14/20) over a caption (`ink-muted`), toggle at the right:
    - "Sound", caption "On unlocks and level-ups".
    - "Start at login", caption "Lives in the tray, not in your way".
@@ -326,10 +332,11 @@ Fed by: `Settings`, `update_settings`, `settings-changed`,
 Shown for every `achievement-unlocked` with `retroactive = false`, inside
 the popup.
 
-Layout: a card floating over the top of the popup, inset `space-4` from
-top, left and right (width 328), `shadow-popup`, padding 12, gap 12, items
-centred. Content is the unlocked variant of the achievement row: badge
-(`badge-size`, `--accent` ring, 16 px glyph in `ink`), name "Night Owl
+Layout: a card floating over the top of the popup, inset `popup-padding`
+from top, left and right (width `popup-width` minus twice
+`popup-padding`), `shadow-popup`, padding `card-padding`, gap `space-3`,
+items centred. Content is the unlocked variant of the achievement row:
+badge (`badge-size`, `--accent` ring, `icon-size-sm` glyph in `ink`), name "Night Owl
 unlocked" (Manrope 700 14/20) over the detail (caption, `ink-muted`),
 trailing "+50 XP" (mono, `--accent-text`). Detail is
 `AchievementUnlocked.detail`, else the achievement's `description`.
@@ -339,17 +346,41 @@ States and rules:
 - One toast at a time, visible 4 s, click dismisses, pointer hover pauses
   the timer.
 - Queue: events that arrive while the popup is hidden are kept and shown
-  on the next open, oldest first. Three or more waiting collapse into one
+  on the next open, oldest first, in addition to the OS notification
+  (see while hidden). Three or more waiting collapse into one
   toast: "3 achievements unlocked", detail "Newest: Night Owl", trailing
   the summed "+150 XP".
 - Boo never gets a toast; the ghost overlay already says it.
 - Priority: ghost overlay, then level-up screen, then toasts. A toast
   waits while an overlay is open.
-- With `Settings.sound` on, the sound plays when the event arrives, popup
-  open or not.
+- Sound: the synthesized tone (see Sound above), only with
+  `Settings.sound` on.
+
+While hidden: when the popup is hidden, achievement unlocks and limit
+warnings also go out as OS notifications through the notification plugin.
+The in-popup queue above still shows on the next open; the OS
+notification does not replace it. No OS notification for `retroactive =
+true` and none for Boo (the popup is open when it unlocks). The tone
+follows `Settings.sound`; the notification itself is sent without its own
+sound where the plugin allows it, so the tone is not doubled.
+
+| Notification | When | Title | Body |
+|---|---|---|---|
+| Unlock | `achievement-unlocked`, not retroactive | "Night Owl unlocked · +50 XP" | detail, else description |
+| Max it out, 90 % | `limits.fiveHour.utilization` crosses 90 | "5h limit at 90 %" | "Limit in ~25 min at this pace." |
+| Max it out, 100 % | crosses 100 | "5h limit at 100 %" | "Limit reached. Breathe." |
+| Do it yourself, over budget | `dailyBudget.usedPercent` crosses 100 | "Today’s budget at 100 %" | "Over budget. The AI wins today." |
+
+Each limit warning fires once per crossing upwards: once per 5-hour window
+(`fiveHour.resetsAt`) and once per day for the budget. None while
+`limits.status` is not `ok` (Max it out) and none for stale values. The
+body of the 90 % warning uses the burn line rule (N from
+`burnRate.limitEtaMinutes`); without an ETA the body is omitted. Level-ups
+get no OS notification; the level-up screen waits for the next open.
 
 Fed by: `AchievementUnlocked` (`achievement-unlocked`),
-`GameState.achievements` for the description, `Settings.sound`.
+`GameState.achievements` for the description, `Settings.sound`; limit
+warnings from `DashboardSnapshot.limits`, `burnRate` and `dailyBudget`.
 
 ### Level-up screen
 
@@ -371,7 +402,8 @@ Variants:
   caption under it "+2 levels" (mono, `ink-muted`).
 - Retro summary: see first-start import.
 
-Esc and the button close it. Sound as for toasts.
+Esc and the button close it. The synthesized tone plays only with
+`Settings.sound` on.
 
 Fed by: `LevelUp` (`level-up`), `GameState.xpIntoLevel`,
 `GameState.xpForLevel`, `GameState.level`, `Settings.sound`.
@@ -523,10 +555,7 @@ Out of scope for v0.1:
 
 - The about screen (the brand guide shows the ghost mark there during
   Halloween). It has no `View` in the contracts.
-- OS notifications. Toasts and the level-up screen live inside the popup.
 
 Open points:
 
 - Light theme `pumpkin-text` value.
-- The unlock and level-up sound: the design source has no sound asset.
-- Motion values (durations, easing): none in the design system.
