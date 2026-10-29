@@ -1,7 +1,7 @@
 //! Wire-format tests: they pin the JSON shapes that `src/lib/contracts.ts`
 //! mirrors.
 
-use serde_json::{json, to_value, Value};
+use serde_json::{Value, json, to_value};
 
 use super::*;
 

@@ -2,6 +2,7 @@
 
 pub mod aggregate;
 pub mod commands;
+pub mod contracts;
 pub mod db;
 pub mod game;
 pub mod limits;
@@ -30,6 +31,15 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_process::init())
+        .invoke_handler(tauri::generate_handler![
+            commands::get_dashboard,
+            commands::get_settings,
+            commands::update_settings,
+            commands::complete_onboarding,
+            commands::get_game_state,
+            commands::trigger_easter_egg,
+            commands::get_app_info,
+        ])
         .setup(|app| {
             #[cfg(desktop)]
             {
