@@ -12,9 +12,11 @@ pub mod worker;
 pub use unavailable::UnavailableSource;
 pub use worker::{spawn, spawn_with, LimitPoll, LimitsHandle, WorkerConfig};
 
+use std::sync::Arc;
+
 use crate::contracts::limits::LimitSource;
 
 /// The source this build uses.
-pub fn default_source() -> Box<dyn LimitSource> {
-    Box::new(UnavailableSource::no_source())
+pub fn default_source() -> Arc<dyn LimitSource> {
+    Arc::new(UnavailableSource::no_source())
 }

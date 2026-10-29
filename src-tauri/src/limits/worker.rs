@@ -2,17 +2,20 @@
 //!
 //! One thread calls [`LimitSource::fetch`] on a fixed interval and sends each
 //! outcome over a channel to the ingest worker. The channel is unbounded, so
-//! sending never blocks, and a slow, failing or panicking source only delays
-//! or spoils its own thread, never log ingestion.
+//! sending never blocks, and a slow or failing source only delays its own
+//! thread, never log ingestion.
+//!
+//! Release builds use `panic = "abort"`, so a panic cannot be caught here:
+//! [`LimitSource`] implementations must return a `LimitError` for every
+//! failure and never panic.
 
 use std::io;
-use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::mpsc::{channel, RecvTimeoutError, Sender};
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::contracts::limits::{LimitError, LimitReading, LimitReason, LimitSource};
+use crate::contracts::limits::{LimitError, LimitReading, LimitSource};
 
 /// Poll every 5 minutes while the app runs.
 pub const POLL_INTERVAL: Duration = Duration::from_secs(5 * 60);
@@ -115,23 +118,18 @@ pub fn spawn_with(
     Ok(LimitsHandle { control })
 }
 
-/// Calls the source once; a panic becomes an ordinary error.
+/// Calls the source once.
 fn poll_once(source: &dyn LimitSource) -> LimitPoll {
-    let result = catch_unwind(AssertUnwindSafe(|| source.fetch())).unwrap_or_else(|_| {
-        Err(LimitError {
-            reason: LimitReason::Other,
-            detail: "limit source panicked".to_string(),
-        })
-    });
     LimitPoll {
         source: source.id(),
-        result,
+        result: source.fetch(),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::contracts::limits::LimitReason;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::mpsc::Receiver;
 
@@ -166,17 +164,6 @@ mod tests {
                 reason: LimitReason::Network,
                 detail: "offline".into(),
             })
-        }
-    }
-
-    struct Panicking;
-
-    impl LimitSource for Panicking {
-        fn id(&self) -> &'static str {
-            "panicking"
-        }
-        fn fetch(&self) -> Result<LimitReading, LimitError> {
-            panic!("boom");
         }
     }
 
@@ -238,15 +225,6 @@ mod tests {
             let poll = rx.recv_timeout(WAIT).unwrap();
             assert_eq!(poll.source, "failing");
             assert_eq!(poll.result.unwrap_err().reason, LimitReason::Network);
-        }
-    }
-
-    #[test]
-    fn panicking_source_becomes_an_error() {
-        let (_handle, rx) = start(Arc::new(Panicking), 20, 0);
-        for _ in 0..2 {
-            let err = rx.recv_timeout(WAIT).unwrap().result.unwrap_err();
-            assert_eq!(err.reason, LimitReason::Other);
         }
     }
 
