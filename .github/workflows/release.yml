@@ -1,0 +1,133 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  guard:
+    name: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - run: node scripts/guard.mjs --all
+
+      - name: Check updater signing secrets are set
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::error::Secret TAURI_SIGNING_PRIVATE_KEY is not set"
+            exit 1
+          fi
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" ]; then
+            echo "::error::Secret TAURI_SIGNING_PRIVATE_KEY_PASSWORD is not set"
+            exit 1
+          fi
+
+      - name: Check updater config is release-ready
+        run: |
+          node -e "
+            const c = require('./src-tauri/tauri.conf.json');
+            const errors = [];
+            const pubkey = c.plugins && c.plugins.updater && c.plugins.updater.pubkey;
+            if (typeof pubkey !== 'string' || pubkey.trim() === '') {
+              errors.push('plugins.updater.pubkey is empty');
+            }
+            if (!c.bundle || c.bundle.createUpdaterArtifacts !== true) {
+              errors.push('bundle.createUpdaterArtifacts is not true');
+            }
+            for (const e of errors) console.log('::error::tauri.conf.json: ' + e);
+            process.exit(errors.length ? 1 : 0);
+          "
+
+      - name: Check tag matches the app version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          conf="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          pkg="$(node -p "require('./package.json').version")"
+          cargo="$(sed -n 's/^version = "\(.*\)"$/\1/p' src-tauri/Cargo.toml | head -n 1)"
+          status=0
+          for pair in "tauri.conf.json:${conf}" "package.json:${pkg}" "Cargo.toml:${cargo}"; do
+            file="${pair%%:*}"
+            ver="${pair#*:}"
+            if [ "${GITHUB_REF_NAME}" != "v${ver}" ]; then
+              echo "::error::Tag ${GITHUB_REF_NAME} does not match ${file} version v${ver}"
+              status=1
+            fi
+          done
+          exit "$status"
+
+  build:
+    name: build (${{ matrix.name }})
+    needs: guard
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macos-universal
+            os: macos-latest
+            args: --target universal-apple-darwin
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - name: windows
+            os: windows-latest
+            args: ''
+            rust-targets: ''
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      # Binaries are unsigned (no Apple or Windows code-signing secrets).
+      # Only the updater artifacts are signed, with the Tauri updater key.
+      - uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: v__VERSION__
+          releaseName: Tokenmonk v__VERSION__
+          releaseBody: Unsigned build. See the assets to download and install.
+          releaseDraft: true
+          prerelease: false
+          uploadUpdaterJson: true
+          updaterJsonPreferNsis: true
+          args: ${{ matrix.args }}
