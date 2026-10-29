@@ -35,7 +35,8 @@ pub fn plan_read(stored: Option<&SourceFile>, size: u64, mtime_ms: EpochMs) -> R
     let Some(s) = stored else {
         return ReadPlan::Restart;
     };
-    if size < s.offset_bytes || mtime_ms < s.mtime_ms {
+    // Log files are append-only: any shrink or older mtime means replacement.
+    if size < s.size_bytes || size < s.offset_bytes || mtime_ms < s.mtime_ms {
         ReadPlan::Restart
     } else if size == s.size_bytes && mtime_ms == s.mtime_ms {
         ReadPlan::Unchanged
@@ -142,6 +143,8 @@ mod tests {
         let p = file(120, 100, 1000);
         assert_eq!(plan_read(Some(&p), 120, 1000), ReadPlan::Unchanged);
         assert_eq!(plan_read(Some(&p), 140, 1001), ReadPlan::Resume(100));
+        // Shrunk, but still past the offset: replaced all the same.
+        assert_eq!(plan_read(Some(&p), 110, 1001), ReadPlan::Restart);
     }
 
     #[test]
