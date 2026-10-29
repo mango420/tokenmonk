@@ -1,0 +1,176 @@
+/*
+ * Tokenmonk design tokens. The only place design values live.
+ * Source of truth: docs/DESIGN.md.
+ *
+ * State lives in data attributes on <html>:
+ *   data-theme  = "dark" (default, shipped in v0.1) | "light" (prepared, not shipped)
+ *   data-mode   = "max" | "diy"   (absent before onboarding: brand saffron)
+ *   data-season = "halloween"     (absent off-season; set from AppInfo.season)
+ *
+ * Fonts are bundled from the @fontsource packages (Fraunces, Manrope,
+ * JetBrains Mono); this file only defines the family stacks.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Colour: dark theme (default) */
+  --surface-100: #15131a;
+  --surface-200: #1f1c25;
+  --surface-300: #2a2631;
+  --line: #3a3440;
+  --ink: #f4eee4;
+  --ink-muted: #a89f94;
+  --saffron: #f5a142;
+  --saffron-text: #f5a142;
+  --jade: #9be8c4;
+  --jade-text: #9be8c4;
+  --on-accent: #1a1206;
+  --ember: #ff6b57;
+  --pumpkin: #ff8a2b;
+  --pumpkin-text: #ff8a2b;
+
+  /* Scrim behind the ghost overlay: surface-100 at 94 % */
+  --scrim: rgba(21, 19, 26, 0.94);
+
+  /* Shadow: the popup and toasts only */
+  --shadow-popup: 0 12px 32px rgba(0, 0, 0, 0.45);
+
+  /* Mode accents (overridden below by data-mode / data-season) */
+  --accent: var(--saffron);
+  --accent-text: var(--saffron-text);
+  /* Halo of the header logo and the tray icon */
+  --halo: var(--accent);
+  /* Main gauge fill; switches to --gauge-danger by state, not by attribute */
+  --gauge: var(--accent);
+  --gauge-danger: var(--ember);
+  --gauge-track: var(--surface-300);
+
+  /* Type families */
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  /* Type scale: size / line height / weight */
+  --text-display-size: 40px;
+  --text-display-line: 44px;
+  --text-display-weight: 600;
+  --text-title-size: 24px;
+  --text-title-line: 30px;
+  --text-title-weight: 600;
+  --text-heading-size: 16px;
+  --text-heading-line: 22px;
+  --text-heading-weight: 700;
+  --text-body-size: 14px;
+  --text-body-line: 20px;
+  --text-body-weight: 400;
+  --text-caption-size: 12px;
+  --text-caption-line: 16px;
+  --text-caption-weight: 500;
+  --text-counter-size: 32px;
+  --text-counter-line: 36px;
+  --text-counter-weight: 600;
+  --text-mono-size: 12px;
+  --text-mono-line: 16px;
+  --text-mono-weight: 500;
+
+  /* Popup-specific type sizes taken from the screens */
+  --text-wordmark-size: 18px; /* Fraunces 600 */
+  --text-wordmark-line: 22px;
+  --text-level-size: 20px; /* Fraunces 600, level card */
+  --text-level-line: 26px;
+  --text-stat-size: 20px; /* JetBrains Mono 600, stat tiles */
+  --text-stat-line: 26px;
+  --text-ghost-size: 28px; /* Fraunces 600, ghost overlay */
+  --text-ghost-line: 32px;
+  --text-strong-weight: 700; /* body-size labels such as "Weekly limit" */
+
+  /* Spacing (4 px grid) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  /* Popup layout */
+  --popup-width: 360px;
+  --popup-height: 680px;
+  --popup-padding: var(--space-4);
+  --popup-gap: var(--space-3);
+  --card-padding: var(--space-3);
+  --card-padding-lg: var(--space-4); /* halo gauge card */
+  --hit-target: 44px;
+  --header-height: 44px;
+  --logo-size: 36px;
+  --gauge-size: 132px;
+  --gauge-radius: 58px; /* in the 132 x 132 viewBox */
+  --gauge-stroke: 10px;
+  --bar-height: 8px;
+  --bar-height-sm: 6px;
+  --badge-size: 36px;
+  --badge-border: 3px;
+  --ghost-size: 128px;
+
+  /* Icons: line icons, round caps and joins */
+  --icon-stroke: 1.75;
+  --icon-size: 20px;
+  --icon-size-sm: 16px;
+  --icon-size-xs: 12px;
+}
+
+/* Light theme: prepared for later, not shipped in v0.1 */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --surface-100: #fbf6ee;
+  --surface-200: #f2eadc;
+  --surface-300: #e7dcc8;
+  --line: #cdbfa6;
+  --ink: #221c16;
+  --ink-muted: #665c52;
+  --saffron: #f5a142;
+  --saffron-text: #8f4808;
+  --jade: #3faf7e;
+  --jade-text: #266849;
+  --on-accent: #1a1206;
+  --ember: #b3261e;
+  --pumpkin: #e8700e;
+  /* No light pumpkin-text exists in the design; falls back to the fill. */
+  --pumpkin-text: #e8700e;
+  --scrim: rgba(251, 246, 238, 0.94);
+  --shadow-popup: 0 12px 32px rgba(34, 28, 22, 0.14);
+}
+
+/* Modes */
+:root[data-mode="max"] {
+  --accent: var(--saffron);
+  --accent-text: var(--saffron-text);
+  --halo: var(--saffron);
+}
+
+:root[data-mode="diy"] {
+  --accent: var(--jade);
+  --accent-text: var(--jade-text);
+  --halo: var(--jade);
+}
+
+/* Halloween (24 Oct to 2 Nov). Max it out: pumpkin replaces saffron
+   everywhere. Do it yourself: only the halo turns pumpkin, the rest stays jade. */
+:root[data-season="halloween"],
+:root[data-season="halloween"][data-mode="max"] {
+  --accent: var(--pumpkin);
+  --accent-text: var(--pumpkin-text);
+  --halo: var(--pumpkin);
+}
+
+:root[data-season="halloween"][data-mode="diy"] {
+  --accent: var(--jade);
+  --accent-text: var(--jade-text);
+  --halo: var(--pumpkin);
+}
