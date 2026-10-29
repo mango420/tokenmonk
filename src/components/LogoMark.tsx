@@ -4,6 +4,7 @@ import markSource from "../../assets/brand/tokenmonk-mark.svg?raw";
  * The brand mark with a live halo. The drawing stays in
  * `assets/brand/tokenmonk-mark.svg`; the colours the design system owns are
  * rebound to token variables and the halo arc length is set from `ratio`.
+ * Only the halo follows the mode; the robe stays the brand saffron.
  */
 
 /** Halo circle radius in the mark's 128 x 128 viewBox (DESIGN.md, "Logo and halo"). */
@@ -33,7 +34,6 @@ function buildMark(ratio: number | null): string {
   svg = swap(svg, ARC, arc);
   svg = swap(svg, 'stroke="#2A2631"', 'style="stroke:var(--gauge-track)"');
   svg = swap(svg, 'fill="#1F1C25"', 'style="fill:var(--surface-200)"');
-  svg = swap(svg, 'fill="#F5A142"', 'style="fill:var(--accent)"');
   svg = swap(svg, 'stroke="#1A1206"', 'style="stroke:var(--on-accent)"');
   return svg;
 }

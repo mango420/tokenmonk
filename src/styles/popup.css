@@ -438,7 +438,6 @@ button {
 
 .dev-switch select {
   padding: var(--space-2);
-  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface-200);
   color: var(--ink);

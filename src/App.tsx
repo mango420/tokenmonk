@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { Popup } from "./components/Popup";
 import { ScenarioSwitch } from "./dev/ScenarioSwitch";
 import { Dashboard } from "./features/dashboard/Dashboard";
@@ -15,7 +15,7 @@ export default function App() {
 
   // Mode drives the accent in tokens.css. Absent before onboarding: brand saffron.
   const mode = data.settings.mode;
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = document.documentElement;
     if (mode === "noneYet") delete root.dataset.mode;
     else root.dataset.mode = mode;

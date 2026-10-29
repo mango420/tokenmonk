@@ -67,7 +67,7 @@ const REASON_CAPTION: Record<LimitReason, string> = {
 };
 
 function limitsAvailable(limits: LimitsView): boolean {
-  return limits.status !== "unavailable";
+  return limits.status !== "unavailable" && (limits.fiveHour !== null || limits.weekly !== null);
 }
 
 function burnLine(percent: number, etaMinutes: number | null): string {
@@ -96,7 +96,7 @@ function maxGauge(snap: DashboardSnapshot): GaugeModel {
       danger: false,
       stale: false,
       heading: "No limit data. Running on tokens.",
-      detail: { text: REASON_CAPTION[limits.reason ?? "other"], tone: "muted" },
+      detail: limits.reason === null ? null : { text: REASON_CAPTION[limits.reason], tone: "muted" },
     };
   }
   const stale = limits.status === "stale";
