@@ -63,3 +63,24 @@ CSP is strict: `default-src 'self'`, images and fonts from `self` and `data:`, i
 - `.github/workflows/ci.yml` mirrors the Definition of Done on ubuntu and windows, plus a separate `guard` job with full history.
 - Actions pinned to released majors: `actions/checkout@v7`, `actions/setup-node@v7`, `Swatinem/rust-cache@v2`, `dtolnay/rust-toolchain@stable`.
 - `npm run build` runs before cargo because Tauri's `generate_context!` needs `frontendDist`.
+
+## Release
+
+- `.github/workflows/release.yml` runs on pushed tags `v*` (and `workflow_dispatch`). A `guard` job runs `scripts/guard.mjs --all`, checks that both signing secrets are set and that the tag equals `v<tauri.conf.json version>`; the build jobs only start after it passes.
+- Builds: macOS universal (`--target universal-apple-darwin`, both Rust targets installed) and Windows, via `tauri-apps/tauri-action@v1` (also `actions/checkout@v7`, `actions/setup-node@v7`, `Swatinem/rust-cache@v2`, `dtolnay/rust-toolchain@stable`). macOS builds exist only here, never in PR CI.
+- Binaries are unsigned: no Apple or Windows code-signing secrets. Only the updater artifacts are signed. The action creates a draft release `Tokenmonk v<version>` and uploads installers, `.sig` files and `latest.json` (`uploadUpdaterJson: true`, `updaterJsonPreferNsis: true`).
+- Secrets (repository Actions secrets, never in the repo): `TAURI_SIGNING_PRIVATE_KEY` (key content) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. `GITHUB_TOKEN` is the built-in one (`permissions: contents: write`).
+
+### Cutting a release
+
+1. One time: `npm run tauri signer generate -- -w <path outside the repo>`; store the private key and password as the two secrets; keep the public key for the config change below.
+2. Bump the version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `package.json` (chore PR), merge to `main`.
+3. Tag the merge commit `v<version>` and push the tag. Never trigger the workflow before the config changes below are on `main`.
+4. Review the draft release (assets for macOS universal and Windows, `latest.json`), then publish it. The endpoint `releases/latest/download/latest.json` resolves only for a published release.
+
+### `tauri.conf.json` changes applied in the release phase
+
+- `bundle.createUpdaterArtifacts`: `true` (without it no `.sig` files or updater bundles are produced).
+- `plugins.updater.pubkey`: the public key content from the generated `.pub` file (content, not a path).
+- `bundle.macOS.signingIdentity`: `"-"` (ad-hoc signing; Tauri docs recommend it for macOS builds without an Apple certificate, otherwise Apple Silicon builds can be reported as damaged). Users still approve the app once in Privacy & Security.
+- Endpoint stays `https://github.com/mango420/tokenmonk/releases/latest/download/latest.json` (already set).
