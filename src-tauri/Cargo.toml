@@ -1,0 +1,54 @@
+[package]
+name = "tokenmonk"
+version = "0.1.0"
+description = "Tray widget showing live Claude Code token usage"
+authors = ["Tokenmonk contributors"]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/mango420/tokenmonk"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "tokenmonk_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["image-png", "tray-icon"] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4.45", features = ["serde"] }
+rusqlite = { version = "0.41.1", features = ["bundled"] }
+reqwest = { version = "0.13.5", default-features = false, features = ["json", "rustls"] }
+notify = "8.2.1"
+dirs = "7.0.0"
+thiserror = "2.0.21"
+log = "0.4.34"
+resvg = "0.49.0"
+tauri-plugin-positioner = { version = "2.4.0", features = ["tray-icon"] }
+tauri-plugin-process = "2.4.0"
+tauri-plugin-notification = "2.8.0"
+
+
+# Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true
+
+[dev-dependencies]
+tempfile = "3.27.0"
+
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-autostart = "2.7.0"
+tauri-plugin-single-instance = "2.5.5"
+tauri-plugin-updater = "2.14.1"
