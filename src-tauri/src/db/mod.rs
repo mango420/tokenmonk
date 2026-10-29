@@ -54,14 +54,7 @@ impl Db {
         match Self::open(path) {
             Ok(db) => Ok((db, None)),
             Err(e) if path.exists() && is_unusable(&e) => {
-                let backup = backup_path(path);
-                // Best effort for the WAL side files; they belong to the old file.
-                for suffix in ["-wal", "-shm"] {
-                    let mut side = path.as_os_str().to_owned();
-                    side.push(suffix);
-                    let _ = std::fs::remove_file(PathBuf::from(side));
-                }
-                std::fs::rename(path, &backup)?;
+                let backup = move_aside(path)?;
                 Ok((Self::open(path)?, Some(backup)))
             }
             Err(e) => Err(e),
@@ -108,6 +101,26 @@ fn is_unusable(e: &DbError) -> bool {
     }
 }
 
+/// Renames the database to `<name>.bak-<ms>` and moves its WAL side files
+/// next to the backup, never next to the fresh database.
+fn move_aside(path: &Path) -> std::io::Result<PathBuf> {
+    let backup = backup_path(path);
+    std::fs::rename(path, &backup)?;
+    for suffix in ["-wal", "-shm"] {
+        let side = with_suffix(path, suffix);
+        if side.exists() {
+            std::fs::rename(&side, with_suffix(&backup, suffix))?;
+        }
+    }
+    Ok(backup)
+}
+
+fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
+    let mut name = path.as_os_str().to_owned();
+    name.push(suffix);
+    PathBuf::from(name)
+}
+
 fn backup_path(path: &Path) -> PathBuf {
     let ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -148,6 +161,36 @@ mod tests {
         let (db, backup) = Db::open_or_rebuild(&path).unwrap();
         assert_eq!(db.schema_version().unwrap(), latest_version());
         assert!(backup.unwrap().exists());
+    }
+
+    #[test]
+    fn move_aside_keeps_wal_data_readable_in_the_backup() {
+        let dir = tempfile::tempdir().unwrap();
+        let live = dir.path().join("live.db");
+        let path = dir.path().join("t.db");
+        let writer = Db::open(&live).unwrap();
+        writer
+            .conn()
+            .execute("INSERT INTO settings (key, value) VALUES ('k', '1')", [])
+            .unwrap();
+        // Snapshot main file and WAL while the writer is open, so the row
+        // exists only in the WAL (no checkpoint has happened yet).
+        std::fs::copy(&live, &path).unwrap();
+        std::fs::copy(with_suffix(&live, "-wal"), with_suffix(&path, "-wal")).unwrap();
+        drop(writer);
+
+        let backup = move_aside(&path).unwrap();
+        assert!(!path.exists());
+        assert!(!with_suffix(&path, "-wal").exists());
+        assert!(with_suffix(&backup, "-wal").exists());
+
+        let old = Connection::open(&backup).unwrap();
+        let v: String = old
+            .query_row("SELECT value FROM settings WHERE key = 'k'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(v, "1");
     }
 
     #[test]
