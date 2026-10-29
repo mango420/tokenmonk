@@ -12,7 +12,9 @@ const PATHS = {
       <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" />
     </>
   ),
-  moon: <path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" />,
+  chevronLeft: <path d="M15 5l-7 7 7 7" />,
+  check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
+  moon:<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" />,
   drop: <path d="M12 3s6 6.2 6 10.5a6 6 0 0 1-12 0C6 9.2 12 3 12 3z" />,
   bolt: <path d="M13 2 4 14h7l-1 8 9-12h-7z" />,
   target: (

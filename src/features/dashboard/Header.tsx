@@ -4,10 +4,12 @@ import { LogoMark } from "../../components/LogoMark";
 import { MODE_LABEL, type PopupMode } from "./model";
 
 interface HeaderProps {
-  mode: PopupMode;
+  /** `null` hides the mode label (onboarding). */
+  mode: PopupMode | null;
   /** Halo fill 0..1, same value as the gauge ring; `null` shows the track only. */
   haloRatio: number | null;
-  onOpenSettings: () => void;
+  /** Omitted: no settings button (onboarding). */
+  onOpenSettings?: () => void;
   /** Seam for the ghost easter egg (#16): click counting lives with the caller. */
   onLogoClick?: () => void;
   /** Seam for the "Spooky season" chip (#16), rendered between label and settings. */
@@ -22,15 +24,19 @@ export function Header({ mode, haloRatio, onOpenSettings, onLogoClick, badge }: 
       </button>
       <div className="header__title">
         <span className="header__wordmark">Tokenmonk</span>
-        <span className="header__mode">
-          <Icon name={mode === "max" ? "flame" : "wrench"} size="xs" />
-          {MODE_LABEL[mode]}
-        </span>
+        {mode === null ? null : (
+          <span className="header__mode">
+            <Icon name={mode === "max" ? "flame" : "wrench"} size="xs" />
+            {MODE_LABEL[mode]}
+          </span>
+        )}
       </div>
       {badge}
-      <button type="button" className="icon-button" aria-label="Settings" onClick={onOpenSettings}>
-        <Icon name="gear" />
-      </button>
+      {onOpenSettings === undefined ? null : (
+        <button type="button" className="icon-button" aria-label="Settings" onClick={onOpenSettings}>
+          <Icon name="gear" />
+        </button>
+      )}
     </header>
   );
 }
