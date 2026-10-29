@@ -43,7 +43,6 @@ Components use the mode-neutral variables, switched by `data-mode` on
 | `--accent` | Fills: mode label, weekly bar, level title, badge ring, gauge |
 | `--accent-text` | Accent used as text or thin icon |
 | `--halo` | Halo of the header logo and the tray icon |
-| `--robe` | Robe of the header logo |
 | `--gauge` | Main gauge fill (= `--accent`) |
 | `--gauge-danger` | Gauge fill in danger (= `--ember`) |
 | `--gauge-track` | Unfilled gauge and bar tracks (= `--surface-300`) |
@@ -112,7 +111,9 @@ The popup is 360 x 680 px, radius 12, background `surface-100`, padding 16,
 a single column with a 12 px gap between blocks. Hit targets are at least
 44 x 44. Top to bottom:
 
-1. **Header** (height 44): logo button (44 x 44, mark drawn at 36),
+1. **Header** (height 44): logo button (44 x 44) showing
+   `assets/brand/tokenmonk-mark.svg` at 36 px with a live halo (decided:
+   the inline drawing in the screens is a simplification of this mark),
    wordmark "Tokenmonk" (Fraunces 600 18/22) above the mode label (caption,
    `--accent-text`, 12 px mode icon at stroke 2, gap 4). During Halloween a
    pill "Spooky season" (caption, pumpkin text on `surface-300`, padding
@@ -197,7 +198,7 @@ Halo colour and value:
 |---|---|---|
 | Header logo halo | `--halo`, value = 5-hour % | `--halo`, value = budget used (capped at 100) |
 | Tray icon halo | same as header | same as header |
-| Halloween | halo, robe and all accents pumpkin | halo pumpkin, everything else stays jade |
+| Halloween | halo and all accents pumpkin | halo pumpkin, everything else stays jade |
 
 The tray icon is rendered in Rust from the mark shapes with the live arc.
 
@@ -206,12 +207,11 @@ The tray icon is rendered in Rust from the mark shapes with the live arc.
 Season comes from Rust (`AppInfo.season`) and is set as
 `data-season="halloween"` on `<html>`.
 
-- Max it out: `pumpkin` replaces `saffron` everywhere (halo, robe, mode
+- Max it out: `pumpkin` replaces `saffron` everywhere (halo, mode
   label, bars, title, badge ring, XP text, gauge).
 - Do it yourself: only the halo turns pumpkin; gauge, bars and labels stay
   jade.
-- The "Spooky season" pill appears in the header; the ghost mark replaces
-  the monk on the about screen.
+- The "Spooky season" pill appears in the header.
 - Ember still overrides the gauge in danger.
 
 ## Iconography
@@ -221,11 +221,15 @@ matching the halo's round ends. Sizes 20 (buttons), 16 (badge glyphs), 12
 (inline with captions). The mode emojis 🔥 and 🛠️ may appear in UI text.
 Achievement badges are circles (mini halos) with one glyph inside.
 
-## Not covered by the design
+## Not covered by the design / out of scope
 
-The two popup screens do not show these; they are not designed yet and need
-a design decision before implementation (the frontend should not invent
-them):
+Out of scope for v0.1:
+
+- The about screen (the brand guide shows the ghost mark there during
+  Halloween). It has no `View` in the contracts.
+
+The two popup screens do not show the following; they are specified in a
+follow-up issue and the frontend should not invent them before that:
 
 - Onboarding ("How do you want to vibe?") and settings screens.
 - Limit data unavailable or stale (Max it out gauge without a 5-hour value).
@@ -234,6 +238,4 @@ them):
 - When the achievement row shows the latest unlock and when an achievement
   in progress.
 - The ghost overlay text on repeat triggers, when Boo is already unlocked.
-- The header logo in the screens is a simplified inline drawing (disc radius
-  44, stroke 10, robe in the accent) rather than `tokenmonk-mark.svg`.
 - Light theme `pumpkin-text` value.

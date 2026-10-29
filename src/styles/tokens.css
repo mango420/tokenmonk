@@ -41,8 +41,6 @@
   --accent-text: var(--saffron-text);
   /* Halo of the header logo and the tray icon */
   --halo: var(--accent);
-  /* Robe of the header logo */
-  --robe: var(--accent);
   /* Main gauge fill; switches to --gauge-danger by state, not by attribute */
   --gauge: var(--accent);
   --gauge-danger: var(--ember);
@@ -154,14 +152,12 @@
   --accent: var(--saffron);
   --accent-text: var(--saffron-text);
   --halo: var(--saffron);
-  --robe: var(--saffron);
 }
 
 :root[data-mode="diy"] {
   --accent: var(--jade);
   --accent-text: var(--jade-text);
   --halo: var(--jade);
-  --robe: var(--jade);
 }
 
 /* Halloween (24 Oct to 2 Nov). Max it out: pumpkin replaces saffron
@@ -171,12 +167,10 @@
   --accent: var(--pumpkin);
   --accent-text: var(--pumpkin-text);
   --halo: var(--pumpkin);
-  --robe: var(--pumpkin);
 }
 
 :root[data-season="halloween"][data-mode="diy"] {
   --accent: var(--jade);
   --accent-text: var(--jade-text);
   --halo: var(--pumpkin);
-  --robe: var(--jade);
 }
