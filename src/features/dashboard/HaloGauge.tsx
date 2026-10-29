@@ -48,7 +48,9 @@ export function HaloGauge({ model }: HaloGaugeProps) {
         </div>
       </div>
       <div className="gauge-card__text">
-        <span className="gauge-card__heading">{model.heading}</span>
+        <span className={`gauge-card__heading${model.headingAlert ? " gauge-card__heading--alert" : ""}`}>
+          {model.heading}
+        </span>
         {model.detail !== null ? (
           <span className={`gauge-card__detail gauge-card__detail--${model.detail.tone}`}>
             {model.detail.text}

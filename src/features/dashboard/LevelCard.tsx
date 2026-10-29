@@ -14,7 +14,11 @@ export function LevelCard({ model }: LevelCardProps) {
         <span className="caption caption--accent">{model.title}</span>
       </div>
       <Bar ratio={model.ratio} fill="ink" />
-      <span className="mono-value live-number muted">{model.caption}</span>
+      {model.counting ? (
+        <span className="caption">{model.caption}</span>
+      ) : (
+        <span className="mono-value live-number muted">{model.caption}</span>
+      )}
     </Card>
   );
 }

@@ -11,7 +11,7 @@ export function StatTiles({ tiles }: StatTilesProps) {
       {tiles.map((tile) => (
         <Card key={tile.label} className="stat-tile">
           <span className="caption">{tile.label}</span>
-          <span className="stat-tile__value live-number">{tile.value}</span>
+          <span className={`stat-tile__value live-number${tile.muted ? " muted" : ""}`}>{tile.value}</span>
         </Card>
       ))}
     </div>
