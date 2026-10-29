@@ -261,7 +261,13 @@ mod tests {
 
     #[test]
     fn skips_other_line_types() {
-        for t in ["user", "system", "cost-state", "api-request-blob", "brand-new"] {
+        for t in [
+            "user",
+            "system",
+            "cost-state",
+            "api-request-blob",
+            "brand-new",
+        ] {
             let line = format!(
                 r#"{{"type":"{t}","message":{{"role":"assistant","id":"m","usage":{{"input_tokens":5}}}}}}"#
             );
