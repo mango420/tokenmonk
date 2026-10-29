@@ -1,0 +1,20 @@
+import type { ReactNode } from "react";
+
+interface PopupProps {
+  children: ReactNode;
+  /**
+   * Covers the whole popup. Seam for game toasts (#12) and the ghost overlay
+   * (#16); the frame is `position: relative`.
+   */
+  overlay?: ReactNode;
+}
+
+/** The 360 x 680 popup frame every view renders into. */
+export function Popup({ children, overlay }: PopupProps) {
+  return (
+    <div className="popup">
+      {children}
+      {overlay}
+    </div>
+  );
+}
