@@ -4,13 +4,16 @@
  * "Now" is always `DashboardSnapshot.generatedAt`, so the output is a pure
  * function of the snapshot.
  */
+import type { Fill } from "../../components/ChoiceTile";
 import type {
   AchievementId,
   DashboardSnapshot,
+  DataStatus,
   GameState,
   LimitReason,
   LimitsView,
   Mode,
+  Season,
 } from "../../lib/contracts";
 import {
   clamp01,
@@ -23,6 +26,12 @@ import {
 } from "../../lib/format";
 
 export type PopupMode = "max" | "diy";
+
+/** Fill of a mode's tile and button; Max it out turns pumpkin during Halloween. */
+export function modeFill(mode: PopupMode, season: Season): Fill {
+  if (mode === "diy") return "jade";
+  return season === "halloween" ? "pumpkin" : "saffron";
+}
 
 /** Before onboarding (`noneYet`) the popup falls back to Max it out. */
 export function toPopupMode(mode: Mode): PopupMode {
@@ -40,7 +49,7 @@ const CAREFUL_PERCENT = 75;
 
 // ------------------------------------------------------------------- gauge
 
-export type GaugeDetailTone = "muted" | "xp" | "ember";
+export type GaugeDetailTone = "muted" | "mono" | "xp" | "ember";
 
 export interface GaugeModel {
   /** Counter text in the ring centre. */
@@ -54,6 +63,8 @@ export interface GaugeModel {
   stale: boolean;
   /** Right column, heading style. */
   heading: string;
+  /** Heading in `--ember` (logs unreadable). */
+  headingAlert?: boolean;
   /** Right column, second line. */
   detail: { text: string; tone: GaugeDetailTone } | null;
 }
@@ -70,11 +81,16 @@ function limitsAvailable(limits: LimitsView): boolean {
   return limits.status !== "unavailable" && (limits.fiveHour !== null || limits.weekly !== null);
 }
 
+/** "Limit in ~25 min at this pace": N rounded to 5, at least 5. */
+export function limitEtaText(etaMinutes: number): string {
+  const rounded = Math.max(5, Math.round(etaMinutes / 5) * 5);
+  return `Limit in ~${rounded} min at this pace`;
+}
+
 function burnLine(percent: number, etaMinutes: number | null): string {
   if (percent >= 100 || etaMinutes === 0) return "Limit reached. Breathe.";
   if (etaMinutes === null) return "Nothing burning right now.";
-  const rounded = Math.max(5, Math.round(etaMinutes / 5) * 5);
-  return `Limit in ~${rounded} min at this pace`;
+  return limitEtaText(etaMinutes);
 }
 
 function moodLine(usedPercent: number): string {
@@ -148,8 +164,65 @@ function diyGauge(snap: DashboardSnapshot, game: GameState): GaugeModel {
   };
 }
 
+/** Import progress 0..1 while importing (0 without files), otherwise `null`. */
+export function importRatio(data: DataStatus): number | null {
+  if (data.state !== "importing") return null;
+  return data.filesTotal > 0 ? clamp01(data.filesDone / data.filesTotal) : 0;
+}
+
+/** First-start log import: both modes, never danger (DESIGN.md, "First-start import"). */
+function importGauge(data: DataStatus): GaugeModel {
+  const ratio = importRatio(data) ?? 0;
+  return {
+    value: formatPercent(ratio * 100),
+    caption: "logs read",
+    ratio,
+    danger: false,
+    stale: false,
+    heading: "Reading your history.",
+    detail: {
+      text: `${formatInt(data.filesDone)} / ${formatInt(data.filesTotal)} files`,
+      tone: "mono",
+    },
+  };
+}
+
+function noLogsGauge(): GaugeModel {
+  return {
+    value: "0",
+    caption: "tokens today",
+    ratio: null,
+    danger: false,
+    stale: false,
+    heading: "No logs yet.",
+    detail: { text: "Start a Claude Code session. I pick it up by myself.", tone: "muted" },
+  };
+}
+
+function logErrorGauge(snap: DashboardSnapshot): GaugeModel {
+  return {
+    value: formatShort(snap.today.total),
+    caption: "tokens today",
+    ratio: null,
+    danger: false,
+    stale: false,
+    heading: "Can’t read the logs.",
+    headingAlert: true,
+    detail: { text: "Retrying in the background.", tone: "muted" },
+  };
+}
+
 export function buildGauge(mode: PopupMode, snap: DashboardSnapshot, game: GameState): GaugeModel {
-  return mode === "max" ? maxGauge(snap) : diyGauge(snap, game);
+  switch (snap.data.state) {
+    case "importing":
+      return importGauge(snap.data);
+    case "noLogs":
+      return noLogsGauge();
+    case "error":
+      return logErrorGauge(snap);
+    case "ready":
+      return mode === "max" ? maxGauge(snap) : diyGauge(snap, game);
+  }
 }
 
 // ------------------------------------------------------------- stat tiles
@@ -157,15 +230,16 @@ export function buildGauge(mode: PopupMode, snap: DashboardSnapshot, game: GameS
 export interface StatTile {
   label: string;
   value: string;
+  /** Muted value such as "Idle". */
+  muted?: boolean;
 }
 
 export function buildStatTiles(snap: DashboardSnapshot): StatTile[] {
   return [
     { label: "Tokens today", value: formatInt(snap.today.total) },
-    {
-      label: "This session",
-      value: snap.session === null ? "n/a" : formatInt(snap.session.tokens.total),
-    },
+    snap.session === null
+      ? { label: "This session", value: "Idle", muted: true }
+      : { label: "This session", value: formatInt(snap.session.tokens.total) },
   ];
 }
 
@@ -206,16 +280,29 @@ export function buildWeekly(mode: PopupMode, limits: LimitsView): WeeklyModel {
 export interface LevelModel {
   heading: string;
   title: string;
-  ratio: number;
+  /** `null` shows the track only (old XP still being counted). */
+  ratio: number | null;
   caption: string;
+  /** Plain muted caption instead of the mono XP line. */
+  counting: boolean;
 }
 
 export function buildLevel(game: GameState): LevelModel {
+  if (!game.retroDone) {
+    return {
+      heading: `Level ${game.level}`,
+      title: game.title,
+      ratio: null,
+      caption: "Counting old XP. Hold still.",
+      counting: true,
+    };
+  }
   return {
     heading: `Level ${game.level}`,
     title: game.title,
     ratio: clamp01(game.progress),
     caption: `${formatInt(game.xpIntoLevel)} / ${formatInt(game.xpForLevel)} XP to level ${game.level + 1}`,
+    counting: false,
   };
 }
 

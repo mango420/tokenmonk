@@ -414,17 +414,268 @@ button {
   text-align: center;
 }
 
-/* --------------------------------------------------- placeholders (dev) */
+/* -------------------------------------------- empty, import and error states */
 
-.placeholder-back {
-  align-self: flex-start;
+.gauge-card__heading--alert {
+  color: var(--ember);
+}
+
+.gauge-card__detail--mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-mono-size);
+  line-height: var(--text-mono-line);
+  font-weight: var(--text-mono-weight);
+}
+
+.caption--error {
+  color: var(--ember);
+}
+
+/* ------------------------------------------------------- full-popup screens */
+
+/* Mode fill families: tiles and buttons read --fill / --fill-text. */
+.fill--saffron {
+  --fill: var(--saffron);
+  --fill-text: var(--saffron-text);
+}
+
+.fill--jade {
+  --fill: var(--jade);
+  --fill-text: var(--jade-text);
+}
+
+.fill--pumpkin {
+  --fill: var(--pumpkin);
+  --fill-text: var(--pumpkin-text);
+}
+
+.screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.screen--status {
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.screen__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-title-size);
+  line-height: var(--text-title-line);
+  font-weight: var(--text-title-weight);
+  color: var(--ink);
+}
+
+.screen__lead {
+  margin: 0;
+  font-size: var(--text-heading-size);
+  line-height: var(--text-heading-line);
+  font-weight: var(--text-heading-weight);
+}
+
+.screen__bottom {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.screen .caption {
+  margin: 0;
+}
+
+/* ---------------------------------------------------------- primary button */
+
+.button-primary {
   min-height: var(--hit-target);
   padding: 0 var(--space-6);
   border: none;
   border-radius: var(--radius-md);
-  background: var(--surface-300);
-  cursor: pointer;
+  background: var(--fill, var(--accent));
+  color: var(--on-accent);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
   font-weight: var(--text-strong-weight);
+  cursor: pointer;
+}
+
+.button-primary--full {
+  width: 100%;
+}
+
+.button-primary:disabled {
+  background: var(--surface-300);
+  color: var(--ink-muted);
+  cursor: default;
+}
+
+/* ------------------------------------------------------------- choice tiles */
+
+.choice-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.choice-row {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.choice-row .choice-tile {
+  flex: 1;
+  min-width: 0;
+}
+
+.choice-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: var(--hit-target);
+  padding: var(--space-4);
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--surface-200);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.choice-tile:hover:not(:disabled) {
+  background: var(--surface-300);
+}
+
+.choice-tile--compact {
+  padding: var(--space-3);
+}
+
+.choice-tile--selected {
+  /* 2 px ring: half a spacing step. */
+  box-shadow: inset 0 0 0 calc(var(--space-1) / 2) var(--fill);
+}
+
+.choice-tile__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.choice-tile__icon,
+.choice-tile__check {
+  display: flex;
+  color: var(--fill-text);
+}
+
+.choice-tile__check {
+  margin-left: auto;
+}
+
+.choice-tile__name {
+  font-size: var(--text-heading-size);
+  line-height: var(--text-heading-line);
+  font-weight: var(--text-heading-weight);
+}
+
+.choice-tile__description {
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  color: var(--ink-muted);
+}
+
+.import-line {
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-mono-size);
+  line-height: var(--text-mono-line);
+  font-weight: var(--text-mono-weight);
+  color: var(--ink-muted);
+}
+
+/* ---------------------------------------------------------------- settings */
+
+.number-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.counter {
+  font-size: var(--text-counter-size);
+  line-height: var(--text-counter-line);
+  font-weight: var(--text-counter-weight);
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.hairline {
+  width: 100%;
+  height: 0;
+  margin: 0;
+  border: none;
+  /* 1 px: a quarter of the smallest spacing step. */
+  border-top: calc(var(--space-1) / 4) solid var(--line);
+}
+
+.toggle-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  width: 100%;
+  min-height: var(--hit-target);
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.toggle-row__text {
+  display: flex;
+  flex-direction: column;
+}
+
+.toggle {
+  position: relative;
+  flex: none;
+  width: calc(var(--space-8) + var(--space-2));
+  height: var(--space-6);
+  border-radius: var(--radius-sm);
+  background: var(--surface-300);
+}
+
+.toggle__knob {
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-1);
+  width: var(--space-4);
+  height: var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--ink-muted);
+}
+
+.toggle-row--on .toggle {
+  background: var(--accent);
+}
+
+.toggle-row--on .toggle__knob {
+  background: var(--on-accent);
+  /* Track width minus knob minus both insets. */
+  transform: translateX(calc(var(--space-8) + var(--space-2) - var(--space-4) - 2 * var(--space-1)));
 }
 
 .dev-switch {
