@@ -6,18 +6,26 @@ import type { AppActions, AppData } from "../../lib/appData";
 import type { SettingsPatch } from "../../lib/contracts";
 import { formatInt } from "../../lib/format";
 import { MODE_LABEL, modeFill } from "../dashboard/model";
+import { LimitData } from "./LimitData";
 
 interface SettingsViewProps {
   data: AppData;
   actions: AppActions;
   onBack: () => void;
+  /** Scroll to "Limit data" on open (the dashboard's setup hint asks for it). */
+  scrollToLimits?: boolean;
 }
 
 /**
  * Settings: every change applies at once through `update_settings`. While the
  * call runs the control stays in its new position; a rejected call flips it back.
  */
-export function SettingsView({ data, actions, onBack }: SettingsViewProps) {
+export function SettingsView({ data, actions, onBack, scrollToLimits = false }: SettingsViewProps) {
+  const limitsRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (scrollToLimits) limitsRef.current?.scrollIntoView({ block: "start" });
+  }, [scrollToLimits]);
+
   const [pending, setPending] = useState<SettingsPatch>({});
   const [failed, setFailed] = useState(false);
   /** Latest call number per key; only the newest call may clear its pending value. */
@@ -108,6 +116,15 @@ export function SettingsView({ data, actions, onBack }: SettingsViewProps) {
             onChange={(autostart) => void change({ autostart })}
           />
         </div>
+
+        <hr className="hairline" />
+
+        <LimitData
+          ref={limitsRef}
+          limits={data.dashboard.limits}
+          platform={data.appInfo.platform}
+          loadLimitSetup={actions.loadLimitSetup}
+        />
 
         {data.appInfo.version === "" ? null : (
           <p className="footer-note">Tokenmonk {data.appInfo.version}</p>
