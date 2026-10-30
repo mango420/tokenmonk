@@ -165,6 +165,25 @@ fn app_info_and_errors_shape() {
 }
 
 #[test]
+fn limit_setup_shape() {
+    let setup = LimitSetup {
+        statusline_command: Some("/opt/example/tokenmonk --statusline".into()),
+    };
+    assert_eq!(
+        to_value(setup).unwrap(),
+        json!({ "statuslineCommand": "/opt/example/tokenmonk --statusline" })
+    );
+    let none = LimitSetup {
+        statusline_command: None,
+    };
+    assert_eq!(
+        to_value(none).unwrap(),
+        json!({ "statuslineCommand": null })
+    );
+    assert_eq!(commands::GET_LIMIT_SETUP, "get_limit_setup");
+}
+
+#[test]
 fn names_are_unique_and_well_formed() {
     let mut seen = std::collections::HashSet::new();
     for name in commands::ALL {
