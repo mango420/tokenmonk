@@ -315,8 +315,62 @@ Layout (360 x 680, padding `popup-padding`, column, gap `space-6`):
    (Manrope 700 14/20) over a caption (`ink-muted`), toggle at the right:
    - "Sound", caption "On unlocks and level-ups".
    - "Start at login", caption "Lives in the tray, not in your way".
-5. Footer, pushed to the bottom (caption, `ink-muted`, centred):
+5. Hairline, then section "Limit data" (see below).
+6. Footer, pushed to the bottom (caption, `ink-muted`, centred):
    "Tokenmonk 0.1.0" from `AppInfo.version`.
+
+The settings view scrolls vertically when its content is taller than the
+popup; the header row stays in place.
+
+#### Limit data
+
+Column, gap `space-3`. Tokenmonk never edits Claude Code settings; this
+section only shows what to paste.
+
+1. Caption label "Limit data" (`ink-muted`).
+2. Status line (Manrope 700 14/20), from `DashboardSnapshot.limits`:
+
+   | Limits | Text |
+   |---|---|
+   | `ok` or `stale` | "Connected. Last reading 14:05." (`fetchedAt`, local 24 h time, mono for the time) |
+   | `unavailable`, `noSource` | "Not set up yet." |
+   | `unavailable`, other reasons | "Can’t read the limit file. Next reply fixes it." |
+
+3. Setup copy (caption, `ink-muted`): "Limits come from Claude Code’s
+   status line. Local only, no login. Add this to
+   ~/.claude/settings.json:" (the path in mono).
+4. Snippet card: `surface-200`, `radius-sm`, padding `space-3`, mono style
+   (`--text-mono-*`), `ink`, text selectable, wraps long lines anywhere
+   (`white-space: pre-wrap`, `overflow-wrap: anywhere`). Content is
+   `JSON.stringify({ statusLine: { type: "command", command } }, null, 2)`
+   with `command = LimitSetup.statuslineCommand`, for example:
+
+   ```json
+   {
+     "statusLine": {
+       "type": "command",
+       "command": "/Applications/Tokenmonk.app/Contents/MacOS/tokenmonk --statusline"
+     }
+   }
+   ```
+
+   Icon button (copy icon, aria-label "Copy snippet") in the card's top
+   right corner. After a successful copy the caption under the card reads
+   "Copied. Paste it, then send Claude Code one message." for 2 s. If
+   copying fails, the caption reads "Couldn’t copy. Select it and copy by
+   hand." If `statuslineCommand` is `null`, the card is replaced by the
+   caption "Couldn’t find the Tokenmonk executable. Reinstall, then look
+   again." and the copy button is not shown.
+5. Chain hint (caption, `ink-muted`): "Already have a status line? Keep it.
+   Add this line to your script after it reads the input:" followed by a
+   second snippet card (same style, own copy button) with
+   `printf '%s' "$input" | <command> >/dev/null`, where `<command>` is
+   `statuslineCommand`.
+6. Plan note (caption, `ink-muted`): "Needs a Pro or Max plan. Numbers show
+   up after the first reply."
+
+Fed by: `LimitSetup` (`get_limit_setup`, called once when the view opens),
+`DashboardSnapshot.limits` (`status`, `reason`, `fetchedAt`).
 
 States: every change applies at once through `update_settings { patch }`,
 no save button. While a call runs the control stays in its new position;
@@ -325,7 +379,8 @@ again." appears under the section in `ember`. Switching mode changes the
 accent immediately after `settings-changed`.
 
 Fed by: `Settings`, `update_settings`, `settings-changed`,
-`GameState.xpTotal`, `AppInfo.version`, `NavigateTo`.
+`GameState.xpTotal`, `AppInfo.version`, `NavigateTo`, `LimitSetup`,
+`DashboardSnapshot.limits`.
 
 ### Achievement toast
 
@@ -464,8 +519,10 @@ Fed by: `DataStatus.state`, `AppInfo.logsFound`, `DashboardSnapshot.today`,
 
 ### Limits unavailable and stale
 
-v0.1 usually has no limit source (`limits.status = unavailable`, `reason =
-noSource`). The app then runs on token data and says so.
+v0.1 gets limits from Claude Code’s status line (ARCHITECTURE.md,
+"Limits"). Until that is set up, or when no window is current,
+`limits.status = unavailable` with `reason = noSource`. The app then runs
+on token data and says so.
 
 **Unavailable**, Max it out gauge card: ring track only, header halo track
 only; counter = `burnRate.tokensPerMinute`, caption "tokens / min". Values
@@ -476,10 +533,14 @@ heading "No limit data. Running on tokens." over the reason caption
 
 | `reason` | Caption |
 |---|---|
-| `noSource` | "This version has no limit source." |
+| `noSource` | "Hook up Claude Code’s status line in Settings." |
 | `notSignedIn` | "Not signed in to Claude." |
 | `network` | "Offline. Trying again in 5 min." |
-| `invalidResponse`, `other` | "The limit source talked nonsense. Trying again in 5 min." |
+| `invalidResponse`, `other` | "The limit file talked nonsense. Next reply fixes it." |
+
+With `reason = noSource` the caption is a text button (`accent-text`,
+underlined, min height `hit-target`) that opens Settings, scrolled to
+"Limit data". The setup itself lives only in Settings.
 
 **Unavailable**, Do it yourself: the gauge runs on `dailyBudget` with
 `basis = tokenHistory` as usual. If `dailyBudget = null` (not enough
@@ -489,14 +550,17 @@ caption "tokens today", heading "Learning your normal." over the caption
 
 **Unavailable**, weekly card (both modes, `limits.weekly = null`): label as
 usual, value "n/a" (mono, `ink-muted`), bar track only, caption "No limit
-data. Token stats still count."
+data. Token stats still count." With `reason = noSource` the caption is
+"No limit data yet. Setup is in Settings." (same text button style as
+above, so Do it yourself shows the hint too).
 
 **Unavailable**, footer note: "No limit data · token stats from Claude Code
 only".
 
 **Stale** (`status = stale`, last good reading kept): gauge, weekly card
 and halo show the last values as usual; the counter turns `ink-muted`; in
-the right column the reset caption is replaced by "As of 14:05. Retrying."
+the right column the reset caption is replaced by "As of 14:05. Updates
+on your next reply."
 (`fetchedAt`, local 24 h time). The footer stays as usual. Ember danger
 still applies to stale values.
 
@@ -559,3 +623,9 @@ Out of scope for v0.1:
 Open points:
 
 - Light theme `pumpkin-text` value.
+- Copy buttons in "Limit data" use the web Clipboard API
+  (`navigator.clipboard.writeText`); whether it works in the Tauri webviews
+  on both platforms is unverified. No clipboard plugin in v0.1; on failure
+  the fallback copy applies and the snippet stays selectable.
+- "Limit data" has no mockup; it is derived from the settings rows and
+  card building blocks only.

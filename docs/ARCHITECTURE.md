@@ -127,7 +127,8 @@ storage.
     in that range.
 - **Limit status**: `ok` if the last good reading is at most 15 minutes old,
   `stale` if older (values still shown), `unavailable` if there is none or
-  the source reports `noSource`. `reason` carries the last error.
+  the source reports `noSource` (v0.1: bridge not set up or no current
+  window). `reason` carries the last error.
 
 Window lengths and thresholds above (15 min burn window, 60 min idle,
 15 min stale) are aggregate constants, not contract values; changing them
@@ -142,18 +143,146 @@ pub trait LimitSource: Send + Sync {
 }
 ```
 
-- The trait and its data types are the only contract. No endpoint, URL or
-  credential handling is defined here; a concrete online source is added
-  only once verified, as a new implementation behind the trait.
-- v0.1 ships with a source that always returns `LimitError { reason:
-  noSource }` unless a verified source exists. The app then runs on token
-  data alone: Max it out shows token figures and the footer explains that
-  limit data is unavailable; Do it yourself uses the `tokenHistory` budget.
-- Poll interval: every 5 minutes while the app runs, plus once when the
-  popup opens if the last reading is older than 1 minute. Each good reading
-  is stored in `limit_snapshots`.
+- The trait and its data types are the contract. Sources are swappable
+  implementations in the `limits` module.
+- v0.1 source: the **status-line bridge**. Local only: no network, no
+  credentials, no endpoint. Claude Code pipes a JSON object to its
+  configured status-line command; the bridge mode of the Tokenmonk
+  executable keeps only the `rate_limits` part and the app reads it from a
+  small file. Tokenmonk never edits Claude Code settings; the user pastes
+  one setup snippet (DESIGN.md, Settings, "Limit data"). Sources and
+  verified facts: DECISIONS.md, "Limit source".
+- Without a usable reading the app runs on token data alone: Max it out
+  shows token figures and explains that limit data is missing; Do it
+  yourself uses the `tokenHistory` budget.
 - Limit percentages include claude.ai chats; token statistics are Claude
   Code only. The popup footer says so permanently.
+
+### Status-line input (verified, used fields only)
+
+| Field | Type | Meaning |
+|---|---|---|
+| `rate_limits.five_hour.used_percentage` | number | Used share of the 5-hour window, 0 to 100 |
+| `rate_limits.five_hour.resets_at` | number | Window reset, Unix epoch **seconds** |
+| `rate_limits.seven_day.used_percentage` | number | Used share of the weekly window, 0 to 100 |
+| `rate_limits.seven_day.resets_at` | number | Window reset, Unix epoch seconds |
+
+- `rate_limits` is present only for claude.ai Pro and Max subscribers, and
+  only after the first API response of a session. Each window can be
+  absent on its own; Claude Code drops a window once its `resets_at` has
+  passed.
+- `rate_limits.spend_limit` (Claude apps gateway) is ignored in v0.1.
+- Every other input field (paths, session, model, cost, workspace and so
+  on) is never kept, stored or logged.
+- Claude Code runs the command at session start or resume, after each
+  assistant message, after `/compact`, on permission or vim mode changes,
+  when a window in the last data reaches `resets_at`, and on the optional
+  `refreshInterval` timer. Updates are debounced at 300 ms; a run still in
+  flight is cancelled by the next one. Output shows only after exit code
+  0; a non-zero exit or empty output blanks the status line.
+
+### Bridge mode
+
+- Invocation: `<tokenmonk executable> --statusline`. The flag must be the
+  first argument. `main.rs` checks it **before** the Tauri builder runs, so
+  no window, tray, plugin (single-instance included), database or logger
+  starts. Bridge code lives in `src-tauri/src/limits/bridge.rs`.
+- Steps:
+  1. Read stdin to EOF, at most 1 MiB (more counts as bad input).
+  2. Parse JSON. Take `rate_limits.five_hour` and `rate_limits.seven_day`.
+     A window is valid if `used_percentage` is a finite number >= 0;
+     `resets_at` is optional and used only if it is a finite number > 0.
+  3. If at least one window is valid, write the bridge file (below);
+     otherwise leave an existing file untouched (it keeps the last good
+     reading).
+  4. Print one short ASCII line to stdout and exit with code 0.
+- Output line: `5h 24% | 7d 41%` (percent rounded down, a missing window
+  is left out); with no valid window: `Tokenmonk: no limit data yet`.
+- Never breaks Claude Code's status line: bad, empty or oversized input,
+  write errors and missing directories all end in the fallback line and
+  exit code 0. No panics (the release profile uses `panic = "abort"`), no
+  stderr output, no retries, no waiting. Target runtime: well under the
+  300 ms debounce.
+- Atomic write: create the app data directory if missing, write to
+  `statusline.json.<pid>.tmp` in the same directory, then rename it over
+  `statusline.json` (`std::fs::rename` replaces the target). On error,
+  remove the temp file and move on. Parallel sessions may race; the last
+  rename wins, which is fine because all sessions report the same account.
+- File: `<app data dir>/statusline.json`. The app data dir is
+  `dirs::data_dir()` joined with the bundle identifier
+  `app.tokenmonk.desktop`; this equals Tauri's `app_data_dir()` (Tauri
+  resolves it to `data_dir/<bundle identifier>`, and the app sets no
+  `appDirectoriesOverride`). Bridge and file source call the same helper
+  so the paths cannot drift.
+- No `refreshInterval` in the snippet: a timer re-run resends the last
+  values, which would make an old reading look fresh.
+
+Bridge file (camelCase, all timestamps `EpochMs`; invented values):
+
+```json
+{
+  "version": 1,
+  "receivedAt": 1767225600000,
+  "fiveHour": { "usedPercentage": 23.5, "resetsAt": 1767240000000 },
+  "sevenDay": { "usedPercentage": 41.2, "resetsAt": 1767600000000 }
+}
+```
+
+- `version` is `1`; `receivedAt` is when the bridge ran; `fiveHour` and
+  `sevenDay` are `null` when absent; `resetsAt` is `null` when unknown.
+  `resets_at` seconds are multiplied by 1000. Nothing else is written.
+
+### File source (`StatuslineSource`, id `"statusline"`)
+
+| File state | Result |
+|---|---|
+| Missing | `LimitError { noSource, "status-line bridge not set up" }` |
+| Unreadable | `LimitError { other, <io error kind> }` |
+| Not JSON, unknown `version`, wrong types | `LimitError { invalidResponse, ... }` |
+| Valid | `LimitReading { fiveHour, weekly: sevenDay, fetchedAt: receivedAt }`, `utilization = usedPercentage` |
+
+- Windows whose `resetsAt` is at or before now are dropped (`None`), as
+  Claude Code does. If no window is left: `LimitError { noSource, "no
+  current window" }`, so the UI shows the setup hint, not dead numbers.
+- `default_source()` returns this source in v0.1. `UnavailableSource`
+  stays for tests.
+- Poll interval: 30 s (a local file read), plus once when the popup opens
+  if the last poll is older than the existing minimum refresh gap (1 min).
+  The ingest worker stores a reading in `limit_snapshots` only if its
+  `fetchedAt` is newer than the last stored one, so idle polling adds no
+  rows.
+- Staleness uses the aggregate rule (Aggregates, "Limit status") on
+  `fetchedAt = receivedAt`: `ok` up to 15 minutes, then `stale`. The file
+  only changes while Claude Code runs, so `stale` is normal after a break.
+
+### Setup snippet
+
+- `get_limit_setup` returns `LimitSetup { statuslineCommand }`: the current
+  executable path (`std::env::current_exe()`) plus ` --statusline`. On
+  Windows the path uses forward slashes (Claude Code runs the command
+  through Git Bash when installed, which drops unquoted backslashes, else
+  through PowerShell). The path is wrapped in double quotes only if it
+  contains a space.
+- The UI builds the snippet with `JSON.stringify`, so quotes are escaped:
+  `{ "statusLine": { "type": "command", "command": <statuslineCommand> } }`,
+  to be merged into the user settings file `~/.claude/settings.json`.
+- Chaining an existing status line: Tokenmonk does not run other commands
+  in v0.1. A user with their own script adds one line that pipes the same
+  input to the bridge and drops its output, for scripts that keep stdin in
+  `$input` as the official examples do:
+  `printf '%s' "$input" | <statuslineCommand> >/dev/null`. A built-in
+  chain flag and PowerShell scripts are out of scope for v0.1.
+
+### To verify during implementation
+
+- Windows release builds use `windows_subsystem = "windows"`. Check that
+  the bridge reads piped stdin and that its stdout reaches Claude Code when
+  started from Git Bash and from PowerShell. If not, the fallback is a
+  separate small console binary, which needs a `Cargo.toml` change
+  (orchestrator).
+- macOS: check that running the binary inside the ad-hoc signed `.app`
+  from a shell works after the first approval.
+- Quoted paths with spaces under the PowerShell fallback.
 
 ## Game
 
@@ -201,6 +330,7 @@ Defined in the contracts (names as constants on both sides):
 | `get_game_state` | `GameState` |
 | `trigger_easter_egg` | `EasterEggResult` |
 | `get_app_info` | `AppInfo` |
+| `get_limit_setup` | `LimitSetup` (status-line setup command, see Limits) |
 
 | Event | Payload |
 |---|---|
@@ -243,7 +373,8 @@ strings (a future data-carrying enum would be internally tagged with
 | No Claude folder or no logs | Keep watching the root for it to appear | `data.state = noLogs`, zero totals, `AppInfo.logsFound = false` |
 | Log folder unreadable | Retry on the rescan interval | `data.state = error`, `detail` |
 | Malformed or partial line | Skip / retry later, count it | nothing visible |
-| No limit source or it fails | Keep last good reading | `limits.status = unavailable` or `stale`, `reason` |
+| Bridge not set up, or no current window | | `limits.status = unavailable`, `reason = noSource` |
+| Limit file unreadable or invalid | Keep last good reading | `limits.status` by its age (`unavailable` without one), `reason` |
 | No session in the last 60 min | | `session = null` |
 | No budget basis | | `dailyBudget = null` |
 | Database error in a command | | `CommandError { code: storage }` |

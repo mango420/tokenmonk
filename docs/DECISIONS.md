@@ -58,6 +58,17 @@ Dev: `typescript`, `vite`, `@vitejs/plugin-react`, `@types/react`, `@types/react
 
 CSP is strict: `default-src 'self'`, images and fonts from `self` and `data:`, inline styles allowed, IPC via `ipc:` and `http://ipc.localhost` only, no remote hosts. `devCsp` additionally allows the Vite dev server and its HMR websocket on `localhost:1420`. Tauri adds script hashes and style nonces at build time.
 
+## Limit source
+
+- v0.1 reads subscription limits through Claude Code's status line (maintainer decision): the Tokenmonk executable has a bridge mode (`--statusline`) that keeps only `rate_limits` and writes it to `<app data dir>/statusline.json`; the app polls that file. Local only: no network, no credentials, no undocumented endpoint. Tokenmonk never edits Claude Code settings; the user pastes a snippet. Details: ARCHITECTURE.md, "Limits".
+- Verified (official docs, checked 2026-10-30): `rate_limits.five_hour` and `rate_limits.seven_day`, each with `used_percentage` (0 to 100) and `resets_at` (Unix epoch seconds). Present only for claude.ai Pro and Max subscribers (or behind a Claude apps gateway with spend limits, ignored here) and only after the first API response of a session; each window may be absent on its own and is dropped once `resets_at` passes. Configured as `statusLine: { "type": "command", "command": ... }` in `~/.claude/settings.json` (optional `padding`, `refreshInterval`). Runs at session start, after each assistant message and a few other events, debounced at 300 ms; in-flight runs are cancelled; output shows only after exit code 0. On Windows the command runs through Git Bash when installed, else PowerShell; paths need forward slashes. Runs only in trusted workspaces.
+- `rate_limits.seven_day` maps to the contract's `weekly`; `used_percentage` to `utilization`; `resets_at` x 1000 to `resetsAt`.
+- Contract changes: new command `get_limit_setup` returning `LimitSetup { statuslineCommand }` (the UI cannot learn the executable path otherwise). No new `LimitReason`: `noSource` now means "not set up" (bridge file missing or no current window), which keeps existing exhaustive UI maps valid.
+- `refreshInterval` is not recommended: a timer re-run resends old values and would make them look fresh.
+- Chaining an existing status line: documented as one `printf ... | <command> >/dev/null` line for Bash scripts; a built-in chain flag is out of scope for v0.1.
+- Tauri `app_data_dir()` resolves to `data_dir/<bundle identifier>`, so the bridge (which runs without Tauri) uses `dirs::data_dir()` plus `app.tokenmonk.desktop`.
+- Sources: <https://code.claude.com/docs/en/statusline>, <https://code.claude.com/docs/en/settings>, <https://docs.rs/tauri/latest/tauri/path/struct.PathResolver.html>.
+
 ## CI
 
 - `.github/workflows/ci.yml` mirrors the Definition of Done on ubuntu and windows, plus a separate `guard` job with full history.
