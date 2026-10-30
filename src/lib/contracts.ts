@@ -54,6 +54,8 @@ export interface LimitReading {
 
 export type LimitStatus = "ok" | "stale" | "unavailable";
 
+/** `noSource`: no limit source is set up (v0.1: the status-line bridge has
+ * not written a reading yet, or no window in it is current). */
 export type LimitReason =
   | "noSource"
   | "notSignedIn"
@@ -70,6 +72,14 @@ export interface LimitsView {
   fiveHour: LimitWindow | null;
   weekly: LimitWindow | null;
   fetchedAt: EpochMs | null;
+}
+
+/** Result of `get_limit_setup`. Tokenmonk never edits Claude Code settings. */
+export interface LimitSetup {
+  /** Ready-to-paste value for `statusLine.command` in Claude Code's
+   * `settings.json` (executable path plus `--statusline`); null if the
+   * executable path is unknown. */
+  statuslineCommand: string | null;
 }
 
 // --------------------------------------------------------------- dashboard
@@ -251,6 +261,7 @@ export const Commands = {
   getGameState: "get_game_state",
   triggerEasterEgg: "trigger_easter_egg",
   getAppInfo: "get_app_info",
+  getLimitSetup: "get_limit_setup",
 } as const;
 
 export type CommandName = (typeof Commands)[keyof typeof Commands];
@@ -273,6 +284,7 @@ export interface CommandArgs {
   get_game_state: undefined;
   trigger_easter_egg: undefined;
   get_app_info: undefined;
+  get_limit_setup: undefined;
 }
 
 /** Resolved value per command. */
@@ -284,6 +296,7 @@ export interface CommandResults {
   get_game_state: GameState;
   trigger_easter_egg: EasterEggResult;
   get_app_info: AppInfo;
+  get_limit_setup: LimitSetup;
 }
 
 export type CommandErrorCode =

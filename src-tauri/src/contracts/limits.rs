@@ -2,8 +2,9 @@
 //!
 //! Limit percentages include claude.ai chats; token statistics come from
 //! Claude Code logs only. No concrete source is defined here: the `limits`
-//! module provides implementations of [`LimitSource`]. Without a working
-//! source the app runs on token data alone and says so
+//! module provides implementations of [`LimitSource`]. v0.1 reads the file
+//! written by the status-line bridge (docs/ARCHITECTURE.md, "Limits").
+//! Without a working source the app runs on token data alone and says so
 //! ([`LimitStatus::Unavailable`]).
 
 use serde::{Deserialize, Serialize};
@@ -49,7 +50,8 @@ pub enum LimitStatus {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum LimitReason {
-    /// `"noSource"`: no limit source is configured in this build.
+    /// `"noSource"`: no limit source is set up. In v0.1: the status-line
+    /// bridge has not written a reading yet, or no window in it is current.
     NoSource,
     /// `"notSignedIn"`: the source needs credentials that are missing or expired.
     NotSignedIn,
@@ -76,6 +78,18 @@ pub struct LimitsView {
     pub weekly: Option<LimitWindow>,
     /// Time of the last good reading.
     pub fetched_at: Option<EpochMs>,
+}
+
+/// Returned by `get_limit_setup`: what the Settings view needs to show the
+/// status-line setup snippet. Tokenmonk never edits Claude Code settings.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LimitSetup {
+    /// Ready-to-paste value for `statusLine.command` in Claude Code's
+    /// `settings.json`: this executable's path plus the bridge flag, for
+    /// example `"/Applications/Tokenmonk.app/Contents/MacOS/tokenmonk --statusline"`.
+    /// `None` if the executable path cannot be determined.
+    pub statusline_command: Option<String>,
 }
 
 /// Error returned by a [`LimitSource`].

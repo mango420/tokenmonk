@@ -47,7 +47,8 @@ pub use game::{
     AchievementId, AchievementProgress, AchievementUnlocked, EasterEggResult, GameState, LevelUp,
 };
 pub use limits::{
-    LimitError, LimitReading, LimitReason, LimitSource, LimitStatus, LimitWindow, LimitsView,
+    LimitError, LimitReading, LimitReason, LimitSetup, LimitSource, LimitStatus, LimitWindow,
+    LimitsView,
 };
 pub use settings::{Mode, Settings, SettingsPatch};
 
