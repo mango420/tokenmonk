@@ -187,6 +187,10 @@ struct Worker {
     tx: Sender<Msg>,
     stop: Arc<AtomicBool>,
     watcher: Option<RecommendedWatcher>,
+    /// Canonical form of `cfg.logs_root` while it exists; every path the
+    /// worker stores or reads is derived from it, so `source_files` keys
+    /// never split between spellings of the same file.
+    root: Option<PathBuf>,
     dirty: HashSet<PathBuf>,
     dirty_at: Option<Instant>,
     next_rescan: Instant,
@@ -219,6 +223,7 @@ impl Worker {
             tx,
             stop,
             watcher: None,
+            root: None,
             dirty: HashSet::new(),
             dirty_at: None,
             last_progress: now,
@@ -301,6 +306,7 @@ impl Worker {
         }
         let mut any = false;
         for path in event.paths {
+            let path = self.normalize(&path);
             if is_jsonl(&path) {
                 self.dirty.insert(path);
                 any = true;
@@ -358,8 +364,37 @@ impl Worker {
         outcome.changed()
     }
 
+    /// The folder to scan and watch: canonical when it exists.
+    fn root(&self) -> &std::path::Path {
+        self.root.as_deref().unwrap_or(&self.cfg.logs_root)
+    }
+
+    /// Re-resolves the canonical root; a changed root drops the watcher.
+    fn refresh_root(&mut self) {
+        let canonical = std::fs::canonicalize(&self.cfg.logs_root).ok();
+        if canonical != self.root {
+            self.root = canonical;
+            self.watcher = None;
+        }
+    }
+
+    /// Maps an event path to the canonical spelling used for storage. The
+    /// file may already be gone, so the parent is resolved as a fallback.
+    fn normalize(&self, path: &std::path::Path) -> PathBuf {
+        if self.root.as_deref().is_some_and(|r| path.starts_with(r)) {
+            return path.to_path_buf();
+        }
+        if let Ok(p) = std::fs::canonicalize(path) {
+            return p;
+        }
+        match (path.parent().map(std::fs::canonicalize), path.file_name()) {
+            (Some(Ok(parent)), Some(name)) => parent.join(name),
+            _ => path.to_path_buf(),
+        }
+    }
+
     fn ensure_watch(&mut self) {
-        if self.watcher.is_some() || !self.cfg.logs_root.is_dir() {
+        if self.watcher.is_some() || self.root.is_none() {
             return;
         }
         let tx = self.tx.clone();
@@ -367,7 +402,7 @@ impl Worker {
             let _ = tx.send(Msg::Fs(res));
         });
         match created {
-            Ok(mut w) => match w.watch(&self.cfg.logs_root, RecursiveMode::Recursive) {
+            Ok(mut w) => match w.watch(self.root(), RecursiveMode::Recursive) {
                 Ok(()) => self.watcher = Some(w),
                 Err(e) => log::warn!("ingest: cannot watch the log folder: {e}"),
             },
@@ -380,9 +415,10 @@ impl Worker {
     /// Returns whether the data or the status changed.
     fn scan(&mut self, startup: bool) -> bool {
         // Watch first so nothing written during the scan is missed.
+        self.refresh_root();
         self.ensure_watch();
         let before = self.status.state;
-        let files = match discover(&self.cfg.logs_root) {
+        let files = match discover(self.root()) {
             Ok(f) => f,
             Err(e) => {
                 self.watcher = None;
@@ -405,7 +441,8 @@ impl Worker {
         };
 
         let work: Vec<&PathBuf> = files.iter().filter(|p| needs_work(&self.db, p)).collect();
-        // The first scan, or logs showing up after being absent, is an import.
+        // The first scan, or logs showing up after being absent, shows import
+        // progress; only the startup scan reports its usage as not live.
         let importing =
             !work.is_empty() && (startup || matches!(before, DataState::NoLogs | DataState::Error));
         if importing {
@@ -423,7 +460,7 @@ impl Worker {
             if self.stopped() {
                 return false;
             }
-            changed |= self.ingest(path, !importing);
+            changed |= self.ingest(path, !startup);
             if importing {
                 self.status.files_done += 1;
                 if self.last_progress.elapsed() >= PROGRESS_INTERVAL {
@@ -655,7 +692,7 @@ mod tests {
         let s = rig.wait_snapshot("live update", |s, c| {
             c == SnapshotCause::Files && session_total(s) == 52
         });
-        assert_eq!(s.today.cache_read, 14);
+        assert_eq!(s.session.as_ref().unwrap().tokens.cache_read, 14);
         // The new read reported live usage.
         assert_eq!(rig.usage.borrow().last(), Some(&(1, true)));
         rig.handle.stop_and_wait();
@@ -697,7 +734,33 @@ mod tests {
             s.data.state == DataState::Ready && session_total(s) == 10
         });
         assert_eq!(s.data.files_total, 1);
+        // Logs that show up after the startup scan are live usage.
+        assert_eq!(rig.usage.borrow().last(), Some(&(1, true)));
+        assert!(rig.usage.borrow().iter().all(|&(_, live)| live));
         rig.handle.stop_and_wait();
+    }
+
+    #[test]
+    fn root_spelling_does_not_split_source_file_keys() {
+        let dir = tempfile::tempdir().unwrap();
+        let real = dir.path().join("projects");
+        let file = real.join("p/a.jsonl");
+        write_lines(&file, &[line("m1", "s", recent(30), 10)]);
+        let db_path = dir.path().join("t.db");
+        // Same folder, spelled with a `..` detour.
+        let odd = dir.path().join("elsewhere/../projects");
+        fs::create_dir_all(dir.path().join("elsewhere")).unwrap();
+        let rig = start(&odd, Db::open(&db_path).unwrap());
+        rig.wait_snapshot("import", |_, c| c == SnapshotCause::ImportDone);
+        write_lines(&file, &[line("m2", "s", recent(5), 40)]);
+        rig.wait_snapshot("live update", |s, c| {
+            c == SnapshotCause::Files && session_total(s) == 52
+        });
+        rig.handle.stop_and_wait();
+
+        let keys = Db::open(&db_path).unwrap().list_source_files().unwrap();
+        assert_eq!(keys.len(), 1, "{keys:?}");
+        assert!(!keys[0].path.contains(".."), "{}", keys[0].path);
     }
 
     #[test]

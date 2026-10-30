@@ -34,8 +34,10 @@ pub enum SnapshotCause {
 
 /// Receives the worker's results. See the module docs for the contract.
 pub trait IngestPublisher: Send {
-    /// New records were committed. `live` is `false` during the initial
-    /// import and `true` afterwards. The slice holds what was parsed from
+    /// New records were committed. `live` is `false` only for the startup
+    /// scan (the backlog present when the worker starts) and `true` for
+    /// everything read afterwards, including logs that appear later (fresh
+    /// install, folder recovering from an error). The slice holds what was parsed from
     /// one read, so it may repeat messages that were stored before.
     fn on_new_usage(&mut self, _db: &mut Db, _records: &[UsageRecord], _live: bool) {}
 
