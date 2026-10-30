@@ -66,16 +66,28 @@ export interface GaugeModel {
   /** Heading in `--ember` (logs unreadable). */
   headingAlert?: boolean;
   /** Right column, second line. */
-  detail: { text: string; tone: GaugeDetailTone } | null;
+  detail: {
+    text: string;
+    tone: GaugeDetailTone;
+    /** Renders the text as a button that opens Settings at "Limit data". */
+    action?: "openLimitSetup";
+  } | null;
 }
 
 const REASON_CAPTION: Record<LimitReason, string> = {
-  noSource: "This version has no limit source.",
+  noSource: "Hook up Claude Code’s status line in Settings.",
   notSignedIn: "Not signed in to Claude.",
   network: "Offline. Trying again in 5 min.",
-  invalidResponse: "The limit source talked nonsense. Trying again in 5 min.",
-  other: "The limit source talked nonsense. Trying again in 5 min.",
+  invalidResponse: "The limit file talked nonsense. Next reply fixes it.",
+  other: "The limit file talked nonsense. Next reply fixes it.",
 };
+
+function reasonDetail(reason: LimitReason | null): GaugeModel["detail"] {
+  if (reason === null) return null;
+  return reason === "noSource"
+    ? { text: REASON_CAPTION[reason], tone: "muted", action: "openLimitSetup" }
+    : { text: REASON_CAPTION[reason], tone: "muted" };
+}
 
 function limitsAvailable(limits: LimitsView): boolean {
   return limits.status !== "unavailable" && (limits.fiveHour !== null || limits.weekly !== null);
@@ -104,6 +116,18 @@ function moodLine(usedPercent: number): string {
 function maxGauge(snap: DashboardSnapshot): GaugeModel {
   const { limits, burnRate } = snap;
   const fiveHour = limits.fiveHour;
+  if (limitsAvailable(limits) && fiveHour === null) {
+    // Fresh 5-hour window: the old one reset, no reading has arrived since.
+    return {
+      value: formatShort(burnRate.tokensPerMinute),
+      caption: "tokens / min",
+      ratio: null,
+      danger: false,
+      stale: false,
+      heading: "Fresh window.",
+      detail: { text: "Numbers on your next reply.", tone: "muted" },
+    };
+  }
   if (!limitsAvailable(limits) || fiveHour === null) {
     return {
       value: formatShort(burnRate.tokensPerMinute),
@@ -112,13 +136,13 @@ function maxGauge(snap: DashboardSnapshot): GaugeModel {
       danger: false,
       stale: false,
       heading: "No limit data. Running on tokens.",
-      detail: limits.reason === null ? null : { text: REASON_CAPTION[limits.reason], tone: "muted" },
+      detail: reasonDetail(limits.reason),
     };
   }
   const stale = limits.status === "stale";
   let detailText: string | null = null;
   if (stale && limits.fetchedAt !== null) {
-    detailText = `As of ${formatClock(limits.fetchedAt)}. Retrying.`;
+    detailText = `As of ${formatClock(limits.fetchedAt)}. Updates on your next reply.`;
   } else if (fiveHour.resetsAt !== null) {
     detailText = `Resets in ${formatDuration(fiveHour.resetsAt - snap.generatedAt)}`;
   }
@@ -251,12 +275,23 @@ export interface WeeklyModel {
   value: string;
   ratio: number | null;
   caption: string;
+  /** The caption is a button that opens Settings at "Limit data". */
+  action?: "openLimitSetup";
 }
 
 export function buildWeekly(mode: PopupMode, limits: LimitsView): WeeklyModel {
   const label = mode === "max" ? "Weekly limit" : "Weekly limit used";
   const weekly = limits.weekly;
   if (weekly === null) {
+    if (limits.reason === "noSource") {
+      return {
+        label,
+        value: "n/a",
+        ratio: null,
+        caption: "No limit data yet. Setup is in Settings.",
+        action: "openLimitSetup",
+      };
+    }
     return {
       label,
       value: "n/a",

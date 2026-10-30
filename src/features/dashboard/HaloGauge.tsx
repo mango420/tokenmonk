@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Card } from "../../components/Card";
+import { TextButton } from "../../components/TextButton";
 import type { GaugeModel } from "./model";
 
 /** Reads a pixel token (for example `--gauge-size`) from the document root once. */
@@ -14,10 +15,12 @@ function useTokenPx(name: string): number {
 
 interface HaloGaugeProps {
   model: GaugeModel;
+  /** Opens Settings at "Limit data". */
+  onOpenLimitSetup?: () => void;
 }
 
 /** Halo gauge card: ring with counter on the left, burn or mood text on the right. */
-export function HaloGauge({ model }: HaloGaugeProps) {
+export function HaloGauge({ model, onOpenLimitSetup }: HaloGaugeProps) {
   const size = useTokenPx("--gauge-size");
   const radius = useTokenPx("--gauge-radius");
   const circumference = 2 * Math.PI * radius;
@@ -51,7 +54,9 @@ export function HaloGauge({ model }: HaloGaugeProps) {
         <span className={`gauge-card__heading${model.headingAlert ? " gauge-card__heading--alert" : ""}`}>
           {model.heading}
         </span>
-        {model.detail !== null ? (
+        {model.detail !== null && model.detail.action === "openLimitSetup" ? (
+          <TextButton onClick={onOpenLimitSetup}>{model.detail.text}</TextButton>
+        ) : model.detail !== null ? (
           <span className={`gauge-card__detail gauge-card__detail--${model.detail.tone}`}>
             {model.detail.text}
           </span>
