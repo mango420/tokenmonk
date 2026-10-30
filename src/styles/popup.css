@@ -678,19 +678,6 @@ button {
   transform: translateX(calc(var(--space-8) + var(--space-2) - var(--space-4) - 2 * var(--space-1)));
 }
 
-/* --------------------------------------------------- placeholders (dev) */
-
-.placeholder-back {
-  align-self: flex-start;
-  min-height: var(--hit-target);
-  padding: 0 var(--space-6);
-  border: none;
-  border-radius: var(--radius-md);
-  background: var(--surface-300);
-  cursor: pointer;
-  font-weight: var(--text-strong-weight);
-}
-
 .dev-switch {
   display: flex;
   flex-direction: column;
