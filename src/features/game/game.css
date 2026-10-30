@@ -1,0 +1,83 @@
+/*
+ * Achievement toast and level-up overlay. Design values come from
+ * tokens.css variables only; the fade is an inline style driven by FADE_MS.
+ * Shared classes (.badge, .achievement__text, .caption, .mono-value, ...)
+ * come from popup.css.
+ */
+
+.game-toast-slot {
+  position: absolute;
+  top: var(--popup-padding);
+  left: var(--popup-padding);
+  right: var(--popup-padding);
+  z-index: 10;
+}
+
+.game-toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--card-padding);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface-200);
+  box-shadow: var(--shadow-popup);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.game-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-8);
+  background: var(--scrim);
+  text-align: center;
+}
+
+.game-overlay .logo-mark {
+  width: var(--ghost-size);
+  height: var(--ghost-size);
+}
+
+.game-overlay__group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.game-overlay__display {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-display-size);
+  line-height: var(--text-display-line);
+  font-weight: var(--text-display-weight);
+  color: var(--ink);
+}
+
+.game-overlay__heading {
+  font-size: var(--text-heading-size);
+  line-height: var(--text-heading-line);
+  font-weight: var(--text-heading-weight);
+  color: var(--accent-text);
+}
+
+.game-button {
+  min-height: var(--hit-target);
+  padding: 0 var(--space-6);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  font-weight: var(--text-heading-weight);
+  cursor: pointer;
+}
