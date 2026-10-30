@@ -3,6 +3,7 @@ import { PrimaryButton } from "./components/PrimaryButton";
 import { Popup } from "./components/Popup";
 import { ScenarioSwitch } from "./dev/ScenarioSwitch";
 import { Dashboard } from "./features/dashboard/Dashboard";
+import { useGameNotices } from "./features/game";
 import { Header } from "./features/dashboard/Header";
 import { useOsNotifications } from "./features/notifications/useOsNotifications";
 import { Onboarding } from "./features/onboarding/Onboarding";
@@ -10,17 +11,38 @@ import { SettingsView } from "./features/settings/SettingsView";
 import { useAppData, usesMockData } from "./lib/appData";
 import { useBackendEvent } from "./lib/backend";
 import { Events, type View } from "./lib/contracts";
-import { defaultScenario, type MockScenarioId } from "./lib/mock";
+import { defaultScenario, mockLevelUp, mockUnlock, type MockScenarioId } from "./lib/mock";
+import { usePopupVisible } from "./lib/popupVisible";
 
 export default function App() {
   const [scenario, setScenario] = useState<MockScenarioId>(defaultScenario);
   const app = useAppData(scenario);
   const { data, actions } = app;
   const [requested, setRequested] = useState<View>("dashboard");
+  /** Settings opens scrolled to "Limit data" (the dashboard's setup hint). */
+  const [limitsTarget, setLimitsTarget] = useState(false);
+
+  const open = useCallback((view: View, toLimits = false) => {
+    setLimitsTarget(toLimits);
+    setRequested(view);
+  }, []);
 
   // The tray menu asks for a view (for example Settings).
-  useBackendEvent(Events.navigate, ({ view }) => setRequested(view), !usesMockData);
-  const backToDashboard = useCallback(() => setRequested("dashboard"), []);
+  useBackendEvent(Events.navigate, ({ view }) => open(view), !usesMockData);
+  const backToDashboard = useCallback(() => open("dashboard"), [open]);
+
+  // Achievement toasts and the level-up screen live in the popup overlay slot.
+  // No other overlay exists yet; the ghost (#16) will set `overlayOpen`.
+  const popupVisible = usePopupVisible();
+  const overlayOpen = false;
+  const notices = useGameNotices({
+    game: data.game,
+    sound: data.settings.sound,
+    popupVisible,
+    blocked: overlayOpen,
+  });
+  useBackendEvent(Events.achievementUnlocked, notices.pushUnlock, !usesMockData);
+  useBackendEvent(Events.levelUp, notices.pushLevelUp, !usesMockData);
 
   useOsNotifications(data, app.phase === "ready" && !usesMockData);
 
@@ -55,16 +77,33 @@ export default function App() {
   } else if (view === "onboarding") {
     screen = <Onboarding data={data} onChoose={actions.completeOnboarding} />;
   } else if (view === "settings") {
-    screen = <SettingsView data={data} actions={actions} onBack={backToDashboard} />;
+    screen = <SettingsView
+        data={data}
+        actions={actions}
+        onBack={backToDashboard}
+        scrollToLimits={limitsTarget}
+      />;
   } else {
-    screen = <Dashboard data={data} onOpenSettings={() => setRequested("settings")} />;
+    screen = (
+      <Dashboard
+        data={data}
+        onOpenSettings={() => open("settings")}
+        onOpenLimitSetup={() => open("settings", true)}
+      />
+    );
   }
 
   return (
     <div className="stage">
-      {/* `overlay`: game toasts and level-up (#12), ghost overlay (#16). */}
-      <Popup>{screen}</Popup>
-      {import.meta.env.DEV && usesMockData ? <ScenarioSwitch value={scenario} onChange={setScenario} /> : null}
+      <Popup overlay={notices.node}>{screen}</Popup>
+      {import.meta.env.DEV && usesMockData ? (
+        <ScenarioSwitch
+          value={scenario}
+          onChange={setScenario}
+          onUnlock={() => notices.pushUnlock(mockUnlock)}
+          onLevelUp={() => notices.pushLevelUp(mockLevelUp)}
+        />
+      ) : null}
     </div>
   );
 }
