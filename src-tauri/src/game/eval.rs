@@ -91,7 +91,10 @@ pub fn evaluate<Tz: TimeZone>(
         records.get(&id).is_some_and(|r| r.unlocked_at.is_some())
     };
 
-    let streak = (earn_mode == Some(Mode::Diy)).then(|| token_monk_streak(&facts.days, today, tz));
+    // Without day facts (the easter egg) there is nothing to recompute; an empty
+    // range would reset the stored progress.
+    let streak = (earn_mode == Some(Mode::Diy) && !facts.days.is_empty())
+        .then(|| token_monk_streak(&facts.days, today, tz));
 
     let mut candidates: Vec<(EpochMs, usize, &'static AchievementDef)> = Vec::new();
     if let Some(m) = earn_mode {
@@ -207,7 +210,15 @@ pub fn easter_egg<Tz: TimeZone>(
         boo_at: Some(now),
         ..Facts::default()
     };
-    let evaluation = evaluate(prev, &facts, mode, now, tz, false);
+    // Onboarding shows the logo too: before a mode is chosen Boo is earned
+    // under Max it out (as the titles fall back), never as `NoneYet`.
+    let earn = if mode == Mode::NoneYet {
+        Mode::Max
+    } else {
+        mode
+    };
+    let mut evaluation = evaluate(prev, &facts, earn, now, tz, false);
+    evaluation.state.mode = mode;
     let newly_unlocked = !evaluation.unlocks.is_empty();
     let def = achievement_def(AchievementId::Boo);
     let achievement = evaluation.unlocks.first().cloned().unwrap_or_else(|| {

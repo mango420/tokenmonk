@@ -609,3 +609,42 @@ fn replay_equals_live_for_do_it_yourself() {
     assert!(unlocked(&ev).contains(&AchievementId::TokenMonk));
     assert!(!unlocked(&ev).contains(&AchievementId::NightOwl));
 }
+
+#[test]
+fn easter_egg_keeps_token_monk_progress() {
+    let mut store = MemoryStore::default();
+    let first = date(2026, 10, 1);
+    let days: Vec<_> = (0..5)
+        .map(|i| day(first + Days::new(i), 800, Some(5.0)))
+        .collect();
+    let now = day_start_ms(first + Days::new(4), &Utc) + 12 * HOUR;
+    apply(&mut store, &facts(days), Mode::Diy, now, false);
+
+    let (res, ev) = easter_egg(&store.load().unwrap(), Mode::Diy, now + HOUR, &Utc);
+    assert!(res.newly_unlocked);
+    assert!(ev.achievements.iter().all(|r| r.id == AchievementId::Boo));
+    let monk = ev
+        .state
+        .achievements
+        .iter()
+        .find(|a| a.id == AchievementId::TokenMonk)
+        .unwrap();
+    assert_eq!(monk.current, Some(4));
+}
+
+#[test]
+fn easter_egg_works_before_onboarding() {
+    let mut store = MemoryStore::default();
+    let now = ms(2026, 10, 28, 12, 0);
+    let (res, ev) = easter_egg(&store.load().unwrap(), Mode::NoneYet, now, &Utc);
+    assert!(res.newly_unlocked);
+    assert_eq!(ev.ledger.len(), 1);
+    assert_eq!(ev.ledger[0].mode, Mode::Max);
+    assert_eq!(ev.ledger[0].kind, KIND_ACHIEVEMENT);
+    assert_eq!(ev.state.mode, Mode::NoneYet);
+    assert_eq!(ev.state.xp_total, 100);
+    persist(&mut store, &GameData::default(), &ev, false).unwrap();
+    let (again, ev2) = easter_egg(&store.load().unwrap(), Mode::NoneYet, now + HOUR, &Utc);
+    assert!(!again.newly_unlocked);
+    assert!(ev2.ledger.is_empty());
+}
