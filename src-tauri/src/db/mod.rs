@@ -4,6 +4,9 @@
 //! connection; readers open their own with [`Db::open`] (WAL keeps reads
 //! from waiting on the writer). See docs/ARCHITECTURE.md ("Ingest", "Storage").
 
+mod game_tables;
+mod kv;
+mod limit_snapshots;
 mod messages;
 mod migrations;
 mod queries;
@@ -14,6 +17,8 @@ use std::time::Duration;
 
 use rusqlite::Connection;
 
+pub use game_tables::{AchievementRow, XpEvent};
+pub use limit_snapshots::StoredLimit;
 pub use messages::UpsertStats;
 pub use migrations::{latest_version, MIGRATIONS};
 pub use queries::{DayTotals, LatestMessage, SessionSummary, TokenTotals};
@@ -27,6 +32,8 @@ pub enum DbError {
     Io(#[from] std::io::Error),
     #[error("database schema version {found} is newer than supported version {supported}")]
     NewerSchema { found: u32, supported: u32 },
+    #[error("invalid value: {0}")]
+    Invalid(String),
 }
 
 pub type DbResult<T> = Result<T, DbError>;

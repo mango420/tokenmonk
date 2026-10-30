@@ -169,6 +169,19 @@ impl Db {
             .optional()?)
     }
 
+    /// Working directory (`cwd`) of the session's most recent message.
+    pub fn session_project_path(&self, session_id: &str) -> DbResult<Option<String>> {
+        Ok(self
+            .conn()
+            .query_row(
+                "SELECT project_path FROM messages WHERE session_id = ?1 \
+                 ORDER BY ts DESC, message_id DESC LIMIT 1",
+                [session_id],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
     /// Number of stored messages.
     pub fn message_count(&self) -> DbResult<u64> {
         Ok(u(self.conn().query_row(
