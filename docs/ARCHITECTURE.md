@@ -125,10 +125,16 @@ storage.
     excluded); `usedToday` = headline tokens today; `daysLeft = 1`,
     `resetsAt = null`. `dailyBudget` is `null` if there is no active day
     in that range.
-- **Limit status**: `ok` if the last good reading is at most 15 minutes old,
-  `stale` if older (values still shown), `unavailable` if there is none or
-  the source reports `noSource` (v0.1: bridge not set up or no current
-  window). `reason` carries the last error.
+- **Limit status**: on every snapshot build (including the minute tick)
+  the aggregate first drops each window of the last good reading whose
+  `resetsAt` is at or before now (`fiveHour` or `weekly` becomes `null`),
+  the same rule the file source applies (Limits, "File source"). Then:
+  `ok` if the last good reading is at most 15 minutes old, `stale` if
+  older (remaining values still shown), `unavailable` with `reason =
+  noSource` if no window is left, and `unavailable` if there is no
+  reading or the source reports `noSource` (v0.1: bridge not set up or no
+  current window). `reason` carries the last error. Dropping a window
+  never deletes rows from `limit_snapshots`.
 
 Window lengths and thresholds above (15 min burn window, 60 min idle,
 15 min stale) are aggregate constants, not contract values; changing them
@@ -263,6 +269,17 @@ Bridge file (camelCase, all timestamps `EpochMs`; invented values):
   through Git Bash when installed, which drops unquoted backslashes, else
   through PowerShell). The path is wrapped in double quotes only if it
   contains a space.
+- `statuslineCommand` is always the POSIX shell form (macOS shell, Git
+  Bash on Windows). Without a space the unquoted form is the same in Git
+  Bash and PowerShell. With a space, PowerShell needs the call operator:
+  `& "C:/Example Dir/tokenmonk.exe" --statusline`, which is a syntax error
+  in Bash, so one string cannot serve both. Rule, decided in the UI with
+  no contract change: if `AppInfo.platform = windows` and
+  `statuslineCommand` starts with `"`, Settings shows the Git Bash form as
+  the default snippet and a second, alternative snippet whose command is
+  `"& " + statuslineCommand`, labelled for Claude Code without Git Bash
+  (DESIGN.md, Settings, "Limit data"). Rust never builds the PowerShell
+  form.
 - The UI builds the snippet with `JSON.stringify`, so quotes are escaped:
   `{ "statusLine": { "type": "command", "command": <statuslineCommand> } }`,
   to be merged into the user settings file `~/.claude/settings.json`.
@@ -282,7 +299,31 @@ Bridge file (camelCase, all timestamps `EpochMs`; invented values):
   (orchestrator).
 - macOS: check that running the binary inside the ad-hoc signed `.app`
   from a shell works after the first approval.
-- Quoted paths with spaces under the PowerShell fallback.
+- Both Windows snippet forms (unquoted path, and `& "path"` with a space)
+  under the PowerShell fallback.
+
+### Implementation notes
+
+For backend-platform (and the orchestrator where marked):
+
+1. `commands`: add `get_limit_setup` returning `LimitSetup` (a stub
+   returning `statuslineCommand: null` is fine until the path logic
+   lands); register it in `lib.rs` next to the other commands
+   (orchestrator, shared hotspot).
+2. `main.rs` (orchestrator, shared hotspot): if the first argument is
+   `--statusline`, run the bridge and return before
+   `tokenmonk_lib::run()`, so the Tauri builder and the single-instance
+   plugin never start.
+3. `limits/bridge.rs`: bridge mode and the shared path helper
+   (`dirs::data_dir()` + `app.tokenmonk.desktop` + `statusline.json`).
+4. `limits/statusline.rs`: `StatuslineSource` (id `"statusline"`), and
+   `default_source()` returns it.
+5. `limits/worker.rs`: `POLL_INTERVAL` becomes 30 s; `MIN_REFRESH_GAP`
+   stays 1 min.
+6. Ingest worker (backend-data): store a reading in `limit_snapshots` only
+   if its `fetchedAt` is newer than the newest stored one.
+7. Aggregate (backend-data): drop expired windows from the last good
+   reading on every snapshot build (Aggregates, "Limit status").
 
 ## Game
 
@@ -375,6 +416,7 @@ strings (a future data-carrying enum would be internally tagged with
 | Malformed or partial line | Skip / retry later, count it | nothing visible |
 | Bridge not set up, or no current window | | `limits.status = unavailable`, `reason = noSource` |
 | Limit file unreadable or invalid | Keep last good reading | `limits.status` by its age (`unavailable` without one), `reason` |
+| A window of the last good reading has reset | Drop that window (`resetsAt <= now`) | that window `null`; no window left: `unavailable`, `reason = noSource` |
 | No session in the last 60 min | | `session = null` |
 | No budget basis | | `dailyBudget = null` |
 | Database error in a command | | `CommandError { code: storage }` |

@@ -361,6 +361,13 @@ section only shows what to paste.
    hand." If `statuslineCommand` is `null`, the card is replaced by the
    caption "Couldn’t find the Tokenmonk executable. Reinstall, then look
    again." and the copy button is not shown.
+
+   Windows, path with a space (`AppInfo.platform = windows` and
+   `statuslineCommand` starts with `"`): below the card, the caption "No
+   Git Bash? Claude Code then uses PowerShell. Use this one instead:"
+   (`ink-muted`) and a second snippet card (same style, own copy button,
+   same feedback captions) built the same way with `command = "& " +
+   statuslineCommand`. Otherwise this alternative is not shown.
 5. Chain hint (caption, `ink-muted`): "Already have a status line? Keep it.
    Add this line to your script after it reads the input:" followed by a
    second snippet card (same style, own copy button) with
@@ -428,7 +435,9 @@ sound where the plugin allows it, so the tone is not doubled.
 
 Each limit warning fires once per crossing upwards: once per 5-hour window
 (`fiveHour.resetsAt`) and once per day for the budget. None while
-`limits.status` is not `ok` (Max it out) and none for stale values. The
+`limits.status` is not `ok` (Max it out), none for stale values, and none
+while `fiveHour = null` (fresh window, see "Limits unavailable and
+stale"). The
 body of the 90 % warning uses the burn line rule (N from
 `burnRate.limitEtaMinutes`); without an ETA the body is omitted. Level-ups
 get no OS notification; the level-up screen waits for the next open.
@@ -563,6 +572,25 @@ the right column the reset caption is replaced by "As of 14:05. Updates
 on your next reply."
 (`fetchedAt`, local 24 h time). The footer stays as usual. Ember danger
 still applies to stale values.
+
+**Fresh 5-hour window** (`fiveHour = null`, `weekly` set, `status = ok` or
+`stale`): the 5-hour window has reset and no reading has arrived since
+(ARCHITECTURE.md, Aggregates, "Limit status").
+
+- Max it out gauge card: ring track only; counter =
+  `burnRate.tokensPerMinute` (shortened as above), caption "tokens / min";
+  right column heading "Fresh window." over the caption "Numbers on your
+  next reply." (`ink-muted`). Burn line: no ETA.
+- Header halo and tray halo (Max it out): track only, as in the
+  unavailable state. Do it yourself halos keep showing the budget.
+- Weekly card, Do it yourself gauge and `dailyBudget` (`weeklyLimit`
+  basis): unchanged, from `weekly`. Stale styling applies to them as
+  usual.
+- Footer: as usual.
+- 90 % and 100 % notifications: none, there is no 5-hour value to cross.
+  The first reading of the new window (new `fiveHour.resetsAt`) starts a
+  new crossing count; if it already is at or above 90 and `status = ok`,
+  the 90 % warning fires once.
 
 `source` and `detail` are not shown in v0.1.
 
