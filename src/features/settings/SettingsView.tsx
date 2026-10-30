@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChoiceTile } from "../../components/ChoiceTile";
 import { Icon } from "../../components/Icon";
 import { ToggleRow } from "../../components/ToggleRow";
 import type { AppActions, AppData } from "../../lib/appData";
 import type { SettingsPatch } from "../../lib/contracts";
 import { formatInt } from "../../lib/format";
-import { MODE_LABEL } from "../dashboard/model";
+import { MODE_LABEL, modeFill } from "../dashboard/model";
 
 interface SettingsViewProps {
   data: AppData;
@@ -20,6 +20,8 @@ interface SettingsViewProps {
 export function SettingsView({ data, actions, onBack }: SettingsViewProps) {
   const [pending, setPending] = useState<SettingsPatch>({});
   const [failed, setFailed] = useState(false);
+  /** Latest call number per key; only the newest call may clear its pending value. */
+  const sequence = useRef<Partial<Record<keyof SettingsPatch, number>>>({});
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -33,11 +35,17 @@ export function SettingsView({ data, actions, onBack }: SettingsViewProps) {
 
   const change = async (patch: SettingsPatch) => {
     setFailed(false);
+    const keys = Object.keys(patch) as (keyof SettingsPatch)[];
+    const ticket: Partial<Record<keyof SettingsPatch, number>> = {};
+    for (const key of keys) {
+      ticket[key] = (sequence.current[key] ?? 0) + 1;
+      sequence.current[key] = ticket[key];
+    }
     setPending((p) => ({ ...p, ...patch }));
     const ok = await actions.updateSettings(patch);
     setPending((p) => {
       const next = { ...p };
-      for (const key of Object.keys(patch) as (keyof SettingsPatch)[]) delete next[key];
+      for (const key of keys) if (sequence.current[key] === ticket[key]) delete next[key];
       return next;
     });
     if (!ok) setFailed(true);
@@ -68,7 +76,7 @@ export function SettingsView({ data, actions, onBack }: SettingsViewProps) {
                 compact
                 icon={mode === "max" ? "flame" : "wrench"}
                 name={MODE_LABEL[mode]}
-                fill={mode === "max" ? "saffron" : "jade"}
+                fill={modeFill(mode, data.appInfo.season)}
                 selected={shown.mode === mode}
                 onSelect={() => {
                   if (shown.mode !== mode) void change({ mode });

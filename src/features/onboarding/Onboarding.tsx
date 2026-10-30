@@ -1,21 +1,15 @@
 import { useState } from "react";
-import { ChoiceTile, type Fill } from "../../components/ChoiceTile";
+import { ChoiceTile } from "../../components/ChoiceTile";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import type { AppActions, AppData } from "../../lib/appData";
-import type { Mode, Season } from "../../lib/contracts";
+import type { Mode } from "../../lib/contracts";
 import { formatInt } from "../../lib/format";
 import { Header } from "../dashboard/Header";
-import { importRatio, MODE_LABEL, type PopupMode } from "../dashboard/model";
+import { importRatio, MODE_LABEL, modeFill, type PopupMode } from "../dashboard/model";
 
 interface OnboardingProps {
   data: AppData;
   onChoose: AppActions["completeOnboarding"];
-}
-
-/** Fill of a mode's tile and button; Max it out turns pumpkin during Halloween. */
-export function modeFill(mode: PopupMode, season: Season): Fill {
-  if (mode === "diy") return "jade";
-  return season === "halloween" ? "pumpkin" : "saffron";
 }
 
 const DESCRIPTION: Record<PopupMode, string> = {

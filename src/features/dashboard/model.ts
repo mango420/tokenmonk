@@ -4,6 +4,7 @@
  * "Now" is always `DashboardSnapshot.generatedAt`, so the output is a pure
  * function of the snapshot.
  */
+import type { Fill } from "../../components/ChoiceTile";
 import type {
   AchievementId,
   DashboardSnapshot,
@@ -12,6 +13,7 @@ import type {
   LimitReason,
   LimitsView,
   Mode,
+  Season,
 } from "../../lib/contracts";
 import {
   clamp01,
@@ -24,6 +26,12 @@ import {
 } from "../../lib/format";
 
 export type PopupMode = "max" | "diy";
+
+/** Fill of a mode's tile and button; Max it out turns pumpkin during Halloween. */
+export function modeFill(mode: PopupMode, season: Season): Fill {
+  if (mode === "diy") return "jade";
+  return season === "halloween" ? "pumpkin" : "saffron";
+}
 
 /** Before onboarding (`noneYet`) the popup falls back to Max it out. */
 export function toPopupMode(mode: Mode): PopupMode {
