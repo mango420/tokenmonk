@@ -18,7 +18,7 @@ import {
   type Settings,
   type SettingsPatch,
 } from "./contracts";
-import { defaultScenario, mockScenarios, type MockScenarioId } from "./mock";
+import { defaultScenario, getMockScenarios, type MockScenarioId } from "./mock";
 
 export interface AppData {
   settings: Settings;
@@ -186,9 +186,9 @@ function useLiveAppData(enabled: boolean): AppState {
 // -------------------------------------------------------------------- mock
 
 function useMockAppData(scenario: MockScenarioId): AppState {
-  const source = mockScenarios[scenario];
+  const source = getMockScenarios()[scenario];
   const [settings, setSettings] = useState<Settings>(source.settings);
-  useEffect(() => setSettings(mockScenarios[scenario].settings), [scenario]);
+  useEffect(() => setSettings(getMockScenarios()[scenario].settings), [scenario]);
 
   const updateSettings = useCallback(async (patch: SettingsPatch) => {
     setSettings((s) => ({ ...s, ...patch, mode: patch.mode ?? s.mode }));
@@ -217,6 +217,7 @@ function useMockAppData(scenario: MockScenarioId): AppState {
 /** `scenario` only selects mock data; live data ignores it. */
 export function useAppData(scenario: MockScenarioId = defaultScenario): AppState {
   const live = useLiveAppData(!usesMockData);
-  const mock = useMockAppData(scenario);
-  return usesMockData ? mock : live;
+  // `DEV` is a build-time constant: production drops the mock hook and its data.
+  const mock = import.meta.env.DEV ? useMockAppData(scenario) : null;
+  return usesMockData && mock !== null ? mock : live;
 }

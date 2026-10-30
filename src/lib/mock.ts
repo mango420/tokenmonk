@@ -229,7 +229,7 @@ const diyGame: GameState = {
 };
 
 /** A fresh install: nothing unlocked, nothing counted yet. */
-const freshGame: GameState = {
+const freshGame = (): GameState => ({
   ...maxGame,
   mode: "max",
   level: 1,
@@ -241,7 +241,7 @@ const freshGame: GameState = {
   recentUnlocks: [],
   achievements: achievements.map((a) => ({ ...a, unlockedAt: null })),
   retroDone: true,
-};
+});
 
 const importing = (filesDone: number): DashboardSnapshot["data"] => ({
   state: "importing",
@@ -279,7 +279,7 @@ export interface MockScenario {
 const maxSettings: Settings = { mode: "max", sound: true, autostart: false };
 const diySettings: Settings = { mode: "diy", sound: true, autostart: false };
 
-export const mockScenarios = {
+const buildScenarios = () => ({
   max: {
     label: "Max it out, 72 %",
     settings: maxSettings,
@@ -381,35 +381,35 @@ export const mockScenarios = {
     settings: { mode: "noneYet", sound: true, autostart: false },
     appInfo,
     dashboard: snapshot({ data: importing(24), limits: noLimits }),
-    game: { ...freshGame, retroDone: false },
+    game: { ...freshGame(), retroDone: false },
   },
   onboardingReady: {
     label: "Onboarding, logs found",
     settings: { mode: "noneYet", sound: true, autostart: false },
     appInfo,
     dashboard: snapshot({ limits: noLimits }),
-    game: { ...freshGame, retroDone: false },
+    game: { ...freshGame(), retroDone: false },
   },
   onboardingNoLogs: {
     label: "Onboarding, no logs",
     settings: { mode: "noneYet", sound: true, autostart: false },
     appInfo: { ...appInfo, logsFound: false },
     dashboard: noLogsSnapshot(),
-    game: freshGame,
+    game: freshGame(),
   },
   importingMax: {
     label: "Max it out, importing",
     settings: maxSettings,
     appInfo,
     dashboard: snapshot({ data: importing(24), limits: noLimits }),
-    game: { ...freshGame, retroDone: false },
+    game: { ...freshGame(), retroDone: false },
   },
   noLogs: {
     label: "Max it out, no logs yet",
     settings: maxSettings,
     appInfo: { ...appInfo, logsFound: false },
     dashboard: noLogsSnapshot(),
-    game: freshGame,
+    game: freshGame(),
   },
   logError: {
     label: "Max it out, logs unreadable",
@@ -421,8 +421,17 @@ export const mockScenarios = {
     }),
     game: maxGame,
   },
-} satisfies Record<string, MockScenario>;
+}) satisfies Record<string, MockScenario>;
 
-export type MockScenarioId = keyof typeof mockScenarios;
+type Scenarios = ReturnType<typeof buildScenarios>;
+let scenarios: Scenarios | null = null;
+
+/** Built on first use so production bundles can drop this module entirely. */
+export function getMockScenarios(): Scenarios {
+  scenarios ??= buildScenarios();
+  return scenarios;
+}
+
+export type MockScenarioId = keyof Scenarios;
 
 export const defaultScenario: MockScenarioId = "max";

@@ -64,7 +64,7 @@ export default function App() {
     <div className="stage">
       {/* `overlay`: game toasts and level-up (#12), ghost overlay (#16). */}
       <Popup>{screen}</Popup>
-      {usesMockData ? <ScenarioSwitch value={scenario} onChange={setScenario} /> : null}
+      {import.meta.env.DEV && usesMockData ? <ScenarioSwitch value={scenario} onChange={setScenario} /> : null}
     </div>
   );
 }
