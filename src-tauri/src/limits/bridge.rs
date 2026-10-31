@@ -29,8 +29,9 @@ pub const MAX_INPUT_BYTES: u64 = 1024 * 1024;
 /// Printed when no window could be read.
 pub const FALLBACK_LINE: &str = "Tokenmonk: no limit data yet";
 
-/// The app data directory, resolved without a running Tauri app. Bridge,
-/// file source and database location all use this one helper.
+/// The app data directory, resolved without a running Tauri app. The bridge
+/// and the file source use this one helper; it equals Tauri's
+/// `app_data_dir()`, which the app uses for the database.
 pub fn app_data_dir() -> Option<PathBuf> {
     dirs::data_dir().map(|d| d.join(APP_IDENTIFIER))
 }

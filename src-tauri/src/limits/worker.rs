@@ -126,11 +126,13 @@ pub fn spawn_with(
     Ok(LimitsHandle { control })
 }
 
-/// `true` if `next` tells the receiver nothing new: a good reading that is
-/// not newer (`fetched_at`) than the last one forwarded, or the same error.
+/// `true` if `next` tells the receiver nothing new: the same reading or the
+/// same error as the last one forwarded. Readings are compared whole: when a
+/// window resets the source drops it while `fetched_at` stays, and that
+/// change must get through.
 fn is_repeat(last: Option<&LimitPoll>, next: &LimitPoll) -> bool {
     match (last.map(|l| &l.result), &next.result) {
-        (Some(Ok(a)), Ok(b)) => b.fetched_at <= a.fetched_at,
+        (Some(Ok(a)), Ok(b)) => a == b,
         (Some(Err(a)), Err(b)) => a == b,
         _ => false,
     }
@@ -272,13 +274,36 @@ mod tests {
     fn repeats_are_recognised() {
         assert!(!is_repeat(None, &poll_ok(5)));
         assert!(is_repeat(Some(&poll_ok(5)), &poll_ok(5)));
-        assert!(is_repeat(Some(&poll_ok(5)), &poll_ok(4)));
         assert!(!is_repeat(Some(&poll_ok(5)), &poll_ok(6)));
         assert!(is_repeat(Some(&poll_err("a")), &poll_err("a")));
         assert!(!is_repeat(Some(&poll_err("a")), &poll_err("b")));
         // A reading after an error, or an error after a reading, always counts.
         assert!(!is_repeat(Some(&poll_err("a")), &poll_ok(5)));
         assert!(!is_repeat(Some(&poll_ok(5)), &poll_err("a")));
+    }
+
+    #[test]
+    fn a_window_reset_is_not_a_repeat() {
+        use crate::contracts::limits::LimitWindow;
+        let window = |pct| {
+            Some(LimitWindow {
+                utilization: pct,
+                resets_at: Some(9_000),
+            })
+        };
+        let reading = |five_hour| LimitPoll {
+            source: "t",
+            result: Ok(LimitReading {
+                five_hour,
+                weekly: window(30.0),
+                fetched_at: 5,
+            }),
+        };
+        let before = reading(window(80.0));
+        // The 5-hour window reset and was dropped; `fetched_at` is unchanged.
+        let after = reading(None);
+        assert!(!is_repeat(Some(&before), &after));
+        assert!(is_repeat(Some(&after), &reading(None)));
     }
 
     struct Constant;
