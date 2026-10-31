@@ -311,7 +311,7 @@ fn the_limit_worker_delivers_what_the_bridge_wrote() {
     )
     .unwrap();
 
-    // Nothing set up: the first poll says so, and is not repeated.
+    // Nothing set up: the first poll says so.
     let first = next_poll(&rx);
     assert_eq!(first.source, "statusline");
     assert_eq!(first.result.unwrap_err().reason, LimitReason::NoSource);
