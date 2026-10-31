@@ -216,6 +216,18 @@ button {
   color: var(--accent-text);
 }
 
+.season-chip {
+  flex: none;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--surface-300);
+  color: var(--pumpkin-text);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line);
+  font-weight: var(--text-caption-weight);
+  white-space: nowrap;
+}
+
 .icon-button {
   flex: none;
   width: var(--hit-target);
