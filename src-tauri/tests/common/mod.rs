@@ -11,6 +11,8 @@ use tokenmonk_lib::contracts::EpochMs;
 use tokenmonk_lib::db::{plan_read, Db, ReadPlan, SourceFile, UpsertStats};
 use tokenmonk_lib::logs::{parse_chunk, SkipCounts};
 
+pub mod pipeline;
+
 pub const S1: &str = "11111111-1111-4111-8111-111111111111";
 pub const S2: &str = "22222222-2222-4222-8222-222222222222";
 pub const S3: &str = "33333333-3333-4333-8333-333333333333";
