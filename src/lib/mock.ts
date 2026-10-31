@@ -6,7 +6,10 @@ import type {
   AchievementProgress,
   AppInfo,
   DashboardSnapshot,
+  AchievementUnlocked,
   GameState,
+  LevelUp,
+  LimitSetup,
   Settings,
   TokenBreakdown,
 } from "./contracts";
@@ -274,7 +277,38 @@ export interface MockScenario {
   appInfo: AppInfo;
   dashboard: DashboardSnapshot;
   game: GameState;
+  /** What `get_limit_setup` answers; defaults to the unquoted Windows path. */
+  limitSetup?: LimitSetup;
 }
+
+/** Synthetic `get_limit_setup` answers for the settings preview. */
+const setupPlain: LimitSetup = { statuslineCommand: "C:/Tokenmonk/tokenmonk.exe --statusline" };
+const setupQuoted: LimitSetup = {
+  statuslineCommand: '"C:/Program Files/Tokenmonk/tokenmonk.exe" --statusline',
+};
+const setupMissing: LimitSetup = { statuslineCommand: null };
+
+export function mockLimitSetup(scenario: MockScenario): LimitSetup {
+  return scenario.limitSetup ?? setupPlain;
+}
+
+/** Fake events for the dev notice buttons. */
+export const mockUnlock: AchievementUnlocked = {
+  id: "nightOwl",
+  name: "Night Owl",
+  detail: "Tokens burned at 02:47",
+  xp: 50,
+  unlockedAt: NOW,
+  retroactive: false,
+};
+
+export const mockLevelUp: LevelUp = {
+  level: 8,
+  previousLevel: 7,
+  title: "Rate-Limit Rambo",
+  titleChanged: true,
+  retroactive: false,
+};
 
 const maxSettings: Settings = { mode: "max", sound: true, autostart: false };
 const diySettings: Settings = { mode: "diy", sound: true, autostart: false };
@@ -331,6 +365,43 @@ const buildScenarios = () => ({
       burnRate: { tokensPerMinute: 12_400, windowMinutes: 10, limitEtaMinutes: null },
     }),
     game: maxGame,
+  },
+  maxFreshWindow: {
+    label: "Max it out, fresh window",
+    settings: maxSettings,
+    appInfo,
+    dashboard: snapshot({
+      burnRate: { tokensPerMinute: 1_240, windowMinutes: 10, limitEtaMinutes: null },
+      limits: {
+        status: "ok",
+        reason: null,
+        detail: null,
+        source: "mock",
+        fiveHour: null,
+        weekly: { utilization: 41, resetsAt: WEEKLY_RESET },
+        fetchedAt: NOW,
+      },
+    }),
+    game: maxGame,
+  },
+  maxSetupQuoted: {
+    label: "Max it out, no limit data, path with space",
+    settings: maxSettings,
+    appInfo,
+    dashboard: snapshot({
+      limits: noLimits,
+      burnRate: { tokensPerMinute: 640, windowMinutes: 10, limitEtaMinutes: null },
+    }),
+    game: maxGame,
+    limitSetup: setupQuoted,
+  },
+  maxSetupMissing: {
+    label: "Max it out, executable path unknown",
+    settings: maxSettings,
+    appInfo,
+    dashboard: snapshot({ limits: noLimits }),
+    game: maxGame,
+    limitSetup: setupMissing,
   },
   diy: {
     label: "Do it yourself, 23 %",

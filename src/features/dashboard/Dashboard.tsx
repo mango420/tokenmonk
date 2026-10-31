@@ -19,6 +19,8 @@ import {
 interface DashboardProps {
   data: AppData;
   onOpenSettings: () => void;
+  /** Opens Settings scrolled to "Limit data". */
+  onOpenLimitSetup?: () => void;
   /** Seam for the ghost easter egg (#16). */
   onLogoClick?: () => void;
   /** Seam for the Halloween chip (#16). */
@@ -29,7 +31,13 @@ interface DashboardProps {
  * The popup's dashboard view. Renders blocks top to bottom into the popup
  * column (see `Popup`); the footer note is pushed to the bottom.
  */
-export function Dashboard({ data, onOpenSettings, onLogoClick, headerBadge }: DashboardProps) {
+export function Dashboard({
+  data,
+  onOpenSettings,
+  onOpenLimitSetup,
+  onLogoClick,
+  headerBadge,
+}: DashboardProps) {
   const { settings, dashboard, game } = data;
   const mode = toPopupMode(settings.mode);
   const gauge = buildGauge(mode, dashboard, game);
@@ -44,9 +52,9 @@ export function Dashboard({ data, onOpenSettings, onLogoClick, headerBadge }: Da
         onLogoClick={onLogoClick}
         badge={headerBadge}
       />
-      <HaloGauge model={gauge} />
+      <HaloGauge model={gauge} onOpenLimitSetup={onOpenLimitSetup} />
       <StatTiles tiles={buildStatTiles(dashboard)} />
-      <WeeklyCard model={buildWeekly(mode, dashboard.limits)} />
+      <WeeklyCard model={buildWeekly(mode, dashboard.limits)} onOpenLimitSetup={onOpenLimitSetup} />
       <LevelCard model={buildLevel(game)} />
       {achievement !== null ? <AchievementRow model={achievement} /> : null}
       <p className="footer-note">{footerNote(dashboard.limits)}</p>
