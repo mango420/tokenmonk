@@ -1,0 +1,480 @@
+//! The [`IngestPublisher`] of the app: caches every snapshot, emits events,
+//! updates the tray halo and runs the game evaluation.
+//!
+//! Runs on the ingest worker thread (docs/ARCHITECTURE.md, "Threads"). The
+//! outside world (events, tray) sits behind [`Sink`] so the logic is
+//! testable with an in-memory database and a recording sink.
+
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use chrono::{Local, TimeZone};
+
+use super::facts::{build_facts, BudgetCache, Scope};
+use super::game_store::DbGameStore;
+use crate::contracts::EpochMs;
+use crate::contracts::{
+    AchievementUnlocked, AppInfo, DashboardSnapshot, DataState, GameState, LevelUp, Mode, Season,
+};
+use crate::db::{Db, DbError};
+use crate::game::{run_evaluation, Evaluation, Facts, GameStore};
+use crate::logs::UsageRecord;
+use crate::watcher::{ClockZone, IngestPublisher, SnapshotCause};
+
+use super::state::AppState;
+
+/// Where the publisher sends its results.
+pub trait Sink: Send {
+    fn dashboard(&self, snapshot: &DashboardSnapshot);
+    fn game(&self, state: &GameState);
+    fn achievement(&self, unlocked: &AchievementUnlocked);
+    fn level_up(&self, level_up: &LevelUp);
+    fn app_info(&self, info: &AppInfo);
+    fn halo(&self, percent: Option<f64>, season: Season);
+}
+
+/// Tray halo value for a snapshot: the 5-hour percentage in Max it out, the
+/// daily budget used in Do it yourself (capped at 100), import progress while
+/// importing. `None` shows the track only.
+pub fn halo_percent(mode: Mode, snapshot: &DashboardSnapshot) -> Option<f64> {
+    let raw = if snapshot.data.state == DataState::Importing && snapshot.data.files_total > 0 {
+        Some(f64::from(snapshot.data.files_done) / f64::from(snapshot.data.files_total) * 100.0)
+    } else {
+        match mode {
+            Mode::NoneYet => None,
+            Mode::Max => snapshot.limits.five_hour.as_ref().map(|w| w.utilization),
+            Mode::Diy => snapshot.daily_budget.as_ref().map(|b| b.used_percent),
+        }
+    };
+    raw.filter(|p| p.is_finite()).map(|p| p.clamp(0.0, 100.0))
+}
+
+pub struct AppPublisher<S: Sink> {
+    sink: S,
+    state: Arc<AppState>,
+    zone: ClockZone,
+    season_now: fn() -> Season,
+    /// The startup scan is over; game evaluation starts.
+    import_done: bool,
+    /// Oldest timestamp of usage seen since the last successful evaluation.
+    pending_from: Option<EpochMs>,
+    budget_cache: BudgetCache,
+}
+
+impl<S: Sink> AppPublisher<S> {
+    pub fn new(sink: S, state: Arc<AppState>, zone: ClockZone) -> Self {
+        Self {
+            sink,
+            state,
+            zone,
+            season_now: crate::tray::season::current_season,
+            import_done: false,
+            pending_from: None,
+            budget_cache: HashMap::new(),
+        }
+    }
+
+    /// Replaces the clock-based season (tests).
+    pub fn with_season(mut self, season_now: fn() -> Season) -> Self {
+        self.season_now = season_now;
+        self
+    }
+
+    /// Keeps `AppInfo` current (logs found, season flips) and announces changes.
+    fn refresh_info(&self, snapshot: &DashboardSnapshot) {
+        let mut info = self.state.info();
+        let logs_found = snapshot.data.state != DataState::NoLogs;
+        let season = (self.season_now)();
+        if info.logs_found != logs_found || info.season != season {
+            info.logs_found = logs_found;
+            info.season = season;
+            self.state.set_info(info.clone());
+            self.sink.app_info(&info);
+        }
+    }
+
+    fn evaluate(&mut self, db: &Db, snapshot: &DashboardSnapshot, mode: Mode) {
+        match self.zone {
+            ClockZone::Local => self.evaluate_in(db, snapshot, mode, &Local),
+            ClockZone::Fixed(offset) => self.evaluate_in(db, snapshot, mode, &offset),
+        }
+    }
+
+    fn evaluate_in<Tz: TimeZone>(
+        &mut self,
+        db: &Db,
+        snapshot: &DashboardSnapshot,
+        mode: Mode,
+        tz: &Tz,
+    ) {
+        let state = Arc::clone(&self.state);
+        let _guard = state.game_lock.lock().unwrap_or_else(|e| e.into_inner());
+        match self.try_evaluate(db, snapshot, mode, tz) {
+            Ok((evaluation, retroactive)) => {
+                self.pending_from = None;
+                self.announce(&evaluation, retroactive);
+            }
+            Err(e) => log::warn!("game evaluation failed: {e}"),
+        }
+    }
+
+    /// Loads, evaluates and persists. Returns the evaluation and whether it
+    /// was the retroactive replay.
+    fn try_evaluate<Tz: TimeZone>(
+        &mut self,
+        db: &Db,
+        snapshot: &DashboardSnapshot,
+        mode: Mode,
+        tz: &Tz,
+    ) -> Result<(Evaluation, bool), DbError> {
+        let now = snapshot.generated_at;
+        let mut store = DbGameStore::new(db);
+        let retroactive = mode != Mode::NoneYet && !store.load()?.retro_done;
+        let facts = if mode == Mode::NoneYet {
+            Facts::default()
+        } else {
+            let scope = if retroactive {
+                Scope::Replay
+            } else {
+                Scope::Live {
+                    touched: self.pending_from,
+                }
+            };
+            let today_budget = snapshot.daily_budget.as_ref().map(|b| b.used_percent);
+            build_facts(
+                db,
+                mode,
+                scope,
+                now,
+                today_budget,
+                &mut self.budget_cache,
+                tz,
+            )?
+        };
+        let evaluation = run_evaluation(&mut store, &facts, mode, now, tz, retroactive)?;
+        Ok((evaluation, retroactive))
+    }
+
+    fn announce(&self, evaluation: &Evaluation, retroactive: bool) {
+        // The replay stays quiet: one `game-updated` with `retroDone` follows.
+        if !retroactive {
+            for unlocked in &evaluation.unlocks {
+                self.sink.achievement(unlocked);
+            }
+            if let Some(level_up) = &evaluation.level_up {
+                self.sink.level_up(level_up);
+            }
+        }
+        let changed = self.state.game().as_ref() != Some(&evaluation.state);
+        self.state.set_game(evaluation.state.clone());
+        if changed || retroactive {
+            self.sink.game(&evaluation.state);
+        }
+    }
+}
+
+impl<S: Sink> IngestPublisher for AppPublisher<S> {
+    fn on_new_usage(&mut self, _db: &mut Db, records: &[UsageRecord], _live: bool) {
+        // Backlog read at startup counts as well: days that gained usage
+        // while the app was closed must be complete in the next evaluation.
+        if let Some(oldest) = records.iter().map(|r| r.ts).min() {
+            self.pending_from = Some(self.pending_from.map_or(oldest, |p| p.min(oldest)));
+        }
+    }
+
+    fn on_snapshot(&mut self, db: &mut Db, snapshot: &DashboardSnapshot, cause: SnapshotCause) {
+        self.state.set_dashboard(snapshot.clone());
+        self.sink.dashboard(snapshot);
+        self.refresh_info(snapshot);
+
+        let mode = self.state.settings().mode;
+        self.sink
+            .halo(halo_percent(mode, snapshot), self.state.info().season);
+
+        match cause {
+            SnapshotCause::Import => {}
+            SnapshotCause::ImportDone => {
+                self.import_done = true;
+                self.evaluate(db, snapshot, mode);
+            }
+            _ if self.import_done => self.evaluate(db, snapshot, mode),
+            _ => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::NaiveDate;
+
+    fn date(y: i32, m: u32, d: u32) -> NaiveDate {
+        NaiveDate::from_ymd_opt(y, m, d).unwrap()
+    }
+    use crate::aggregate::{snapshot, LimitState};
+    use crate::contracts::dashboard::BudgetBasis;
+    use crate::contracts::{
+        AchievementId, DailyBudget, DataStatus, LimitReading, LimitWindow, Platform, Settings,
+    };
+    use crate::limits::LimitPoll;
+    use chrono::FixedOffset;
+    use std::sync::Mutex;
+
+    #[derive(Clone, Default)]
+    struct Recorder(Arc<Mutex<Vec<String>>>);
+
+    impl Recorder {
+        fn log(&self) -> Vec<String> {
+            self.0.lock().unwrap().clone()
+        }
+        fn push(&self, s: String) {
+            self.0.lock().unwrap().push(s);
+        }
+        fn count(&self, prefix: &str) -> usize {
+            self.log().iter().filter(|e| e.starts_with(prefix)).count()
+        }
+    }
+
+    impl Sink for Recorder {
+        fn dashboard(&self, _: &DashboardSnapshot) {
+            self.push("dashboard".into());
+        }
+        fn game(&self, g: &GameState) {
+            self.push(format!("game retro={} level={}", g.retro_done, g.level));
+        }
+        fn achievement(&self, a: &AchievementUnlocked) {
+            self.push(format!("achievement {}", a.id.as_str()));
+        }
+        fn level_up(&self, l: &LevelUp) {
+            self.push(format!("levelUp {}", l.level));
+        }
+        fn app_info(&self, i: &AppInfo) {
+            self.push(format!("info {:?} logs={}", i.season, i.logs_found));
+        }
+        fn halo(&self, p: Option<f64>, s: Season) {
+            self.push(format!("halo {p:?} {s:?}"));
+        }
+    }
+
+    fn tz() -> FixedOffset {
+        FixedOffset::east_opt(0).unwrap()
+    }
+
+    fn ms(d: u32, h: u32) -> EpochMs {
+        date(2026, 10, d)
+            .and_hms_opt(h, 0, 0)
+            .unwrap()
+            .and_utc()
+            .timestamp_millis()
+    }
+
+    fn regular() -> Season {
+        Season::Regular
+    }
+
+    fn setup(mode: Mode) -> (AppPublisher<Recorder>, Recorder, Arc<AppState>, Db) {
+        let info = AppInfo {
+            version: "0".into(),
+            platform: Platform::Windows,
+            season: Season::Regular,
+            schema_version: 1,
+            logs_found: true,
+        };
+        let state = Arc::new(AppState::new(
+            Db::open_in_memory().unwrap(),
+            Settings {
+                mode,
+                ..Settings::default()
+            },
+            info,
+        ));
+        let rec = Recorder::default();
+        let publisher = AppPublisher::new(rec.clone(), Arc::clone(&state), ClockZone::Fixed(tz()))
+            .with_season(regular);
+        (publisher, rec, state, Db::open_in_memory().unwrap())
+    }
+
+    fn snap(db: &Db, mode: Mode, now: EpochMs, limits: &LimitState) -> DashboardSnapshot {
+        let data = DataStatus {
+            state: DataState::Ready,
+            files_total: 1,
+            files_done: 1,
+            last_message_at: None,
+            detail: None,
+        };
+        snapshot(db, limits, mode, data, now, &tz()).unwrap()
+    }
+
+    fn msg(id: &str, ts: EpochMs, out: u64) -> UsageRecord {
+        UsageRecord {
+            message_id: id.into(),
+            request_id: None,
+            session_id: "s".into(),
+            agent_id: None,
+            is_sidechain: false,
+            ts,
+            model: "m".into(),
+            project_path: "/p".into(),
+            input_tokens: 10,
+            output_tokens: out,
+            cache_creation_tokens: 5,
+            cache_read_tokens: 0,
+        }
+    }
+
+    #[test]
+    fn halo_follows_the_mode() {
+        let db = Db::open_in_memory().unwrap();
+        let now = ms(28, 12);
+        let mut limits = LimitState::default();
+        limits.apply(&LimitPoll {
+            source: "statusline",
+            result: Ok(LimitReading {
+                five_hour: Some(LimitWindow {
+                    utilization: 64.5,
+                    resets_at: Some(now + 3_600_000),
+                }),
+                weekly: None,
+                fetched_at: now,
+            }),
+        });
+        let mut s = snap(&db, Mode::Max, now, &limits);
+        assert_eq!(halo_percent(Mode::Max, &s), Some(64.5));
+        assert_eq!(halo_percent(Mode::NoneYet, &s), None);
+        assert_eq!(halo_percent(Mode::Diy, &s), None, "no budget yet");
+        s.daily_budget = Some(DailyBudget {
+            basis: BudgetBasis::TokenHistory,
+            allowance: 10.0,
+            used_today: 15.0,
+            used_percent: 150.0,
+            days_left: 1,
+            resets_at: None,
+        });
+        assert_eq!(halo_percent(Mode::Diy, &s), Some(100.0), "capped");
+        s.limits.five_hour = None;
+        assert_eq!(
+            halo_percent(Mode::Max, &s),
+            None,
+            "no limit data: track only"
+        );
+        s.data.state = DataState::Importing;
+        s.data.files_total = 4;
+        s.data.files_done = 1;
+        assert_eq!(halo_percent(Mode::Max, &s), Some(25.0));
+    }
+
+    #[test]
+    fn snapshot_is_cached_emitted_and_drives_the_halo() {
+        let (mut p, rec, state, mut db) = setup(Mode::Max);
+        let now = ms(28, 12);
+        let s = snap(&db, Mode::Max, now, &LimitState::default());
+        p.on_snapshot(&mut db, &s, SnapshotCause::Import);
+        assert_eq!(state.dashboard().unwrap(), s);
+        assert_eq!(rec.log(), ["dashboard", "halo None Regular"]);
+        assert!(state.game().is_none(), "no evaluation while importing");
+    }
+
+    #[test]
+    fn without_a_mode_the_game_waits_but_reports_a_state() {
+        let (mut p, rec, state, mut db) = setup(Mode::NoneYet);
+        db.upsert_messages(&[msg("a", ms(28, 10), 100)]).unwrap();
+        let s = snap(&db, Mode::NoneYet, ms(28, 12), &LimitState::default());
+        p.on_snapshot(&mut db, &s, SnapshotCause::ImportDone);
+        assert_eq!(state.game().unwrap().xp_total, 0);
+        assert!(!state.game().unwrap().retro_done);
+        assert_eq!(rec.count("achievement"), 0);
+        assert_eq!(rec.count("game"), 1);
+        // Same state again: no repeated event.
+        p.on_snapshot(&mut db, &s, SnapshotCause::Tick);
+        assert_eq!(rec.count("game"), 1);
+    }
+
+    #[test]
+    fn retroactive_replay_runs_once_and_stays_quiet() {
+        let (mut p, rec, state, mut db) = setup(Mode::Max);
+        db.upsert_messages(&[msg("a", ms(26, 10), 300_000), msg("b", ms(27, 3), 100)])
+            .unwrap();
+        let s = snap(&db, Mode::Max, ms(28, 12), &LimitState::default());
+        p.on_snapshot(&mut db, &s, SnapshotCause::ImportDone);
+
+        let game = state.game().unwrap();
+        assert!(game.retro_done && game.xp_total > 0);
+        assert_eq!(rec.count("achievement"), 0);
+        assert_eq!(rec.count("levelUp"), 0);
+        assert_eq!(rec.count("game retro=true"), 1);
+        let unlocked: Vec<_> = game
+            .achievements
+            .iter()
+            .filter(|a| a.unlocked_at.is_some())
+            .map(|a| a.id)
+            .collect();
+        assert!(unlocked.contains(&AchievementId::FirstBlood));
+        assert!(unlocked.contains(&AchievementId::NightOwl));
+        let xp = game.xp_total;
+
+        // Later snapshots are live evaluations and award nothing new.
+        p.on_snapshot(&mut db, &s, SnapshotCause::Tick);
+        assert_eq!(state.game().unwrap().xp_total, xp);
+        assert_eq!(rec.count("game"), 1);
+    }
+
+    #[test]
+    fn live_usage_unlocks_and_announces() {
+        let (mut p, rec, state, mut db) = setup(Mode::Max);
+        let first = snap(&db, Mode::Max, ms(28, 9), &LimitState::default());
+        p.on_snapshot(&mut db, &first, SnapshotCause::ImportDone);
+        assert!(
+            state.game().unwrap().retro_done,
+            "empty replay marks it done"
+        );
+        assert_eq!(rec.count("achievement"), 0);
+
+        let records = [msg("a", ms(28, 10), 250_000)];
+        db.upsert_messages(&records).unwrap();
+        p.on_new_usage(&mut db, &records, true);
+        let s = snap(&db, Mode::Max, ms(28, 11), &LimitState::default());
+        p.on_snapshot(&mut db, &s, SnapshotCause::Files);
+
+        let log = rec.log();
+        assert!(
+            log.contains(&"achievement firstBlood".to_string()),
+            "{log:?}"
+        );
+        assert!(state.game().unwrap().xp_total >= 20, "two token blocks");
+        // The unlock event comes before the state it is part of.
+        let unlock_at = log
+            .iter()
+            .position(|e| e.starts_with("achievement"))
+            .unwrap();
+        let game_at = log.iter().rposition(|e| e.starts_with("game")).unwrap();
+        assert!(unlock_at < game_at);
+        assert_eq!(p.pending_from, None);
+
+        // Nothing new, nothing announced.
+        let before = rec.log().len();
+        p.on_snapshot(&mut db, &s, SnapshotCause::Tick);
+        let after = rec.log();
+        assert!(after[before..]
+            .iter()
+            .all(|e| !e.starts_with("achievement")));
+        assert_eq!(rec.count("achievement"), 1);
+    }
+
+    #[test]
+    fn season_flip_and_missing_logs_update_app_info() {
+        let (p, rec, state, db) = setup(Mode::Max);
+        let mut p = p.with_season(|| Season::Halloween);
+        let mut db2 = db;
+        let mut s = snap(&db2, Mode::Max, ms(28, 12), &LimitState::default());
+        s.data.state = DataState::NoLogs;
+        p.on_snapshot(&mut db2, &s, SnapshotCause::Import);
+        assert_eq!(state.info().season, Season::Halloween);
+        assert!(!state.info().logs_found);
+        assert_eq!(rec.count("info Halloween logs=false"), 1);
+        // Halo uses the new season.
+        assert!(rec.log().contains(&"halo None Halloween".to_string()));
+        // No change, no event.
+        p.on_snapshot(&mut db2, &s, SnapshotCause::Import);
+        assert_eq!(rec.count("info"), 1);
+    }
+}
