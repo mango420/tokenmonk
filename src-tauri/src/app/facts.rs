@@ -161,6 +161,17 @@ pub fn build_facts<Tz: TimeZone>(
     };
     let first = first.min(today);
 
+    // A finished day that gained usage later (startup backlog, late flush)
+    // has a stale budget, and so has every day after it (the history basis
+    // reaches back 7 days). Drop those before they are read.
+    if let Scope::Live {
+        touched: Some(touched),
+    } = scope
+    {
+        let from = local_date(tz, touched);
+        cache.retain(|day, _| *day < from);
+    }
+
     let range_start = day_start(tz, first);
     let range_end = day_start(tz, add_days(today, 1));
     let mut usage: BTreeMap<NaiveDate, Vec<(EpochMs, u64)>> = BTreeMap::new();
@@ -295,6 +306,44 @@ mod tests {
         .unwrap();
         assert_eq!(facts.days[0].day.to_string(), "2026-10-08");
         assert_eq!(facts.days.len(), 21);
+    }
+
+    #[test]
+    fn late_usage_evicts_cached_budgets_from_the_touched_day_on() {
+        let mut db = Db::open_in_memory().unwrap();
+        db.upsert_messages(&[
+            msg("a", ms(2026, 10, 24, 10), 985),
+            msg("b", ms(2026, 10, 25, 10), 985),
+            msg("c", ms(2026, 10, 26, 10), 185),
+        ])
+        .unwrap();
+        let now = ms(2026, 10, 27, 12);
+        let mut cache = BudgetCache::new();
+        let day = |d| NaiveDate::from_ymd_opt(2026, 10, d).unwrap();
+        let live = |touched| Scope::Live { touched };
+        build_facts(&db, Mode::Diy, live(None), now, None, &mut cache, &tz()).unwrap();
+        let before = cache[&day(26)].unwrap();
+        assert!(cache.contains_key(&day(25)));
+
+        // The 26th gains a lot of usage afterwards.
+        db.upsert_messages(&[msg("late", ms(2026, 10, 26, 18), 4_000)])
+            .unwrap();
+        let facts = build_facts(
+            &db,
+            Mode::Diy,
+            live(Some(ms(2026, 10, 26, 18))),
+            now,
+            None,
+            &mut cache,
+            &tz(),
+        )
+        .unwrap();
+        let after = cache[&day(26)].unwrap();
+        assert!(after > before, "{after} should exceed {before}");
+        let fact = facts.days.iter().find(|d| d.day == day(26)).unwrap();
+        assert_eq!(fact.budget_used_percent, Some(after));
+        // Earlier days keep their cached value.
+        assert!(cache.contains_key(&day(25)));
     }
 
     #[test]
