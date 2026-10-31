@@ -4,9 +4,7 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.1.0] - Unreleased
-
-First version.
+## [Unreleased]
 
 ### Added
 
@@ -18,7 +16,8 @@ First version.
   lines as they are written and keeps usage numbers in a local database.
 - Limit data through Claude Code's status line: a `--statusline` bridge
   mode that keeps only the rate limits, plus a copyable setup snippet in
-  Settings.
+  Settings. A limit reading is stored only when it is newer than the last
+  one, and windows past their reset are hidden.
 - Onboarding with two modes, Max it out and Do it yourself; the popup
   opens by itself until a mode is picked.
 - XP, levels, titles and achievements, including retroactive levelling
@@ -27,13 +26,3 @@ First version.
   hidden.
 - Settings: mode, unlock sound, start at login and limit data setup.
 - Halloween season look and a ghost easter egg.
-
-### Changed
-
-- Limit history stores a reading only when it is newer than the last one,
-  so idle polling no longer adds rows.
-
-### Fixed
-
-- Limit windows that have already reset are no longer shown with their old
-  numbers.
