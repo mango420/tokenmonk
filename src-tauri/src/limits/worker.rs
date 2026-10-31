@@ -1,7 +1,7 @@
 //! The limits worker thread (docs/ARCHITECTURE.md, "Threads" and "Limits").
 //!
 //! One thread calls [`LimitSource::fetch`] on a fixed interval and sends each
-//! outcome over a channel to the ingest worker. The channel is unbounded, so
+//! new outcome (not a repeat of the previous one) over a channel to the ingest worker. The channel is unbounded, so
 //! sending never blocks, and a slow or failing source only delays its own
 //! thread, never log ingestion.
 //!
@@ -17,8 +17,8 @@ use std::time::{Duration, Instant};
 
 use crate::contracts::limits::{LimitError, LimitReading, LimitSource};
 
-/// Poll every 5 minutes while the app runs.
-pub const POLL_INTERVAL: Duration = Duration::from_secs(5 * 60);
+/// Poll every 30 seconds while the app runs (a local file read).
+pub const POLL_INTERVAL: Duration = Duration::from_secs(30);
 /// A refresh request (popup opened) is ignored if the last poll is younger.
 pub const MIN_REFRESH_GAP: Duration = Duration::from_secs(60);
 
@@ -96,11 +96,19 @@ pub fn spawn_with(
         .spawn(move || {
             let mut last_poll: Option<Instant> = None;
             let mut poll = true;
+            let mut last_sent: Option<LimitPoll> = None;
             loop {
                 if poll {
                     last_poll = Some(Instant::now());
-                    if out.send(poll_once(source.as_ref())).is_err() {
-                        return;
+                    let outcome = poll_once(source.as_ref());
+                    // Idle polling must not add rows or snapshots: an outcome
+                    // equal to the previous one (same reading, same error) is
+                    // not forwarded.
+                    if !is_repeat(last_sent.as_ref(), &outcome) {
+                        last_sent = Some(outcome.clone());
+                        if out.send(outcome).is_err() {
+                            return;
+                        }
                     }
                 }
                 let wait = config
@@ -116,6 +124,18 @@ pub fn spawn_with(
             }
         })?;
     Ok(LimitsHandle { control })
+}
+
+/// `true` if `next` tells the receiver nothing new: the same reading or the
+/// same error as the last one forwarded. Readings are compared whole: when a
+/// window resets the source drops it while `fetched_at` stays, and that
+/// change must get through.
+fn is_repeat(last: Option<&LimitPoll>, next: &LimitPoll) -> bool {
+    match (last.map(|l| &l.result), &next.result) {
+        (Some(Ok(a)), Ok(b)) => a == b,
+        (Some(Err(a)), Err(b)) => a == b,
+        _ => false,
+    }
 }
 
 /// Calls the source once.
@@ -220,12 +240,92 @@ mod tests {
 
     #[test]
     fn failing_source_keeps_the_worker_alive() {
-        let (_handle, rx) = start(Arc::new(Failing), 20, 0);
-        for _ in 0..3 {
-            let poll = rx.recv_timeout(WAIT).unwrap();
-            assert_eq!(poll.source, "failing");
-            assert_eq!(poll.result.unwrap_err().reason, LimitReason::Network);
+        let source = Arc::new(Failing);
+        let (_handle, rx) = start(source, 20, 0);
+        let poll = rx.recv_timeout(WAIT).unwrap();
+        assert_eq!(poll.source, "failing");
+        assert_eq!(poll.result.unwrap_err().reason, LimitReason::Network);
+        // The same error again is not forwarded.
+        assert!(rx.recv_timeout(Duration::from_millis(150)).is_err());
+    }
+
+    fn poll_ok(at: i64) -> LimitPoll {
+        LimitPoll {
+            source: "t",
+            result: Ok(LimitReading {
+                five_hour: None,
+                weekly: None,
+                fetched_at: at,
+            }),
         }
+    }
+
+    fn poll_err(detail: &str) -> LimitPoll {
+        LimitPoll {
+            source: "t",
+            result: Err(LimitError {
+                reason: LimitReason::NoSource,
+                detail: detail.into(),
+            }),
+        }
+    }
+
+    #[test]
+    fn repeats_are_recognised() {
+        assert!(!is_repeat(None, &poll_ok(5)));
+        assert!(is_repeat(Some(&poll_ok(5)), &poll_ok(5)));
+        assert!(!is_repeat(Some(&poll_ok(5)), &poll_ok(6)));
+        assert!(is_repeat(Some(&poll_err("a")), &poll_err("a")));
+        assert!(!is_repeat(Some(&poll_err("a")), &poll_err("b")));
+        // A reading after an error, or an error after a reading, always counts.
+        assert!(!is_repeat(Some(&poll_err("a")), &poll_ok(5)));
+        assert!(!is_repeat(Some(&poll_ok(5)), &poll_err("a")));
+    }
+
+    #[test]
+    fn a_window_reset_is_not_a_repeat() {
+        use crate::contracts::limits::LimitWindow;
+        let window = |pct| {
+            Some(LimitWindow {
+                utilization: pct,
+                resets_at: Some(9_000),
+            })
+        };
+        let reading = |five_hour| LimitPoll {
+            source: "t",
+            result: Ok(LimitReading {
+                five_hour,
+                weekly: window(30.0),
+                fetched_at: 5,
+            }),
+        };
+        let before = reading(window(80.0));
+        // The 5-hour window reset and was dropped; `fetched_at` is unchanged.
+        let after = reading(None);
+        assert!(!is_repeat(Some(&before), &after));
+        assert!(is_repeat(Some(&after), &reading(None)));
+    }
+
+    struct Constant;
+
+    impl LimitSource for Constant {
+        fn id(&self) -> &'static str {
+            "constant"
+        }
+        fn fetch(&self) -> Result<LimitReading, LimitError> {
+            Ok(LimitReading {
+                five_hour: None,
+                weekly: None,
+                fetched_at: 7,
+            })
+        }
+    }
+
+    #[test]
+    fn unchanged_reading_is_forwarded_once() {
+        let (_handle, rx) = start(Arc::new(Constant), 20, 0);
+        assert_eq!(rx.recv_timeout(WAIT).unwrap().result.unwrap().fetched_at, 7);
+        assert!(rx.recv_timeout(Duration::from_millis(150)).is_err());
     }
 
     #[test]

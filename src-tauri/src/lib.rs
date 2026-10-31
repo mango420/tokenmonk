@@ -1,6 +1,7 @@
 //! Tokenmonk application core.
 
 pub mod aggregate;
+pub mod app;
 pub mod commands;
 pub mod contracts;
 pub mod db;
@@ -17,13 +18,20 @@ use tauri_plugin_autostart::MacosLauncher;
 /// Builds and runs the Tauri application.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Status-line bridge mode: no window, tray, plugin or database starts
+    // (docs/ARCHITECTURE.md, "Bridge mode").
+    if std::env::args().nth(1).as_deref() == Some(limits::setup::BRIDGE_FLAG) {
+        limits::bridge::run();
+        return;
+    }
+
     let mut builder = tauri::Builder::default();
 
     // Must be registered first so a second launch exits before anything else starts.
     #[cfg(desktop)]
     {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {
-            // A second launch is ignored; showing the popup comes with the tray work.
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            window::show(app);
         }));
     }
 
@@ -39,6 +47,7 @@ pub fn run() {
             commands::get_game_state,
             commands::trigger_easter_egg,
             commands::get_app_info,
+            commands::get_limit_setup,
         ])
         .setup(|app| {
             #[cfg(desktop)]
@@ -51,7 +60,7 @@ pub fn run() {
                 ))?;
                 handle.plugin(tauri_plugin_positioner::init())?;
             }
-            Ok(())
+            app::setup(app)
         })
         .run(tauri::generate_context!())
         .expect("error while running Tokenmonk");
