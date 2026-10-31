@@ -34,9 +34,12 @@ Everything stays on your machine. No account, no login, no telemetry.
 
 - **Usage data** comes from Claude Code's local logs in
   `~/.claude/projects/`. Tokenmonk only reads these files and never changes
-  them. It keeps only usage data (token counts, model, timestamps, message
-  and session IDs, the project folder path) in a local SQLite database in
-  the app's data directory. Message text is never stored.
+  them. Message text is never stored.
+- **Local database**: a SQLite file in the app's data directory holds
+  per-message usage (token counts, model, timestamps, message, request,
+  session and subagent IDs, a sidechain flag, the project folder path),
+  the paths of the log files read so far with their read offsets, your
+  settings, XP and achievements, internal app state and limit readings.
 - **Limit data** comes from Claude Code's status line, if you set it up
   (below). Claude Code passes a JSON object to the status-line command; the
   bridge keeps only the rate-limit part (percent used and reset time for the
@@ -57,24 +60,27 @@ certificate, so both systems warn you the first time you open the app.
 ### Windows
 
 Microsoft Defender SmartScreen shows a blue dialog titled
-"Windows protected your PC". Click **More info**, then **Run anyway**.
+"Windows protected your PC". Click **More info** if it is shown, then **Run anyway**.
 
 If Smart App Control is turned on, Windows may block unsigned apps without
 offering that option.
 
 ### macOS
 
-macOS refuses to open the app the first time because it is not notarized by
-Apple. To allow it:
+macOS refuses to open the app the first time because it is not signed or
+notarized by Apple. If the warning offers no way to open it, try this:
 
 1. Try to open Tokenmonk once and close the warning.
 2. Open **System Settings > Privacy & Security** and scroll down to
    **Security**.
-3. Click **Open Anyway** next to the message about Tokenmonk. The button is
+3. If Tokenmonk is listed there, click **Open Anyway**. The button is
    available for about an hour after you tried to open the app.
 4. Confirm with your login password.
 
-After that, Tokenmonk opens normally.
+On Apple silicon Macs, an unsigned app downloaded from the internet may
+instead be reported as "damaged" with no **Open Anyway** button. The
+current builds are not signed at all, so this message can appear. If you
+see it, please open an issue.
 
 ## Set up limit data
 
