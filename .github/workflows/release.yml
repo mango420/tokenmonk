@@ -14,6 +14,10 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # v0.1 ships without auto-update (docs/DECISIONS.md, "Updater"): no signing
+  # key, no latest.json, no .sig files. To switch updater artifacts back on,
+  # set this to 'true' and apply the config changes listed in DECISIONS.md.
+  UPDATER_ARTIFACTS: 'false'
 
 jobs:
   guard:
@@ -32,6 +36,7 @@ jobs:
       - run: node scripts/guard.mjs --all
 
       - name: Check updater signing secrets are set
+        if: env.UPDATER_ARTIFACTS == 'true'
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -45,17 +50,19 @@ jobs:
             exit 1
           fi
 
-      - name: Check updater config is release-ready
+      - name: Check updater config matches UPDATER_ARTIFACTS
         run: |
           node -e "
+            const on = process.env.UPDATER_ARTIFACTS === 'true';
             const c = require('./src-tauri/tauri.conf.json');
             const errors = [];
-            const pubkey = c.plugins && c.plugins.updater && c.plugins.updater.pubkey;
-            if (typeof pubkey !== 'string' || pubkey.trim() === '') {
-              errors.push('plugins.updater.pubkey is empty');
+            const artifacts = !!(c.bundle && c.bundle.createUpdaterArtifacts === true);
+            if (artifacts !== on) {
+              errors.push('bundle.createUpdaterArtifacts must be ' + on + ' while UPDATER_ARTIFACTS is ' + on);
             }
-            if (!c.bundle || c.bundle.createUpdaterArtifacts !== true) {
-              errors.push('bundle.createUpdaterArtifacts is not true');
+            const pubkey = c.plugins && c.plugins.updater && c.plugins.updater.pubkey;
+            if (on && (typeof pubkey !== 'string' || pubkey.trim() === '')) {
+              errors.push('plugins.updater.pubkey is empty');
             }
             for (const e of errors) console.log('::error::tauri.conf.json: ' + e);
             process.exit(errors.length ? 1 : 0);
@@ -115,8 +122,10 @@ jobs:
 
       - run: npm ci
 
-      # Binaries are unsigned (no Apple or Windows code-signing secrets).
-      # Only the updater artifacts are signed, with the Tauri updater key.
+      # Binaries are unsigned (no Apple or Windows code-signing secrets);
+      # macOS gets an ad-hoc signature from tauri.conf.json. While
+      # UPDATER_ARTIFACTS is 'false' no updater artifacts are built or
+      # uploaded. The signing env below is only read once it is 'true'.
       - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -125,9 +134,10 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: Tokenmonk v__VERSION__
-          releaseBody: Unsigned build. See the assets to download and install.
+          releaseBody: Unsigned build, no auto-update. See the assets to download and install.
           releaseDraft: true
           prerelease: false
-          uploadUpdaterJson: true
+          uploadUpdaterJson: ${{ env.UPDATER_ARTIFACTS == 'true' }}
+          uploadUpdaterSignatures: ${{ env.UPDATER_ARTIFACTS == 'true' }}
           updaterJsonPreferNsis: true
           args: ${{ matrix.args }}
