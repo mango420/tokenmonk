@@ -182,6 +182,31 @@ impl Db {
             .optional()?)
     }
 
+    /// Timestamp of the oldest stored message.
+    pub fn first_message_ts(&self) -> DbResult<Option<EpochMs>> {
+        Ok(self
+            .conn()
+            .query_row("SELECT MIN(ts) FROM messages", [], |r| r.get(0))?)
+    }
+
+    /// `(timestamp, headline tokens)` of every message in `[from, to)`.
+    /// Headline = input + output + cache creation (cache reads excluded).
+    pub fn usage_between(&self, from: EpochMs, to: EpochMs) -> DbResult<Vec<(EpochMs, u64)>> {
+        let mut stmt = self.conn().prepare_cached(
+            "SELECT ts, input_tokens + output_tokens + cache_creation_tokens \
+             FROM messages WHERE ts >= ?1 AND ts < ?2",
+        )?;
+        let rows = stmt.query_map([from, to], |r| {
+            Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?))
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (ts, tokens) = row?;
+            out.push((ts, u(tokens)));
+        }
+        Ok(out)
+    }
+
     /// Number of stored messages.
     pub fn message_count(&self) -> DbResult<u64> {
         Ok(u(self.conn().query_row(
@@ -250,6 +275,23 @@ mod tests {
         assert_eq!(edge.messages, 1);
         let none = db.tokens_between(DAY0 + 2 * HOUR, DAY0 + 3 * HOUR).unwrap();
         assert_eq!(none, TokenTotals::default());
+    }
+
+    #[test]
+    fn first_message_ts_and_usage_between() {
+        let empty = Db::open_in_memory().unwrap();
+        assert_eq!(empty.first_message_ts().unwrap(), None);
+        assert!(empty.usage_between(0, i64::MAX).unwrap().is_empty());
+
+        let db = seeded();
+        assert_eq!(db.first_message_ts().unwrap(), Some(DAY0 + HOUR));
+        // Half-open range; headline excludes cache reads.
+        let mut rows = db.usage_between(DAY0 + HOUR, DAY0 + 25 * HOUR).unwrap();
+        rows.sort();
+        assert_eq!(
+            rows,
+            vec![(DAY0 + HOUR, 111), (DAY0 + 23 * HOUR + 30 * 60_000, 222)]
+        );
     }
 
     #[test]
