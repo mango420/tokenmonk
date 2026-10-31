@@ -327,6 +327,7 @@ impl Worker {
 
     fn on_limit_poll(&mut self, poll: &LimitPoll) {
         if let Some(reading) = self.limits.apply(poll) {
+            // Stored only when newer than the newest stored reading.
             if let Err(e) = self.db.insert_limit_snapshot(poll.source, reading) {
                 log::warn!("ingest: cannot store the limit reading: {e}");
             }
