@@ -68,6 +68,8 @@ CSP is strict: `default-src 'self'`, images and fonts from `self` and `data:`, i
 - Windows paths with a space: `statuslineCommand` stays the Git Bash form; the UI adds a PowerShell alternative `& <command>` (no contract change).
 - `refreshInterval` is not recommended: a timer re-run resends old values and would make them look fresh.
 - Chaining an existing status line: documented as one `printf ... | <command> >/dev/null` line for Bash scripts; a built-in chain flag is out of scope for v0.1.
+- `limit_snapshots` stores a reading only when its `fetchedAt` is strictly newer than the newest stored row (one `INSERT ... SELECT ... WHERE` statement). An equal or older `fetchedAt` is a repeat poll of the same bridge file and adds no row, also when a window was dropped since (#36).
+- The limits view (`LimitState::view`, used for every snapshot) drops each window of the last good reading whose `resetsAt` is at or before now; no window left means `unavailable` / `noSource`. Stored readings and `limit_snapshots` rows stay untouched (#35).
 - Tauri `app_data_dir()` resolves to `data_dir/<bundle identifier>`, so the bridge (which runs without Tauri) uses `dirs::data_dir()` plus `app.tokenmonk.desktop`.
 - Sources: <https://code.claude.com/docs/en/statusline>, <https://code.claude.com/docs/en/settings>, <https://docs.rs/tauri/latest/tauri/path/struct.PathResolver.html>.
 

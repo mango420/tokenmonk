@@ -261,7 +261,9 @@ event, whether the popup is open or hidden.
 ### Onboarding
 
 Shown while `Settings.mode = noneYet` (`View = onboarding`). The accent is
-saffron (brand) until a mode is chosen.
+saffron (brand) until a mode is chosen. On every start while onboarding is
+pending the popup opens by itself, so the choice is not hidden behind the
+tray icon.
 
 Layout (360 x 680, padding `popup-padding`, column, gap `space-6`):
 
@@ -332,8 +334,8 @@ section only shows what to paste.
 
    | Limits | Text |
    |---|---|
-   | `ok` or `stale` | "Connected. Last reading 14:05." (`fetchedAt`, local 24 h time, mono for the time) |
-   | `unavailable`, `noSource` | "Not set up yet." |
+   | `ok` or `stale` | "Connected. Last reading 14:05." (`fetchedAt`, local 24 h time, mono for the time); "Connected." if `fetchedAt` is `null` |
+   | `unavailable`, `noSource` or no `reason` | "Not set up yet." |
    | `unavailable`, other reasons | "Can’t read the limit file. Next reply fixes it." |
 
 3. Setup copy (caption, `ink-muted`): "Limits come from Claude Code’s
@@ -360,7 +362,11 @@ section only shows what to paste.
    copying fails, the caption reads "Couldn’t copy. Select it and copy by
    hand." If `statuslineCommand` is `null`, the card is replaced by the
    caption "Couldn’t find the Tokenmonk executable. Reinstall, then look
-   again." and the copy button is not shown.
+   again."; the copy button, the PowerShell alternative and the chain hint
+   (item 5) are not shown. If `get_limit_setup` fails, the same parts are
+   replaced by the caption "Couldn’t look up the setup line. Close Settings
+   and open it again." (`ink-muted`). While the call runs, none of them is
+   shown yet.
 
    Windows, path with a space (`AppInfo.platform = windows` and
    `statuslineCommand` starts with `"`): below the card, the caption "No
