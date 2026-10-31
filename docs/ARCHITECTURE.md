@@ -19,6 +19,7 @@ Related documents: [DESIGN.md](DESIGN.md) (look and feel),
 | aggregate | `src-tauri/src/aggregate/` | Build `DashboardSnapshot` from the database and the latest limit reading. |
 | limits | `src-tauri/src/limits/` | `LimitSource` implementations and the polling worker. |
 | game | `src-tauri/src/game/` | XP, levels, titles, achievements, retroactive replay. |
+| app | `src-tauri/src/app/` | App layer: shared state (`AppState`: cached snapshot, game state, settings, app info, command connection), the ingest publisher (`AppPublisher`: caches each snapshot, emits events, drives the tray halo and the game), startup wiring (`setup`), the game store adapter (`DbGameStore`) and the game facts builder. SQL stays in `db`. |
 | commands | `src-tauri/src/commands/` | `#[tauri::command]` handlers; thin, read cached state or delegate. |
 | tray, window | `src-tauri/src/{tray,window}/` | Tray icon with live halo, popup window placement and show/hide. |
 | UI | `src/` | React views: onboarding, dashboard, settings, toasts, ghost overlay. |
@@ -50,20 +51,24 @@ minute tick ----------------------------------------------------> aggregate
 ## Threads
 
 - **Main thread**: Tauri event loop, tray, windows. Never blocks on I/O.
-- **Ingest worker** (one thread): owns the only write connection to SQLite.
-  Receives file-change notifications, reads new bytes, parses, upserts,
+- **Ingest worker** (one thread): owns the ingest write connection to
+  SQLite. Receives file-change notifications, reads new bytes, parses, upserts,
   then recomputes the snapshot and the game state, stores both in shared
   state and emits events. Also runs the minute tick (day rollover, burn
   rate decay, session idle cut-off, season check).
 - **Limits worker** (one thread): calls `LimitSource::fetch` on a fixed
   interval, hands readings to the ingest worker over a channel. A slow or
   failing source never delays log ingestion.
-- **Command handlers** read the cached snapshot and game state from shared
-  state (`Arc<RwLock<..>>` or similar); writes such as settings go through
-  the ingest worker or a short-lived write on the same connection guarded by
-  a mutex. Commands never parse logs.
+- **Command handlers** read the cached snapshot, game state and settings
+  from shared state (`app::AppState`, held in an `Arc`, cache behind an
+  `RwLock`). Commands that write (settings, the easter egg) use a second
+  connection owned by `AppState` and guarded by a mutex; game evaluation
+  and persistence (ingest worker and easter egg) are serialised by
+  `AppState::game_lock`. Commands never parse logs.
 
-The database runs in WAL mode so reads never wait for the writer.
+The database runs in WAL mode with a busy timeout, so reads never wait for
+a writer and a write that meets the other connection's lock waits briefly
+instead of failing.
 
 ## Ingest
 
@@ -190,9 +195,9 @@ pub trait LimitSource: Send + Sync {
 ### Bridge mode
 
 - Invocation: `<tokenmonk executable> --statusline`. The flag must be the
-  first argument. `main.rs` checks it **before** the Tauri builder runs, so
-  no window, tray, plugin (single-instance included), database or logger
-  starts. Bridge code lives in `src-tauri/src/limits/bridge.rs`.
+  first argument. `lib.rs::run` checks it **before** the Tauri builder is
+  created, so no window, tray, plugin (single-instance included), database
+  or logger starts. `main.rs` only calls `run`. Bridge code lives in `src-tauri/src/limits/bridge.rs`.
 - Steps:
   1. Read stdin to EOF, at most 1 MiB (more counts as bad input).
   2. Parse JSON. Take `rate_limits.five_hour` and `rate_limits.seven_day`.
@@ -255,8 +260,9 @@ Bridge file (camelCase, all timestamps `EpochMs`; invented values):
 - Poll interval: 30 s (a local file read), plus once when the popup opens
   if the last poll is older than the existing minimum refresh gap (1 min).
   The ingest worker stores a reading in `limit_snapshots` only if its
-  `fetchedAt` is newer than the last stored one, so idle polling adds no
-  rows.
+  `fetchedAt` is strictly newer than the newest stored one; an equal or
+  older `fetchedAt` is a repeat poll (also when a window was dropped
+  since), so idle polling adds no rows.
 - Staleness uses the aggregate rule (Aggregates, "Limit status") on
   `fetchedAt = receivedAt`: `ok` up to 15 minutes, then `stale`. The file
   only changes while Claude Code runs, so `stale` is normal after a break.
@@ -310,10 +316,9 @@ For backend-platform (and the orchestrator where marked):
    returning `statuslineCommand: null` is fine until the path logic
    lands); register it in `lib.rs` next to the other commands
    (orchestrator, shared hotspot).
-2. `main.rs` (orchestrator, shared hotspot): if the first argument is
-   `--statusline`, run the bridge and return before
-   `tokenmonk_lib::run()`, so the Tauri builder and the single-instance
-   plugin never start.
+2. `lib.rs::run` (orchestrator, shared hotspot): if the first argument is
+   `--statusline`, run the bridge and return before the Tauri builder is
+   created, so no plugin (single-instance included) starts.
 3. `limits/bridge.rs`: bridge mode and the shared path helper
    (`dirs::data_dir()` + `app.tokenmonk.desktop` + `statusline.json`).
 4. `limits/statusline.rs`: `StatuslineSource` (id `"statusline"`), and
@@ -321,7 +326,8 @@ For backend-platform (and the orchestrator where marked):
 5. `limits/worker.rs`: `POLL_INTERVAL` becomes 30 s; `MIN_REFRESH_GAP`
    stays 1 min.
 6. Ingest worker (backend-data): store a reading in `limit_snapshots` only
-   if its `fetchedAt` is newer than the newest stored one.
+   if its `fetchedAt` is strictly newer than the newest stored one (one
+   statement, `Db::insert_limit_snapshot`).
 7. Aggregate (backend-data): drop expired windows from the last good
    reading on every snapshot build (Aggregates, "Limit status").
 
@@ -409,7 +415,7 @@ strings (a future data-carrying enum would be internally tagged with
 
 | Situation | Core behaviour | What the UI gets |
 |---|---|---|
-| First start, onboarding pending | Ingest runs, game waits | `Settings.mode = noneYet` -> onboarding view |
+| First start, onboarding pending | Ingest runs, game waits; the popup opens by itself on every start while onboarding is pending | `Settings.mode = noneYet` -> onboarding view |
 | First import running | Import in background | `data.state = importing` with file counts |
 | No Claude folder or no logs | Keep watching the root for it to appear | `data.state = noLogs`, zero totals, `AppInfo.logsFound = false` |
 | Log folder unreadable | Retry on the rescan interval | `data.state = error`, `detail` |
