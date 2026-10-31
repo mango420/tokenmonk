@@ -55,7 +55,10 @@ fn today_session_and_burn_come_from_the_fixtures_without_cache_reads() {
     assert_eq!(s.today.input, 8);
     assert_eq!(s.today.output, 1_000);
     assert_eq!(s.today.cache_creation, 1_000);
-    assert_eq!(s.today.cache_read, 510_000, "reported, but not in the total");
+    assert_eq!(
+        s.today.cache_read, 510_000,
+        "reported, but not in the total"
+    );
     assert_eq!(s.today.total, 2_008);
 
     // Burn rate: M4 only, cache read of 260000 left out.
@@ -74,7 +77,10 @@ fn today_session_and_burn_come_from_the_fixtures_without_cache_reads() {
     assert_eq!(session.tokens.total, 2_162);
     assert_eq!(session.tokens.cache_read, 920_000);
 
-    assert_eq!(s.data.last_message_at, Some(utc_ms(2026, 10, 28, 11, 30, 0)));
+    assert_eq!(
+        s.data.last_message_at,
+        Some(utc_ms(2026, 10, 28, 11, 30, 0))
+    );
     assert_eq!(s.limits.status, LimitStatus::Unavailable);
     assert!(s.daily_budget.is_none(), "Max it out has no history budget");
 

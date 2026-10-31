@@ -27,9 +27,19 @@ use tokenmonk_lib::watcher::{ingest_file, ClockZone, IngestPublisher, SnapshotCa
 #[derive(Debug, Clone, PartialEq)]
 pub enum Event {
     Dashboard,
-    Game { retro_done: bool, level: u32 },
-    Achievement { id: String, retroactive: bool },
-    LevelUp { level: u32, previous: u32, retroactive: bool },
+    Game {
+        retro_done: bool,
+        level: u32,
+    },
+    Achievement {
+        id: String,
+        retroactive: bool,
+    },
+    LevelUp {
+        level: u32,
+        previous: u32,
+        retroactive: bool,
+    },
     AppInfo,
     Halo(Option<f64>),
 }
@@ -220,7 +230,9 @@ impl Rig {
             result,
         };
         if let Some(reading) = self.limits.apply(&poll) {
-            self.db.insert_limit_snapshot("statusline", reading).unwrap();
+            self.db
+                .insert_limit_snapshot("statusline", reading)
+                .unwrap();
         }
     }
 
