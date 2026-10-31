@@ -687,10 +687,81 @@ button {
   border-radius: var(--radius-md);
 }
 
+.dev-switch button,
 .dev-switch select {
   padding: var(--space-2);
   border-radius: var(--radius-sm);
   background: var(--surface-200);
   color: var(--ink);
   font: inherit;
+}
+
+/* ------------------------------------------------------ text button, limit data */
+
+.text-button {
+  min-height: var(--hit-target);
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent-text);
+  font: inherit;
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line);
+  font-weight: var(--text-caption-weight);
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.screen--settings {
+  overflow-y: auto;
+}
+
+/* Children keep their size and the view scrolls instead of squeezing them. */
+.screen--settings > * {
+  flex: none;
+}
+
+.limit-data {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.limit-data .label-strong,
+.limit-data .caption {
+  margin: 0;
+}
+
+.snippet {
+  position: relative;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-200);
+}
+
+.snippet__text {
+  margin: 0;
+  /* Room for the copy button in the top right corner. */
+  padding-right: var(--hit-target);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-size);
+  line-height: var(--text-mono-line);
+  font-weight: var(--text-mono-weight);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.snippet__copy {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.limit-data__path {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-size);
+  color: var(--ink);
 }

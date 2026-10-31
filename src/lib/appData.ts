@@ -14,11 +14,12 @@ import {
   type AppInfo,
   type DashboardSnapshot,
   type GameState,
+  type LimitSetup,
   type Mode,
   type Settings,
   type SettingsPatch,
 } from "./contracts";
-import { defaultScenario, getMockScenarios, type MockScenarioId } from "./mock";
+import { defaultScenario, getMockScenarios, mockLimitSetup, type MockScenarioId } from "./mock";
 
 export interface AppData {
   settings: Settings;
@@ -39,6 +40,8 @@ export interface AppActions {
   updateSettings: (patch: SettingsPatch) => Promise<boolean>;
   /** Picks the first mode (`max` or `diy`). Resolves `false` when rejected. */
   completeOnboarding: (mode: Mode) => Promise<boolean>;
+  /** Reads the status-line setup values. Rejects when the core can't answer. */
+  loadLimitSetup: () => Promise<LimitSetup>;
 }
 
 export interface AppState {
@@ -178,9 +181,11 @@ function useLiveAppData(enabled: boolean): AppState {
     [apply],
   );
 
+  const loadLimitSetup = useCallback(() => call(Commands.getLimitSetup), []);
+
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
-  return { phase, data, actions: { updateSettings, completeOnboarding }, retry };
+  return { phase, data, actions: { updateSettings, completeOnboarding, loadLimitSetup }, retry };
 }
 
 // -------------------------------------------------------------------- mock
@@ -199,6 +204,11 @@ function useMockAppData(scenario: MockScenarioId): AppState {
     return true;
   }, []);
 
+  const loadLimitSetup = useCallback(
+    async () => mockLimitSetup(getMockScenarios()[scenario]),
+    [scenario],
+  );
+
   return {
     phase: "ready",
     data: {
@@ -207,7 +217,7 @@ function useMockAppData(scenario: MockScenarioId): AppState {
       dashboard: source.dashboard,
       game: source.game,
     },
-    actions: { updateSettings, completeOnboarding },
+    actions: { updateSettings, completeOnboarding, loadLimitSetup },
     retry: () => undefined,
   };
 }
