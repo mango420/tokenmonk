@@ -1,9 +1,8 @@
 //! Builds the game's [`Facts`] from the database.
 //!
 //! The game module is pure; this is the bridge from stored messages and
-//! limit snapshots to `DayFacts` and `LimitFact`. Reads go through the
-//! database helpers where one exists; the two row queries below have none
-//! (the db module offers day totals, not per-message timestamps).
+//! limit snapshots to `DayFacts` and `LimitFact`. All reads go through the
+//! database helpers; no SQL lives here.
 
 use std::collections::{BTreeMap, HashMap};
 
@@ -43,12 +42,7 @@ fn first_day<Tz: TimeZone>(
     tz: &Tz,
 ) -> DbResult<Option<NaiveDate>> {
     match scope {
-        Scope::Replay => {
-            let first: Option<EpochMs> =
-                db.conn()
-                    .query_row("SELECT MIN(ts) FROM messages", [], |r| r.get(0))?;
-            Ok(first.map(|ts| local_date(tz, ts)))
-        }
+        Scope::Replay => Ok(db.first_message_ts()?.map(|ts| local_date(tz, ts))),
         Scope::Live { touched } => {
             let floor = add_days(today, -(i64::from(STREAK_LOOKBACK_DAYS) - 1));
             Ok(Some(match touched {
@@ -59,38 +53,17 @@ fn first_day<Tz: TimeZone>(
     }
 }
 
-/// `(timestamp, headline tokens)` of every message in `[from, to)`.
-/// Headline = input + output + cache creation (cache reads are excluded).
-fn usage_between(db: &Db, from: EpochMs, to: EpochMs) -> DbResult<Vec<(EpochMs, u64)>> {
-    let mut stmt = db.conn().prepare_cached(
-        "SELECT ts, input_tokens + output_tokens + cache_creation_tokens \
-         FROM messages WHERE ts >= ?1 AND ts < ?2",
-    )?;
-    let rows = stmt.query_map([from, to], |r| {
-        Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?))
-    })?;
-    let mut out = Vec::new();
-    for row in rows {
-        let (ts, tokens) = row?;
-        out.push((ts, u64::try_from(tokens).unwrap_or(0)));
-    }
-    Ok(out)
-}
-
 /// Stored 5-hour readings with `fetched_at >= from`, oldest first.
 fn limit_facts(db: &Db, from: EpochMs) -> DbResult<Vec<LimitFact>> {
-    let mut stmt = db.conn().prepare_cached(
-        "SELECT fetched_at, five_hour_pct, five_hour_resets_at FROM limit_snapshots \
-         WHERE fetched_at >= ?1 AND five_hour_pct IS NOT NULL ORDER BY fetched_at",
-    )?;
-    let rows = stmt.query_map([from], |r| {
-        Ok(LimitFact {
-            at: r.get(0)?,
-            five_hour_pct: r.get(1)?,
-            five_hour_resets_at: r.get(2)?,
+    Ok(db
+        .five_hour_snapshots_since(from)?
+        .into_iter()
+        .map(|s| LimitFact {
+            at: s.at,
+            five_hour_pct: Some(s.pct),
+            five_hour_resets_at: s.resets_at,
         })
-    })?;
-    rows.collect::<Result<_, _>>().map_err(Into::into)
+        .collect())
 }
 
 /// Budget used (percent) by a finished `day`, on the basis that was
@@ -107,19 +80,7 @@ fn finished_day_budget<Tz: TimeZone>(
     let end = day_start(tz, add_days(day, 1));
     let last = end - 1;
 
-    let weekly: Option<(f64, Option<EpochMs>)> = db
-        .conn()
-        .prepare_cached(
-            "SELECT weekly_pct, weekly_resets_at FROM limit_snapshots \
-             WHERE fetched_at < ?1 AND weekly_pct IS NOT NULL \
-             ORDER BY fetched_at DESC, id DESC LIMIT 1",
-        )?
-        .query_row([end], |r| Ok((r.get(0)?, r.get(1)?)))
-        .map(Some)
-        .or_else(|e| match e {
-            rusqlite::Error::QueryReturnedNoRows => Ok(None),
-            other => Err(other),
-        })?;
+    let weekly = db.last_weekly_before(end)?;
     if let Some((pct, Some(resets_at))) = weekly.filter(|(_, r)| r.is_some_and(|r| r > last)) {
         let window_start = resets_at.saturating_sub(WEEK_MS);
         let w0 = if window_start > start {
@@ -175,7 +136,7 @@ pub fn build_facts<Tz: TimeZone>(
     let range_start = day_start(tz, first);
     let range_end = day_start(tz, add_days(today, 1));
     let mut usage: BTreeMap<NaiveDate, Vec<(EpochMs, u64)>> = BTreeMap::new();
-    for (ts, tokens) in usage_between(db, range_start, range_end)? {
+    for (ts, tokens) in db.usage_between(range_start, range_end)? {
         usage
             .entry(local_date(tz, ts))
             .or_default()

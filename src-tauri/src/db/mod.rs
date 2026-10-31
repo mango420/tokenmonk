@@ -18,7 +18,7 @@ use std::time::Duration;
 use rusqlite::Connection;
 
 pub use game_tables::{AchievementRow, XpEvent};
-pub use limit_snapshots::StoredLimit;
+pub use limit_snapshots::{FiveHourSnapshot, StoredLimit};
 pub use messages::UpsertStats;
 pub use migrations::{latest_version, MIGRATIONS};
 pub use queries::{DayTotals, LatestMessage, SessionSummary, TokenTotals};
