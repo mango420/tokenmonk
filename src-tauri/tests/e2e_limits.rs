@@ -342,7 +342,6 @@ fn the_limit_worker_delivers_what_the_bridge_wrote() {
 /// The aggregate drops a window whose reset time has passed even when no new
 /// poll arrived (docs/ARCHITECTURE.md, "Limit status").
 #[test]
-#[ignore = "bug: LimitState::view keeps windows past resets_at between polls; issue #32"]
 fn the_aggregate_drops_a_window_that_reset_between_polls() {
     let bridge = Bridge::new();
     bridge.run(

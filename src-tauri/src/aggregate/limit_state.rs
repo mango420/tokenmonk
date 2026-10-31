@@ -84,6 +84,18 @@ impl LimitState {
             }
         };
 
+        // Drop windows that have reset; the reading says nothing about the
+        // next one (docs/ARCHITECTURE.md, "Limit status").
+        let live = |w: &Option<LimitWindow>| {
+            w.as_ref()
+                .filter(|w| !w.resets_at.is_some_and(|r| r <= now))
+                .cloned()
+        };
+        let (five_hour, weekly) = (live(&reading.five_hour), live(&reading.weekly));
+        if five_hour.is_none() && weekly.is_none() {
+            return unavailable(LimitReason::NoSource, None);
+        }
+
         let age = now.saturating_sub(reading.fetched_at);
         let (status, reason, detail) = if age <= LIMIT_STALE_MS {
             (LimitStatus::Ok, None, None)
@@ -105,8 +117,8 @@ impl LimitState {
             reason,
             detail,
             source: self.source.clone(),
-            five_hour: reading.five_hour.clone(),
-            weekly: reading.weekly.clone(),
+            five_hour,
+            weekly,
             fetched_at: Some(reading.fetched_at),
         }
     }
@@ -213,6 +225,59 @@ mod tests {
         // Values are still shown while stale.
         assert!(v.five_hour.is_some());
         assert_eq!(v.fetched_at, Some(0));
+    }
+
+    fn win(utilization: f64, resets_at: Option<i64>) -> Option<LimitWindow> {
+        Some(LimitWindow {
+            utilization,
+            resets_at,
+        })
+    }
+
+    fn state_with(five_hour: Option<LimitWindow>, weekly: Option<LimitWindow>) -> LimitState {
+        LimitState::from_stored(Some(StoredLimit {
+            source: "s".into(),
+            reading: LimitReading {
+                five_hour,
+                weekly,
+                fetched_at: 0,
+            },
+        }))
+    }
+
+    #[test]
+    fn view_drops_only_the_window_that_has_reset() {
+        let s = state_with(win(50.0, Some(10 * MIN)), win(20.0, Some(1000 * MIN)));
+        let before = s.view(10 * MIN - 1);
+        assert!(before.five_hour.is_some() && before.weekly.is_some());
+        // At resetsAt the window is gone, the other stays.
+        let at = s.view(10 * MIN);
+        assert_eq!(at.status, LimitStatus::Ok);
+        assert!(at.five_hour.is_none());
+        assert_eq!(at.weekly.as_ref().unwrap().utilization, 20.0);
+        assert_eq!(at.fetched_at, Some(0));
+    }
+
+    #[test]
+    fn view_is_no_source_when_every_window_has_reset() {
+        let s = state_with(win(50.0, Some(10 * MIN)), win(20.0, Some(12 * MIN)));
+        let v = s.view(12 * MIN);
+        assert_eq!(v.status, LimitStatus::Unavailable);
+        assert_eq!(v.reason, Some(LimitReason::NoSource));
+        assert!(v.five_hour.is_none() && v.weekly.is_none());
+        assert_eq!(v.fetched_at, None);
+        assert_eq!(v.source.as_deref(), Some("s"));
+        // The stored reading itself is untouched.
+        assert!(s.reading.as_ref().unwrap().five_hour.is_some());
+    }
+
+    #[test]
+    fn view_keeps_windows_without_resets_at() {
+        let s = state_with(win(50.0, None), None);
+        assert!(s.view(i64::MAX / 2).five_hour.is_some());
+        // A reading without any window is unavailable.
+        let empty = state_with(None, None);
+        assert_eq!(empty.view(0).reason, Some(LimitReason::NoSource));
     }
 
     #[test]
