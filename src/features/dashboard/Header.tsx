@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
 import { Icon } from "../../components/Icon";
 import { LogoMark } from "../../components/LogoMark";
+import { SeasonChip } from "../../components/SeasonChip";
+import type { Season } from "../../lib/contracts";
 import { MODE_LABEL, type PopupMode } from "./model";
 
 interface HeaderProps {
@@ -10,13 +11,13 @@ interface HeaderProps {
   haloRatio: number | null;
   /** Omitted: no settings button (onboarding). */
   onOpenSettings?: () => void;
-  /** Seam for the ghost easter egg (#16): click counting lives with the caller. */
+  /** Click counting for the ghost easter egg lives with the caller. */
   onLogoClick?: () => void;
-  /** Seam for the "Spooky season" chip (#16), rendered between label and settings. */
-  badge?: ReactNode;
+  /** `halloween` shows the "Spooky season" chip between label and settings. */
+  season?: Season;
 }
 
-export function Header({ mode, haloRatio, onOpenSettings, onLogoClick, badge }: HeaderProps) {
+export function Header({ mode, haloRatio, onOpenSettings, onLogoClick, season }: HeaderProps) {
   return (
     <header className="header">
       <button type="button" className="header__logo" aria-label="Tokenmonk" onClick={onLogoClick}>
@@ -31,7 +32,7 @@ export function Header({ mode, haloRatio, onOpenSettings, onLogoClick, badge }: 
           </span>
         )}
       </div>
-      {badge}
+      {season === "halloween" ? <SeasonChip /> : null}
       {onOpenSettings === undefined ? null : (
         <button type="button" className="icon-button" aria-label="Settings" onClick={onOpenSettings}>
           <Icon name="gear" />

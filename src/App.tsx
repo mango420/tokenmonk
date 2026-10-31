@@ -5,6 +5,7 @@ import { ScenarioSwitch } from "./dev/ScenarioSwitch";
 import { Dashboard } from "./features/dashboard/Dashboard";
 import { useGameNotices } from "./features/game";
 import { Header } from "./features/dashboard/Header";
+import { useGhost } from "./features/ghost/useGhost";
 import { useOsNotifications } from "./features/notifications/useOsNotifications";
 import { Onboarding } from "./features/onboarding/Onboarding";
 import { SettingsView } from "./features/settings/SettingsView";
@@ -31,15 +32,15 @@ export default function App() {
   useBackendEvent(Events.navigate, ({ view }) => open(view), !usesMockData);
   const backToDashboard = useCallback(() => open("dashboard"), [open]);
 
-  // Achievement toasts and the level-up screen live in the popup overlay slot.
-  // No other overlay exists yet; the ghost (#16) will set `overlayOpen`.
+  // The ghost, achievement toasts and the level-up screen live in the popup
+  // overlay slot. The ghost wins: toasts and a level-up wait until it is gone.
   const popupVisible = usePopupVisible();
-  const overlayOpen = false;
+  const ghost = useGhost({ game: data.game, trigger: actions.triggerEasterEgg });
   const notices = useGameNotices({
     game: data.game,
     sound: data.settings.sound,
     popupVisible,
-    blocked: overlayOpen,
+    blocked: ghost.active,
   });
   useBackendEvent(Events.achievementUnlocked, notices.pushUnlock, !usesMockData);
   useBackendEvent(Events.levelUp, notices.pushLevelUp, !usesMockData);
@@ -89,13 +90,21 @@ export default function App() {
         data={data}
         onOpenSettings={() => open("settings")}
         onOpenLimitSetup={() => open("settings", true)}
+        onLogoClick={ghost.onLogoClick}
       />
     );
   }
 
   return (
     <div className="stage">
-      <Popup overlay={notices.node}>{screen}</Popup>
+      <Popup
+        overlay={
+          <>
+            {notices.node}
+            {ghost.node}
+          </>
+        }
+      >{screen}</Popup>
       {import.meta.env.DEV && usesMockData ? (
         <ScenarioSwitch
           value={scenario}
