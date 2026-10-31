@@ -14,7 +14,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  # v0.1 ships without auto-update (docs/DECISIONS.md, "Updater"): no signing
+  # v0.1 ships without auto-update (docs/DECISIONS.md, "v0.1 without updater artifacts"): no signing
   # key, no latest.json, no .sig files. To switch updater artifacts back on,
   # set this to 'true' and apply the config changes listed in DECISIONS.md.
   UPDATER_ARTIFACTS: 'false'
@@ -125,7 +125,8 @@ jobs:
       # Binaries are unsigned (no Apple or Windows code-signing secrets);
       # macOS gets an ad-hoc signature from tauri.conf.json. While
       # UPDATER_ARTIFACTS is 'false' no updater artifacts are built or
-      # uploaded. The signing env below is only read once it is 'true'.
+      # uploaded. The signing env below is only read when
+      # bundle.createUpdaterArtifacts is true in tauri.conf.json.
       - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
