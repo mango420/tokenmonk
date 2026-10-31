@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import type { AppData } from "../../lib/appData";
 import { AchievementRow } from "./AchievementRow";
 import { Header } from "./Header";
@@ -21,10 +20,8 @@ interface DashboardProps {
   onOpenSettings: () => void;
   /** Opens Settings scrolled to "Limit data". */
   onOpenLimitSetup?: () => void;
-  /** Seam for the ghost easter egg (#16). */
+  /** Every logo click; the ghost easter egg counts them. */
   onLogoClick?: () => void;
-  /** Seam for the Halloween chip (#16). */
-  headerBadge?: ReactNode;
 }
 
 /**
@@ -36,7 +33,6 @@ export function Dashboard({
   onOpenSettings,
   onOpenLimitSetup,
   onLogoClick,
-  headerBadge,
 }: DashboardProps) {
   const { settings, dashboard, game } = data;
   const mode = toPopupMode(settings.mode);
@@ -50,7 +46,7 @@ export function Dashboard({
         haloRatio={gauge.ratio}
         onOpenSettings={onOpenSettings}
         onLogoClick={onLogoClick}
-        badge={headerBadge}
+        season={data.appInfo.season}
       />
       <HaloGauge model={gauge} onOpenLimitSetup={onOpenLimitSetup} />
       <StatTiles tiles={buildStatTiles(dashboard)} />

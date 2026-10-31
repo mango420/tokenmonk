@@ -50,7 +50,7 @@ export function Onboarding({ data, onChoose }: OnboardingProps) {
 
   return (
     <>
-      <Header mode={null} haloRatio={importRatio(data.dashboard.data)} />
+      <Header mode={null} haloRatio={importRatio(data.dashboard.data)} season={season} />
       <div className="screen screen--onboarding">
         <h1 className="screen__title">How do you want to vibe?</h1>
         <div className="choice-group" role="radiogroup" aria-label="Mode">
