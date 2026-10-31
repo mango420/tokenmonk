@@ -99,3 +99,10 @@ CSP is strict: `default-src 'self'`, images and fonts from `self` and `data:`, i
 - `plugins.updater.pubkey`: the public key content from the generated `.pub` file (content, not a path).
 - `bundle.macOS.signingIdentity`: `"-"` (ad-hoc signing; Tauri docs recommend it for macOS builds without an Apple certificate, otherwise Apple Silicon builds can be reported as damaged). Users still approve the app once in Privacy & Security.
 - Endpoint stays `https://github.com/mango420/tokenmonk/releases/latest/download/latest.json` (already set).
+
+## v0.1 without updater artifacts (2026-10-31)
+
+- v0.1 ships without auto-update. The repository stays private, binaries are distributed by hand, and the in-app update check (#41) is deferred. No updater signing key exists and none is created for now.
+- `release.yml` has one switch, the workflow-level `UPDATER_ARTIFACTS` (currently `'false'`). While off, the guard skips the signing-secret check and requires `bundle.createUpdaterArtifacts` to be unset or false; the build uploads no `latest.json` (`uploadUpdaterJson: false`) and no `.sig` files (`uploadUpdaterSignatures: false`). The tag and version consistency check and `guard.mjs --all` always run. The empty `plugins.updater.pubkey` stays and does no harm.
+- `bundle.macOS.signingIdentity` is `"-"` (ad-hoc signing, confirmed by the Tauri 2 macOS signing docs); users still approve the app once in Privacy & Security.
+- Switching updater artifacts back on: follow "Cutting a release" step 1 and "`tauri.conf.json` changes applied in the release phase" above (except the signing identity, already set), then set `UPDATER_ARTIFACTS: 'true'` in `release.yml`. The guard then requires both secrets, a non-empty pubkey and `createUpdaterArtifacts: true`.
