@@ -7,7 +7,7 @@
   "draft": true,
   "force-tag-creation": true,
   "pull-request-header": "Release PR: merging it tags the release and drafts the GitHub release.",
-  "pull-request-footer": "",
+  "pull-request-footer": "Bumps package.json, package-lock.json, Cargo.toml, Cargo.lock and tauri.conf.json together.",
   "packages": {
     ".": {
       "package-name": "tokenmonk",
