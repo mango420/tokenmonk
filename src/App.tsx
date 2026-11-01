@@ -5,7 +5,6 @@ import { ScenarioSwitch } from "./dev/ScenarioSwitch";
 import { Dashboard } from "./features/dashboard/Dashboard";
 import { useGameNotices } from "./features/game";
 import { Header } from "./features/dashboard/Header";
-import { useGhost } from "./features/ghost/useGhost";
 import { useOsNotifications } from "./features/notifications/useOsNotifications";
 import { Onboarding } from "./features/onboarding/Onboarding";
 import { SettingsView } from "./features/settings/SettingsView";
@@ -32,31 +31,26 @@ export default function App() {
   useBackendEvent(Events.navigate, ({ view }) => open(view), !usesMockData);
   const backToDashboard = useCallback(() => open("dashboard"), [open]);
 
-  // The ghost, achievement toasts and the level-up screen live in the popup
-  // overlay slot. The ghost wins: toasts and a level-up wait until it is gone.
+  // Achievement toasts and the level-up screen live in the popup overlay slot.
   const popupVisible = usePopupVisible();
-  const ghost = useGhost({ game: data.game, trigger: actions.triggerEasterEgg });
   const notices = useGameNotices({
     game: data.game,
     sound: data.settings.sound,
     popupVisible,
-    blocked: ghost.active,
+    blocked: false,
   });
   useBackendEvent(Events.achievementUnlocked, notices.pushUnlock, !usesMockData);
   useBackendEvent(Events.levelUp, notices.pushLevelUp, !usesMockData);
 
   useOsNotifications(data, app.phase === "ready" && !usesMockData);
 
-  // Mode and season drive the accent in tokens.css. No mode before onboarding: brand saffron.
+  // The mode drives the accent in tokens.css. No mode before onboarding: brand saffron.
   const mode = data.settings.mode;
-  const season = data.appInfo.season;
   useLayoutEffect(() => {
     const root = document.documentElement;
     if (mode === "noneYet") delete root.dataset.mode;
     else root.dataset.mode = mode;
-    if (season === "halloween") root.dataset.season = season;
-    else delete root.dataset.season;
-  }, [mode, season]);
+  }, [mode]);
 
   // Onboarding is not a choice: it shows while no mode is picked, and only then.
   const view: View =
@@ -90,7 +84,6 @@ export default function App() {
         data={data}
         onOpenSettings={() => open("settings")}
         onOpenLimitSetup={() => open("settings", true)}
-        onLogoClick={ghost.onLogoClick}
       />
     );
   }
@@ -98,12 +91,7 @@ export default function App() {
   return (
     <div className="stage">
       <Popup
-        overlay={
-          <>
-            {notices.node}
-            {ghost.node}
-          </>
-        }
+        overlay={notices.node}
       >{screen}</Popup>
       {import.meta.env.DEV && usesMockData ? (
         <ScenarioSwitch

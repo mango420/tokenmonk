@@ -3,8 +3,7 @@ import type { ReactNode } from "react";
 interface PopupProps {
   children: ReactNode;
   /**
-   * Covers the whole popup. Seam for game toasts (#12) and the ghost overlay
-   * (#16); the frame is `position: relative`.
+   * Covers the whole popup. Seam for game toasts (#12); the frame is `position: relative`.
    */
   overlay?: ReactNode;
 }

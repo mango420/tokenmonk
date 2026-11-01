@@ -13,7 +13,6 @@ import type {
   LimitReason,
   LimitsView,
   Mode,
-  Season,
 } from "../../lib/contracts";
 import {
   clamp01,
@@ -27,10 +26,9 @@ import {
 
 export type PopupMode = "max" | "diy";
 
-/** Fill of a mode's tile and button; Max it out turns pumpkin during Halloween. */
-export function modeFill(mode: PopupMode, season: Season): Fill {
-  if (mode === "diy") return "jade";
-  return season === "halloween" ? "pumpkin" : "saffron";
+/** Fill of a mode's tile and button. */
+export function modeFill(mode: PopupMode): Fill {
+  return mode === "diy" ? "jade" : "saffron";
 }
 
 /** Before onboarding (`noneYet`) the popup falls back to Max it out. */
@@ -349,13 +347,16 @@ export type AchievementRowModel =
   | { kind: "next"; id: AchievementId; name: string; caption: string };
 
 /** Picks the single achievement to show (DESIGN.md, "Achievement row rule"). */
+/** Boo is no longer findable; it only survives as the Halloween 2026 badge. */
+const BOO_BADGE_NAME = "Halloween 2026";
+
 export function buildAchievementRow(game: GameState, now: number): AchievementRowModel | null {
   if (!game.retroDone) return null;
 
   const unlocked = (u: GameState["recentUnlocks"][number]): AchievementRowModel => ({
     kind: "unlocked",
     id: u.id,
-    name: u.name,
+    name: u.id === "boo" ? BOO_BADGE_NAME : u.name,
     detail: u.detail,
     xp: u.xp,
   });

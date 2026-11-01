@@ -20,20 +20,13 @@ interface DashboardProps {
   onOpenSettings: () => void;
   /** Opens Settings scrolled to "Limit data". */
   onOpenLimitSetup?: () => void;
-  /** Every logo click; the ghost easter egg counts them. */
-  onLogoClick?: () => void;
 }
 
 /**
  * The popup's dashboard view. Renders blocks top to bottom into the popup
  * column (see `Popup`); the footer note is pushed to the bottom.
  */
-export function Dashboard({
-  data,
-  onOpenSettings,
-  onOpenLimitSetup,
-  onLogoClick,
-}: DashboardProps) {
+export function Dashboard({ data, onOpenSettings, onOpenLimitSetup }: DashboardProps) {
   const { settings, dashboard, game } = data;
   const mode = toPopupMode(settings.mode);
   const gauge = buildGauge(mode, dashboard, game);
@@ -45,8 +38,6 @@ export function Dashboard({
         mode={mode}
         haloRatio={gauge.ratio}
         onOpenSettings={onOpenSettings}
-        onLogoClick={onLogoClick}
-        season={data.appInfo.season}
       />
       <HaloGauge model={gauge} onOpenLimitSetup={onOpenLimitSetup} />
       <StatTiles tiles={buildStatTiles(dashboard)} />
