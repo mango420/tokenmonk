@@ -170,7 +170,6 @@ pub fn build_facts<Tz: TimeZone>(
     Ok(Facts {
         days,
         limits: limit_facts(db, limits_from)?,
-        boo_at: None,
     })
 }
 

@@ -24,7 +24,7 @@ use crate::contracts::events::{
     ACHIEVEMENT_UNLOCKED, APP_INFO_CHANGED, DASHBOARD_UPDATED, GAME_UPDATED, LEVEL_UP,
 };
 use crate::contracts::{
-    AchievementUnlocked, AppInfo, DashboardSnapshot, GameState, LevelUp, Mode, Platform, Season,
+    AchievementUnlocked, AppInfo, DashboardSnapshot, GameState, LevelUp, Mode, Platform,
 };
 use crate::db::Db;
 use crate::limits;
@@ -101,7 +101,6 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let info = AppInfo {
         version: handle.package_info().version.to_string(),
         platform: platform(),
-        season: Season::Regular,
         schema_version: write_db.schema_version()?,
         logs_found: config.as_ref().is_some_and(|c| c.logs_root.is_dir()),
     };
