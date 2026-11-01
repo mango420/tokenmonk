@@ -108,7 +108,7 @@ impl Sink for Recorder {
     fn app_info(&self, _: &AppInfo) {
         self.push(Event::AppInfo);
     }
-    fn halo(&self, percent: Option<f64>, _: Season) {
+    fn halo(&self, percent: Option<f64>) {
         self.push(Event::Halo(percent));
     }
 }
@@ -173,8 +173,7 @@ impl Rig {
             self.rec.clone(),
             Arc::clone(&state),
             ClockZone::Fixed(utc()),
-        )
-        .with_season(|| Season::Regular);
+        );
         self.state = state;
         self.limits = LimitState::from_stored(self.db.latest_limit_snapshot().unwrap());
     }
