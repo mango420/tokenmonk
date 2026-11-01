@@ -166,7 +166,7 @@ const achievements: AchievementProgress[] = [
   {
     id: "boo",
     name: "Boo",
-    description: "Find the ghost.",
+    description: "Halloween 2026.",
     secret: true,
     mode: null,
     xp: 100,
@@ -310,28 +310,18 @@ export const mockLevelUp: LevelUp = {
   retroactive: false,
 };
 
-/** The `AchievementUnlocked` payload for Boo, as `trigger_easter_egg` returns it. */
-export function mockBooUnlock(unlockedAt: number): AchievementUnlocked {
-  return {
-    id: "boo",
-    name: "Boo",
-    detail: null,
-    xp: 100,
-    unlockedAt,
-    retroactive: false,
-  };
-}
-
-/** `maxGame` with Boo found a little while ago. */
+/** `maxGame` with the Halloween 2026 badge (Boo) unlocked a little while ago. */
 const booGame: GameState = {
   ...maxGame,
   xpTotal: maxGame.xpTotal + 100,
   xpIntoLevel: maxGame.xpIntoLevel + 100,
   progress: (maxGame.xpIntoLevel + 100) / maxGame.xpForLevel,
+  recentUnlocks: [
+    { id: "boo", name: "Boo", detail: null, xp: 100, unlockedAt: NOW - 3 * HOUR, retroactive: false },
+    ...maxGame.recentUnlocks,
+  ],
   achievements: achievements.map((a) => (a.id === "boo" ? { ...a, unlockedAt: NOW - 3 * HOUR } : a)),
 };
-
-const halloweenInfo: AppInfo = { ...appInfo, season: "halloween" };
 
 const maxSettings: Settings = { mode: "max", sound: true, autostart: false };
 const diySettings: Settings = { mode: "diy", sound: true, autostart: false };
@@ -344,53 +334,8 @@ const buildScenarios = () => ({
     dashboard: snapshot({}),
     game: maxGame,
   },
-  halloween: {
-    label: "Halloween, max it out, 72 %",
-    settings: maxSettings,
-    appInfo: halloweenInfo,
-    dashboard: snapshot({}),
-    game: maxGame,
-  },
-  halloweenDiy: {
-    label: "Halloween, do it yourself, 23 %",
-    settings: diySettings,
-    appInfo: halloweenInfo,
-    dashboard: snapshot({
-      today: tokens(12_480),
-      session: session(1_920),
-      dailyBudget: budget(23),
-      limits: {
-        status: "ok",
-        reason: null,
-        detail: null,
-        source: "mock",
-        fiveHour: { utilization: 18, resetsAt: NOW + 134 * MIN },
-        weekly: { utilization: 9, resetsAt: WEEKLY_RESET },
-        fetchedAt: NOW,
-      },
-    }),
-    game: diyGame,
-  },
-  halloweenDanger: {
-    label: "Halloween, max it out, 94 %",
-    settings: maxSettings,
-    appInfo: halloweenInfo,
-    dashboard: snapshot({
-      burnRate: { tokensPerMinute: 2_900, windowMinutes: 10, limitEtaMinutes: 7 },
-      limits: {
-        status: "ok",
-        reason: null,
-        detail: null,
-        source: "mock",
-        fiveHour: { utilization: 94, resetsAt: NOW + 52 * MIN },
-        weekly: { utilization: 63, resetsAt: WEEKLY_RESET },
-        fetchedAt: NOW,
-      },
-    }),
-    game: maxGame,
-  },
   booUnlocked: {
-    label: "Max it out, Boo already unlocked",
+    label: "Max it out, Halloween 2026 badge",
     settings: maxSettings,
     appInfo,
     dashboard: snapshot({}),

@@ -84,7 +84,7 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false }: 
                 compact
                 icon={mode === "max" ? "flame" : "wrench"}
                 name={MODE_LABEL[mode]}
-                fill={modeFill(mode, data.appInfo.season)}
+                fill={modeFill(mode)}
                 selected={shown.mode === mode}
                 onSelect={() => {
                   if (shown.mode !== mode) void change({ mode });
