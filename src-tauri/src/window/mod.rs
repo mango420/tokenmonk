@@ -2,12 +2,14 @@
 //!
 //! The popup is the single `main` window declared in `tauri.conf.json`
 //! (hidden at start, no decorations). It hides when it loses focus and
-//! when the user closes it; the app keeps living in the tray.
+//! when the user closes it; the app keeps living in the tray. The header is a
+//! drag region; once the user drags the popup away from the tray it opens
+//! where they left it until the app restarts.
 
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use tauri::{AppHandle, Manager, WebviewWindow, WindowEvent};
+use tauri::{AppHandle, Manager, PhysicalPosition, WebviewWindow, WindowEvent};
 use tauri_plugin_positioner::{Position, WindowExt};
 
 use crate::limits::LimitsHandle;
@@ -20,6 +22,26 @@ pub const LABEL: &str = "main";
 const BLUR_GRACE: Duration = Duration::from_millis(250);
 
 static LAST_BLUR_HIDE: Mutex<Option<Instant>> = Mutex::new(None);
+
+/// Where `place` last put the popup. If it sits elsewhere when it opens
+/// again, the user dragged it there.
+static LAST_PLACED: Mutex<Option<PhysicalPosition<i32>>> = Mutex::new(None);
+
+/// Rounding slack between the position `place` asked for and the one the OS
+/// reports back, in physical pixels.
+const MOVE_TOLERANCE: i32 = 2;
+
+fn moved_by_user(
+    placed: Option<PhysicalPosition<i32>>,
+    current: Option<PhysicalPosition<i32>>,
+) -> bool {
+    match (placed, current) {
+        (Some(p), Some(c)) => {
+            (p.x - c.x).abs() > MOVE_TOLERANCE || (p.y - c.y).abs() > MOVE_TOLERANCE
+        }
+        _ => false,
+    }
+}
 
 /// Outcome of a tray click on a popup in a given state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,14 +90,18 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Shows the popup next to the tray icon and focuses it. Asks the limits
+/// Shows the popup next to the tray icon (or where the user dragged it) and
+/// focuses it. Asks the limits
 /// worker for a fresh reading (it skips the request if the last poll is
 /// recent). Also the right reaction to a second app launch.
 pub fn show(app: &AppHandle) {
     let Some(popup) = app.get_webview_window(LABEL) else {
         return;
     };
-    place(&popup);
+    let placed = LAST_PLACED.lock().ok().and_then(|last| *last);
+    if !moved_by_user(placed, popup.outer_position().ok()) {
+        place(&popup);
+    }
     if let Err(e) = popup.show() {
         log::warn!("could not show the popup: {e}");
         return;
@@ -114,16 +140,19 @@ pub fn toggle(app: &AppHandle) {
 /// tray position is known (no tray event yet) it falls back to the screen
 /// corner where the tray usually sits.
 fn place(popup: &WebviewWindow) {
-    if popup.move_window_constrained(Position::TrayCenter).is_ok() {
-        return;
+    if popup.move_window_constrained(Position::TrayCenter).is_err() {
+        let corner = if cfg!(target_os = "macos") {
+            Position::TopRight
+        } else {
+            Position::BottomRight
+        };
+        if let Err(e) = popup.move_window(corner) {
+            log::warn!("could not position the popup: {e}");
+            return;
+        }
     }
-    let corner = if cfg!(target_os = "macos") {
-        Position::TopRight
-    } else {
-        Position::BottomRight
-    };
-    if let Err(e) = popup.move_window(corner) {
-        log::warn!("could not position the popup: {e}");
+    if let Ok(mut last) = LAST_PLACED.lock() {
+        *last = popup.outer_position().ok();
     }
 }
 
@@ -143,6 +172,15 @@ mod tests {
             toggle_action(false, Some(Duration::from_secs(5))),
             ToggleAction::Show
         );
+    }
+
+    #[test]
+    fn dragged_popup_stays_put() {
+        let at = |x, y| Some(PhysicalPosition::new(x, y));
+        assert!(!moved_by_user(None, at(10, 10)));
+        assert!(!moved_by_user(at(10, 10), None));
+        assert!(!moved_by_user(at(10, 10), at(11, 9)));
+        assert!(moved_by_user(at(10, 10), at(10, 200)));
     }
 
     #[test]

@@ -19,7 +19,8 @@ interface HeaderProps {
 
 export function Header({ mode, haloRatio, onOpenSettings, onLogoClick, season }: HeaderProps) {
   return (
-    <header className="header">
+    // "deep": the whole header drags the window; its buttons stay clickable.
+    <header className="header" data-tauri-drag-region="deep">
       <button type="button" className="header__logo" aria-label="Tokenmonk" onClick={onLogoClick}>
         <LogoMark ratio={haloRatio} />
       </button>
