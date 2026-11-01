@@ -13,7 +13,7 @@ export type ToastItem =
   | { kind: "single"; key: string; unlock: AchievementUnlocked }
   | { kind: "summary"; key: string; count: number; newest: AchievementUnlocked; xp: number };
 
-/** Retroactive unlocks are not toasted one by one and Boo never gets a toast. */
+/** Retroactive unlocks are not toasted one by one and the legacy Boo badge (not earnable any more) never gets a toast. */
 export function isToastable(unlock: AchievementUnlocked): boolean {
   return !unlock.retroactive && unlock.id !== "boo";
 }

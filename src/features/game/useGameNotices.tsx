@@ -20,7 +20,7 @@ export interface GameNoticesOptions {
   sound: boolean;
   /** The popup window is shown. Events are kept while it is hidden. Default `true`. */
   popupVisible?: boolean;
-  /** A higher-priority overlay (the ghost) is open: toasts and the level-up wait. */
+  /** A higher-priority overlay is open: toasts and the level-up wait. */
   blocked?: boolean;
 }
 
@@ -40,8 +40,8 @@ export interface GameNotices {
  * - The tone plays once per live event when `sound` is on, whether the
  *   popup is open or hidden. Retroactive events are ignored entirely.
  * - Toasts: one at a time, 4 s, click dismisses, hover pauses, three or more
- *   waiting collapse into one. Boo never gets a toast.
- * - Priority: ghost (`blocked`), then the level-up screen, then toasts.
+ *   waiting collapse into one. The legacy Boo badge never gets a toast.
+ * - Priority: another overlay (`blocked`), then the level-up screen, then toasts.
  * - `game.retroDone` turning true shows the first-start summary once.
  */
 export function useGameNotices({

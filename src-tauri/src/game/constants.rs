@@ -153,8 +153,8 @@ pub const ACHIEVEMENTS: [AchievementDef; 6] = [
     },
     AchievementDef {
         id: AchievementId::Boo,
-        name: "Boo",
-        description: "Find the ghost.",
+        name: "Halloween 2026",
+        description: "Found the ghost. It has since left the building.",
         secret: true,
         mode: None,
         xp: 100,
