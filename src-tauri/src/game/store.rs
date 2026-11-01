@@ -45,7 +45,7 @@ pub fn run_evaluation<S: GameStore, Tz: TimeZone>(
     Ok(evaluation)
 }
 
-/// Write an evaluation (also the one from [`super::easter_egg`]) to the store.
+/// Write an evaluation to the store.
 pub fn persist<S: GameStore>(
     store: &mut S,
     prev: &GameData,

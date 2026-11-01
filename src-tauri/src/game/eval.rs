@@ -22,8 +22,7 @@ use super::model::{
     AchievementRecord, DayFacts, Evaluation, Facts, GameData, LedgerEntry, LimitFact,
 };
 use crate::contracts::{
-    AchievementId, AchievementProgress, AchievementUnlocked, EasterEggResult, EpochMs, GameState,
-    LevelUp, Mode,
+    AchievementId, AchievementProgress, AchievementUnlocked, EpochMs, GameState, LevelUp, Mode,
 };
 
 /// Evaluate new facts against the stored game data.
@@ -91,8 +90,8 @@ pub fn evaluate<Tz: TimeZone>(
         records.get(&id).is_some_and(|r| r.unlocked_at.is_some())
     };
 
-    // Without day facts (the easter egg) there is nothing to recompute; an empty
-    // range would reset the stored progress.
+    // Without day facts there is nothing to recompute; an empty range would
+    // reset the stored progress.
     let streak = (earn_mode == Some(Mode::Diy) && !facts.days.is_empty())
         .then(|| token_monk_streak(&facts.days, today, tz));
 
@@ -108,7 +107,8 @@ pub fn evaluate<Tz: TimeZone>(
                 AchievementId::RateLimitRambo => rambo_at(&facts.limits),
                 AchievementId::SoClose => so_close_at(&facts.limits, now),
                 AchievementId::TokenMonk => streak.as_ref().and_then(|s| s.unlocked_at),
-                AchievementId::Boo => facts.boo_at,
+                // Legacy badge: kept for users who unlocked it, never earned again.
+                AchievementId::Boo => None,
             };
             if let Some(at) = at {
                 candidates.push((at, idx, def));
@@ -195,52 +195,6 @@ pub fn evaluate<Tz: TimeZone>(
         unlocks,
         level_up,
     }
-}
-
-/// The logo easter egg. Unlocks Boo once; repeats change nothing. The
-/// returned evaluation is empty on repeats. `daily_xp_preview` of its state
-/// is `None` (no day facts here): keep the previous preview when emitting.
-pub fn easter_egg<Tz: TimeZone>(
-    prev: &GameData,
-    mode: Mode,
-    now: EpochMs,
-    tz: &Tz,
-) -> (EasterEggResult, Evaluation) {
-    let facts = Facts {
-        boo_at: Some(now),
-        ..Facts::default()
-    };
-    // Onboarding shows the logo too: before a mode is chosen Boo is earned
-    // under Max it out (as the titles fall back), never as `NoneYet`.
-    let earn = if mode == Mode::NoneYet {
-        Mode::Max
-    } else {
-        mode
-    };
-    let mut evaluation = evaluate(prev, &facts, earn, now, tz, false);
-    evaluation.state.mode = mode;
-    let newly_unlocked = !evaluation.unlocks.is_empty();
-    let def = achievement_def(AchievementId::Boo);
-    let achievement = evaluation.unlocks.first().cloned().unwrap_or_else(|| {
-        let at = prev
-            .achievements
-            .iter()
-            .find(|r| r.id == AchievementId::Boo)
-            .and_then(|r| r.unlocked_at)
-            .unwrap_or(now);
-        let retro = prev
-            .achievements
-            .iter()
-            .any(|r| r.id == AchievementId::Boo && r.retroactive);
-        unlocked_from(def, at, retro, tz)
-    });
-    (
-        EasterEggResult {
-            newly_unlocked,
-            achievement,
-        },
-        evaluation,
-    )
 }
 
 /// XP a day at `used_percent` of the daily budget earns in Do it yourself:
