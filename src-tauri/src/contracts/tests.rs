@@ -113,13 +113,11 @@ fn game_types_shape() {
     for id in AchievementId::ALL {
         assert_eq!(to_value(id).unwrap(), json!(id.as_str()));
     }
-    let v = to_value(EasterEggResult {
-        newly_unlocked: true,
-        achievement: sample_unlock(),
-    })
-    .unwrap();
-    assert_eq!(v["newlyUnlocked"], json!(true));
-    assert_eq!(v["achievement"]["unlockedAt"], json!(1_700_000_000_000_i64));
+    // Legacy badge: the wire string must stay readable for existing unlocks.
+    assert_eq!(to_value(AchievementId::Boo).unwrap(), json!("boo"));
+    let v = to_value(sample_unlock()).unwrap();
+    assert_eq!(v["id"], json!("nightOwl"));
+    assert_eq!(v["unlockedAt"], json!(1_700_000_000_000_i64));
     let level = to_value(LevelUp {
         level: 8,
         previous_level: 7,
@@ -136,7 +134,6 @@ fn app_info_and_errors_shape() {
     let info = AppInfo {
         version: "0.1.0".into(),
         platform: Platform::Macos,
-        season: Season::Halloween,
         schema_version: schema::SCHEMA_VERSION,
         logs_found: true,
     };
@@ -145,7 +142,6 @@ fn app_info_and_errors_shape() {
         json!({
             "version": "0.1.0",
             "platform": "macos",
-            "season": "halloween",
             "schemaVersion": 1,
             "logsFound": true
         })

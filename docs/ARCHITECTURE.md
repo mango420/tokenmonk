@@ -22,7 +22,7 @@ Related documents: [DESIGN.md](DESIGN.md) (look and feel),
 | app | `src-tauri/src/app/` | App layer: shared state (`AppState`: cached snapshot, game state, settings, app info, command connection), the ingest publisher (`AppPublisher`: caches each snapshot, emits events, drives the tray halo and the game), startup wiring (`setup`), the game store adapter (`DbGameStore`) and the game facts builder. SQL stays in `db`. |
 | commands | `src-tauri/src/commands/` | `#[tauri::command]` handlers; thin, read cached state or delegate. |
 | tray, window | `src-tauri/src/{tray,window}/` | Tray icon with live halo, popup window placement and show/hide. |
-| UI | `src/` | React views: onboarding, dashboard, settings, toasts, ghost overlay. |
+| UI | `src/` | React views: onboarding, dashboard, settings, toasts, level-up screen. |
 
 The UI never touches files, the database or the network.
 
@@ -55,16 +55,15 @@ minute tick ----------------------------------------------------> aggregate
   SQLite. Receives file-change notifications, reads new bytes, parses, upserts,
   then recomputes the snapshot and the game state, stores both in shared
   state and emits events. Also runs the minute tick (day rollover, burn
-  rate decay, session idle cut-off, season check).
+  rate decay, session idle cut-off).
 - **Limits worker** (one thread): calls `LimitSource::fetch` on a fixed
   interval, hands readings to the ingest worker over a channel. A slow or
   failing source never delays log ingestion.
 - **Command handlers** read the cached snapshot, game state and settings
   from shared state (`app::AppState`, held in an `Arc`, cache behind an
-  `RwLock`). Commands that write (settings, the easter egg) use a second
-  connection owned by `AppState` and guarded by a mutex; game evaluation
-  and persistence (ingest worker and easter egg) are serialised by
-  `AppState::game_lock`. Commands never parse logs.
+  `RwLock`). Commands that write (settings) use a second connection owned
+  by `AppState` and guarded by a mutex; game evaluation and persistence
+  are serialised by `AppState::game_lock`. Commands never parse logs.
 
 The database runs in WAL mode with a busy timeout, so reads never wait for
 a writer and a write that meets the other connection's lock waits briefly
@@ -339,7 +338,9 @@ For backend-platform (and the orchestrator where marked):
 - The game module defines XP rules, the level curve, titles and achievement
   thresholds. Contracts only carry ids and numbers.
 - Achievements (v0.1 minimum): First Blood, Night Owl, Rate-Limit Rambo,
-  So Close, Token Monk, Boo (secret, easter egg).
+  So Close, Token Monk. Plus Boo (shown as "Halloween 2026"): a retired,
+  secret legacy badge that can no longer be earned; existing unlocks stay
+  valid and keep their XP.
 - **Retroactive levelling**: after onboarding is completed for the first
   time, the game replays the stored history in time order, writing
   `xp_events` and unlocks with `retroactive = 1`. During the replay no
@@ -352,18 +353,6 @@ For backend-platform (and the orchestrator where marked):
   then `game-updated`.
 - `(kind, ref)` uniqueness in `xp_events` makes every award idempotent.
 
-## Season and easter egg
-
-- The season is computed in Rust from local time (Halloween: 24 Oct 00:00
-  to 2 Nov 23:59, both days included) because the tray icon needs it. It is
-  exposed as `AppInfo.season`; the minute tick emits `app-info-changed` when
-  it flips. The UI maps it to `data-season` on `<html>`.
-- Ghost easter egg (all year): the UI counts logo clicks; 3 clicks, each
-  within 800 ms of the previous one, show the ghost overlay and call
-  `trigger_easter_egg`. Rust unlocks Boo once (`newlyUnlocked = true`, then
-  `achievement-unlocked` and `game-updated`); repeats return
-  `newlyUnlocked = false` and change nothing.
-
 ## Commands and events
 
 Defined in the contracts (names as constants on both sides):
@@ -375,7 +364,6 @@ Defined in the contracts (names as constants on both sides):
 | `update_settings { patch }` | `Settings` |
 | `complete_onboarding { mode }` | `Settings` |
 | `get_game_state` | `GameState` |
-| `trigger_easter_egg` | `EasterEggResult` |
 | `get_app_info` | `AppInfo` |
 | `get_limit_setup` | `LimitSetup` (status-line setup command, see Limits) |
 

@@ -3,7 +3,7 @@
  * screen, typed by the contract types.
  *
  * Wiring (frontend, #13):
- *   const notices = useGameNotices({ game, sound: settings.sound, popupVisible, blocked: otherOverlayOpen });
+ *   const notices = useGameNotices({ game, sound: settings.sound, popupVisible });
  *   // on "achievement-unlocked": notices.pushUnlock(payload)
  *   // on "level-up":             notices.pushLevelUp(payload)
  *   <Popup overlay={notices.node}>...</Popup>

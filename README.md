@@ -22,7 +22,7 @@ Status: version 0.1.0 is in development. No release has been published yet.
 - XP, levels, titles and achievements. Your existing history counts: on
   first start Tokenmonk levels you up from the logs already on disk.
 - OS notifications for unlocks and limit warnings while the popup is
-  hidden, an optional unlock sound and optional start at login. A Halloween look shows up from 24 October to 2 November.
+  hidden, an optional unlock sound and optional start at login.
 
 ## Screenshots
 

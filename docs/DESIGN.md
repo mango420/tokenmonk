@@ -32,7 +32,7 @@ even at 99 %.
 | 🛠️ Do it yourself | `--jade` | `--jade-text` | wrench line icon |
 
 A mode colour never stands alone as a signal; it always comes with the icon
-or the mode name. Text on any fill (`saffron`, `jade`, `pumpkin`) is
+or the mode name. Text on any fill (`saffron`, `jade`) is
 `--on-accent`. Before onboarding the accent is saffron (brand colour).
 
 Components use the mode-neutral variables, switched by `data-mode` on
@@ -66,9 +66,7 @@ Dark is the shipped theme in v0.1 (`:root`). Light values exist under
 | `jade-text` | #9BE8C4 | #266849 | Jade as text |
 | `on-accent` | #1A1206 | #1A1206 | Text and icons on accent fills |
 | `ember` | #FF6B57 | #B3261E | Limit danger and errors only |
-| `pumpkin` | #FF8A2B | #E8700E | Halloween only |
-| `pumpkin-text` | #FF8A2B | (#E8700E) | Pumpkin as text; the light value is a placeholder, see open points |
-| `scrim` | surface-100 at 94 % | surface-100 at 94 % | Ghost overlay background |
+| `scrim` | surface-100 at 94 % | surface-100 at 94 % | Overlay background (level-up screen) |
 | `shadow-popup` | 0 12px 32px rgba(0,0,0,.45) | 0 12px 32px rgba(34,28,22,.14) | Popup and toasts only |
 
 No gradients, no neon glow, no purple.
@@ -89,8 +87,8 @@ Fonts are bundled from `@fontsource/fraunces`, `@fontsource/manrope` and
 | mono | JetBrains Mono | 12 / 16 | 500 | Token counts in lists, XP lines, percentages |
 
 Popup-specific sizes from the screens: wordmark Fraunces 600 18/22, level
-Fraunces 600 20/26, stat value JetBrains Mono 600 20/26, ghost title
-Fraunces 600 28/32, strong body labels Manrope 700 14/20. Fraunces is never
+Fraunces 600 20/26, stat value JetBrains Mono 600 20/26, strong body
+labels Manrope 700 14/20. Fraunces is never
 used for UI labels.
 
 Every live number uses the mono family with `font-variant-numeric:
@@ -99,7 +97,7 @@ tabular-nums`.
 ## Spacing, radius, shadow
 
 - Spacing on a 4 px grid: `space-1` 4, `space-2` 8, `space-3` 12,
-  `space-4` 16, `space-6` 24, plus `space-8` 32 (ghost overlay padding).
+  `space-4` 16, `space-6` 24, plus `space-8` 32 (overlay padding).
 - Radius: `radius-sm` 6 (inputs, chips, toggles), `radius-md` 12 (cards,
   buttons, popup), `radius-lg` 20 (large panels, achievement tiles,
   onboarding choices), `radius-pill` 999 (mode badges, progress bars).
@@ -115,9 +113,7 @@ a single column with a 12 px gap between blocks. Hit targets are at least
    `assets/brand/tokenmonk-mark.svg` at 36 px with a live halo (decided:
    the inline drawing in the screens is a simplification of this mark),
    wordmark "Tokenmonk" (Fraunces 600 18/22) above the mode label (caption,
-   `--accent-text`, 12 px mode icon at stroke 2, gap 4). During Halloween a
-   pill "Spooky season" (caption, pumpkin text on `surface-300`, padding
-   4 x 8, pill radius). Settings button 44 x 44, radius 12, 20 px gear icon
+   `--accent-text`, 12 px mode icon at stroke 2, gap 4). Settings button 44 x 44, radius 12, 20 px gear icon
    in `ink-muted`, stroke 1.75.
 2. **Halo gauge card**: `surface-200`, radius 12, padding 16, gap 16. Gauge
    132 x 132, circle radius 58, stroke 10, round caps, track
@@ -162,16 +158,6 @@ a single column with a 12 px gap between blocks. Hit targets are at least
 All numbers and copy in the screens are samples; real values come from
 `DashboardSnapshot` and `GameState`.
 
-### Ghost overlay (easter egg)
-
-Three logo clicks, each within 800 ms of the previous one, cover the whole
-popup with the overlay: `--scrim`, padding 32, centred column, gap 16.
-Ghost mark 128 px; "Hoho, you found me!" (Fraunces 600 28/32); "Secret
-achievement unlocked: Boo · +100 XP" (body, pumpkin); button "Back to work"
-(min height 44, padding 0 24, radius 12, pumpkin fill, `on-accent` text,
-Manrope 700 14). The overlay uses pumpkin in every mode and season. It
-works all year.
-
 ## Logo and halo
 
 The mark is a monk inside a ring. The ring is the **halo gauge**: filled
@@ -182,8 +168,6 @@ clockwise from 12 o'clock with the current value, round line ends.
 - `tokenmonk-mark-mono.svg`: single black ink, track at 30 % opacity. For
   the macOS menu bar (template image) and Windows tray contrast variants.
   Recolour by tinting, never by editing shapes.
-- `tokenmonk-ghost.svg`: Halloween and easter egg; ghost instead of monk,
-  halo pumpkin.
 
 The files are drawn at 128 x 128 with a sample 72 % halo; in the app the
 arc length is live (`stroke-dasharray` on the halo circle, radius 54).
@@ -198,21 +182,8 @@ Halo colour and value:
 |---|---|---|
 | Header logo halo | `--halo`, value = 5-hour % | `--halo`, value = budget used (capped at 100) |
 | Tray icon halo | same as header | same as header |
-| Halloween | halo and all accents pumpkin | halo pumpkin, everything else stays jade |
 
 The tray icon is rendered in Rust from the mark shapes with the live arc.
-
-## Halloween (24 Oct to 2 Nov)
-
-Season comes from Rust (`AppInfo.season`) and is set as
-`data-season="halloween"` on `<html>`.
-
-- Max it out: `pumpkin` replaces `saffron` everywhere (halo, mode
-  label, bars, title, badge ring, XP text, gauge).
-- Do it yourself: only the halo turns pumpkin; gauge, bars and labels stay
-  jade.
-- The "Spooky season" pill appears in the header.
-- Ember still overrides the gauge in danger.
 
 ## Iconography
 
@@ -223,8 +194,8 @@ Achievement badges are circles (mini halos) with one glyph inside.
 
 ## Derived screens
 
-The mockups show the two dashboards and the ghost overlay only. Everything
-below is derived from them: same tokens, same components, no new colours,
+The mockups show the two dashboards and one overlay only; the overlay
+layout is reused below. Everything below is derived from them: same tokens, same components, no new colours,
 fonts or sizes. Where a size is not a named token it is built from the
 spacing scale (for example `space-8 + space-2` = 40). Copy in quotes is
 final; numbers in it are samples.
@@ -247,7 +218,7 @@ Shared building blocks used below:
   `space-1`. Off: track `surface-300`, knob `ink-muted`. On: track
   `--accent`, knob `on-accent`. The whole settings row is the hit target.
 - **Overlay**: covers the whole popup, `--scrim`, padding `space-8`,
-  centred column, gap `space-4` (as the ghost overlay).
+  centred column, gap `space-4`.
 
 Motion: toasts and overlays fade in and out on opacity only, duration from
 one named UI constant (`FADE_MS = 150`), not a design token. Nothing else
@@ -278,8 +249,6 @@ Layout (360 x 680, padding `popup-padding`, column, gap `space-6`):
      limit."
    - "🛠️ Do it yourself": "Give the AI as little as possible. XP for staying
      under budget."
-   During Halloween the Max it out tile uses `--pumpkin` for ring and icon,
-   because that is how the mode will look.
 4. Caption (`ink-muted`): "Both paths level up. Switch any time in
    settings."
 5. Pushed to the bottom: primary button, full width. Nothing selected:
@@ -296,7 +265,7 @@ that. Try again."). Choosing calls `complete_onboarding { mode }`; the
 following `settings-changed` switches to the dashboard.
 
 Fed by: `Settings`, `complete_onboarding`, `DashboardSnapshot.data`,
-`DashboardSnapshot.today.total`, `AppInfo.season`.
+`DashboardSnapshot.today.total`.
 
 ### Settings
 
@@ -418,9 +387,10 @@ States and rules:
   (see while hidden). Three or more waiting collapse into one
   toast: "3 achievements unlocked", detail "Newest: Night Owl", trailing
   the summed "+150 XP".
-- Boo never gets a toast; the ghost overlay already says it.
-- Priority: ghost overlay, then level-up screen, then toasts. A toast
-  waits while an overlay is open.
+- Boo is a retired badge and can no longer be unlocked, so it never gets
+  a toast.
+- Priority: level-up screen, then toasts. A toast waits while an overlay
+  is open.
 - Sound: the synthesized tone (see Sound above), only with
   `Settings.sound` on.
 
@@ -428,7 +398,7 @@ While hidden: when the popup is hidden, achievement unlocks and limit
 warnings also go out as OS notifications through the notification plugin.
 The in-popup queue above still shows on the next open; the OS
 notification does not replace it. No OS notification for `retroactive =
-true` and none for Boo (the popup is open when it unlocks). The tone
+true`. The tone
 follows `Settings.sound`; the notification itself is sent without its own
 sound where the plugin allows it, so the tone is not doubled.
 
@@ -457,7 +427,7 @@ warnings from `DashboardSnapshot.limits`, `burnRate` and `dailyBudget`.
 Shown for every `level-up` with `retroactive = false`, as an overlay. Same
 queueing as toasts (shown on the next open if the popup was hidden).
 
-Layout: overlay. Top to bottom: the logo mark at `ghost-size` (128) with
+Layout: overlay. Top to bottom: the logo mark at `logo-size-lg` (128) with
 the halo full in `--halo`; "Level 8" (display, `ink`); the mode line
 (heading, `--accent-text`): Max it out "Keep burning 🔥", Do it yourself
 "Well earned. Breathe."; the XP line (mono, `ink-muted`) "0 / 2,100 XP to
@@ -620,6 +590,10 @@ The row shows one achievement, picked in this order:
    display order, bar empty, caption its `description`.
 4. **All done**: the latest unlock regardless of age.
 
+Boo ("Halloween 2026") is a retired legacy badge that can no longer be
+earned. It is `secret`, so it never shows as in progress or next up; an
+existing unlock shows like any other.
+
 Retroactive unlocks count like any other; their historical `unlockedAt`
 usually makes them older than 24 h. The row is hidden while
 `retroDone = false`.
@@ -627,36 +601,14 @@ usually makes them older than 24 h. The row is hidden while
 Fed by: `GameState.recentUnlocks`, `GameState.achievements`,
 `GameState.mode`.
 
-### Ghost overlay, Boo already unlocked
-
-The overlay opens on the third click without waiting for
-`trigger_easter_egg`. The UI picks the text from `GameState.achievements`
-(Boo's `unlockedAt`) before the call; `EasterEggResult.newlyUnlocked`
-confirms it.
-
-| | First time | Boo already unlocked |
-|---|---|---|
-| Title (Fraunces 600 28/32) | "Hoho, you found me!" | "Hoho, you again!" |
-| Line (body, pumpkin) | "Secret achievement unlocked: Boo · +100 XP" | "Boo is already yours · +0 XP" |
-| Button | "Back to work" | "Back to work" |
-
-Layout, colours and pumpkin in every mode and season are unchanged. If the
-call fails, the overlay still shows; the line is omitted. A level-up caused
-by the +100 XP waits until the overlay is closed.
-
-Fed by: `GameState.achievements`, `trigger_easter_egg`,
-`EasterEggResult`.
-
 ## Not covered by the design / out of scope
 
 Out of scope for v0.1:
 
-- The about screen (the brand guide shows the ghost mark there during
-  Halloween). It has no `View` in the contracts.
+- The about screen. It has no `View` in the contracts.
 
 Open points:
 
-- Light theme `pumpkin-text` value.
 - Copy buttons in "Limit data" use the web Clipboard API
   (`navigator.clipboard.writeText`); whether it works in the Tauri webviews
   on both platforms is unverified. No clipboard plugin in v0.1; on failure

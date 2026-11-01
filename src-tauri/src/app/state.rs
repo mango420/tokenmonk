@@ -96,13 +96,12 @@ impl AppState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contracts::{Mode, Platform, Season};
+    use crate::contracts::{Mode, Platform};
 
     pub(crate) fn info() -> AppInfo {
         AppInfo {
             version: "0.0.0".into(),
             platform: Platform::Windows,
-            season: Season::Regular,
             schema_version: 1,
             logs_found: true,
         }

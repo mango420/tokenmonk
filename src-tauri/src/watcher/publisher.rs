@@ -25,7 +25,7 @@ pub enum SnapshotCause {
     /// A limit poll arrived.
     Limits,
     /// The minute tick: day rollover, burn rate decay, session idle
-    /// cut-off, season check.
+    /// cut-off.
     Tick,
     /// Asked for through [`super::IngestHandle`] (for example after a
     /// settings change).
