@@ -61,7 +61,7 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false }: 
 
   return (
     <>
-      <header className="header">
+      <header className="header" data-tauri-drag-region="deep">
         <button type="button" className="icon-button" aria-label="Back to dashboard" onClick={onBack}>
           <Icon name="chevronLeft" />
         </button>
