@@ -15,8 +15,8 @@ const TYPES = [
 const TITLE_RE = new RegExp(
   `^(?:${TYPES.join('|')})(?:\\([a-zA-Z0-9][\\w./-]*\\))?!?: \\S.*? \\(TKM-(\\d+)\\)$`,
 );
-// The register refresh branch is opened by automation and has no issue key.
-const SKIP_BRANCH_RE = /^(?:(?:dependabot|release)\/|register\/refresh$)/;
+// The register refresh and release-please branches are opened by automation and have no issue key.
+const SKIP_BRANCH_RE = /^(?:(?:dependabot|release)\/|release-please--|register\/refresh$)/;
 
 const args = process.argv.slice(2);
 const arg = (flag) => {

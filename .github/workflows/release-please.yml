@@ -1,0 +1,73 @@
+name: Release Please
+
+# Keeps one release PR open that bumps the version from Conventional Commits.
+# Merging it creates the tag v<version> and a DRAFT GitHub release with the
+# changelog as notes (config: draft + force-tag-creation). release.yml then
+# builds the installers and uploads them to that draft (tauri-action finds the
+# draft by tag, so there is exactly one release per version); a maintainer
+# publishes the draft.
+#
+# Token: secret RELEASE_PLEASE_TOKEN (a PAT or app token) makes the tag push
+# and the release PR trigger workflows. Without it GITHUB_TOKEN is used; events
+# created by GITHUB_TOKEN do not trigger workflows, so the dispatch job starts
+# release.yml on the new tag (workflow_dispatch is the exception to that rule).
+# Release PR checks do not run on the fallback token.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  release-please:
+    name: release-please
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
+      has_token: ${{ steps.token.outputs.has_token }}
+    steps:
+      - id: token
+        name: Detect release token
+        env:
+          RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          if [ -n "$RELEASE_PLEASE_TOKEN" ]; then
+            echo "has_token=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_token=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - id: rp
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  dispatch-release:
+    name: dispatch release build
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true' && needs.release-please.outputs.has_token != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Dispatch release.yml on the new tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+        run: gh workflow run release.yml --ref "$TAG_NAME"
