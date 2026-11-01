@@ -65,6 +65,8 @@ jobs:
       - run: cargo test --manifest-path src-tauri/Cargo.toml
       - run: npx tsc --noEmit
       - run: node scripts/guard.mjs
+      # Quoted so Node expands the glob itself (directory args fail on Node 22).
+      - run: node --test "tests/scripts/*.test.mjs"
 
   guard:
     name: guard

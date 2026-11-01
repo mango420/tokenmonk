@@ -36,8 +36,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           PR_BRANCH: ${{ github.ref_name }}
+          REPO_OWNER: ${{ github.repository_owner }}
         run: |
-          pr="$(gh pr list --head "$PR_BRANCH" --base main --state open --json title,author --jq '.[0] // {}')"
+          # --head matches the branch name only: keep PRs from this repository's owner, not forks.
+          pr="$(gh pr list --head "$PR_BRANCH" --base main --state open --json title,author,headRepositoryOwner \
+            | jq -c --arg owner "$REPO_OWNER" '[.[] | select(.headRepositoryOwner.login == $owner)] | .[0] // {}')"
           title="$(jq -r '.title // ""' <<<"$pr")"
           author="$(jq -r '.author.login // ""' <<<"$pr")"
           node scripts/check-pr-key.mjs --title "$title" --branch "$PR_BRANCH" --author "$author"
