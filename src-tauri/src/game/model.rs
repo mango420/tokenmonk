@@ -111,12 +111,10 @@ pub struct LimitFact {
 /// - `limits`: every reading of each 5-hour window the evaluation should
 ///   look at (live: all readings of the last 12 hours; replay: all). Extra
 ///   readings are harmless.
-/// - `boo_at`: retired, ignored (Boo is a legacy badge and is never earned).
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Facts {
     pub days: Vec<DayFacts>,
     pub limits: Vec<LimitFact>,
-    pub boo_at: Option<EpochMs>,
 }
 
 /// Result of one evaluation. The caller persists `ledger` and `achievements`

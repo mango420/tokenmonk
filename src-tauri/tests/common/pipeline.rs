@@ -17,7 +17,7 @@ use tokenmonk_lib::app::{AppPublisher, AppState, Sink};
 use tokenmonk_lib::contracts::limits::{LimitError, LimitReading};
 use tokenmonk_lib::contracts::{
     AchievementUnlocked, AppInfo, DashboardSnapshot, DataState, DataStatus, EpochMs, GameState,
-    LevelUp, Mode, Platform, Season, Settings,
+    LevelUp, Mode, Platform, Settings,
 };
 use tokenmonk_lib::db::Db;
 use tokenmonk_lib::limits::LimitPoll;
@@ -121,7 +121,6 @@ fn app_info() -> AppInfo {
     AppInfo {
         version: "0.0.0-test".into(),
         platform: Platform::Windows,
-        season: Season::Regular,
         schema_version: 1,
         logs_found: true,
     }

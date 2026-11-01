@@ -43,8 +43,8 @@
 }
 
 .game-overlay .logo-mark {
-  width: var(--ghost-size);
-  height: var(--ghost-size);
+  width: var(--logo-size-lg);
+  height: var(--logo-size-lg);
 }
 
 .game-overlay__group {

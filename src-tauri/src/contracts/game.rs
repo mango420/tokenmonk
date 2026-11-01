@@ -22,7 +22,8 @@ pub enum AchievementId {
     SoClose,
     /// `"tokenMonk"`
     TokenMonk,
-    /// `"boo"`: secret, unlocked by the logo easter egg.
+    /// `"boo"`: legacy "Halloween 2026" badge. Retired and no longer
+    /// earnable; kept so existing unlocks stay valid.
     Boo,
 }
 
@@ -58,7 +59,7 @@ pub struct AchievementProgress {
     pub name: String,
     /// What it takes, one short sentence.
     pub description: String,
-    /// Hidden until unlocked (Boo).
+    /// Hidden until unlocked (only Boo, which can no longer be earned).
     pub secret: bool,
     /// `Some(mode)` if it can only be earned in that mode, `None` for both.
     pub mode: Option<Mode>,
@@ -128,14 +129,4 @@ pub struct GameState {
     pub achievements: Vec<AchievementProgress>,
     /// The first-start history replay has finished.
     pub retro_done: bool,
-}
-
-/// Result of `trigger_easter_egg`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct EasterEggResult {
-    /// `true` the first time; later triggers still show the ghost.
-    pub newly_unlocked: bool,
-    /// The Boo achievement (with its original unlock time on repeats).
-    pub achievement: AchievementUnlocked,
 }

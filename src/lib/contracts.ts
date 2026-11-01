@@ -154,6 +154,7 @@ export type AchievementId =
   | "rateLimitRambo"
   | "soClose"
   | "tokenMonk"
+  /** Legacy "Halloween 2026" badge: retired, no longer earnable. */
   | "boo";
 
 export const ACHIEVEMENT_IDS: readonly AchievementId[] = [
@@ -169,7 +170,7 @@ export interface AchievementProgress {
   id: AchievementId;
   name: string;
   description: string;
-  /** Hidden until unlocked (Boo). */
+  /** Hidden until unlocked (only Boo, which can no longer be earned). */
   secret: boolean;
   /** Only earnable in this mode; null for both. */
   mode: Mode | null;
@@ -218,32 +219,13 @@ export interface GameState {
   retroDone: boolean;
 }
 
-export interface EasterEggResult {
-  /** true the first time; later triggers still show the ghost. */
-  newlyUnlocked: boolean;
-  achievement: AchievementUnlocked;
-}
-
 // --------------------------------------------------------------------- app
 
 export type Platform = "macos" | "windows" | "linux";
 
-/** Computed in Rust (local time); the UI never computes it. */
-export type Season = "regular" | "halloween";
-
-/** [month, day], inclusive, local time. */
-export const HALLOWEEN_START: readonly [number, number] = [10, 24];
-export const HALLOWEEN_END: readonly [number, number] = [11, 2];
-
-/** Logo clicks needed for the ghost easter egg. */
-export const EASTER_EGG_CLICKS = 3;
-/** Maximum gap between two counted logo clicks, in milliseconds. */
-export const EASTER_EGG_WINDOW_MS = 800;
-
 export interface AppInfo {
   version: string;
   platform: Platform;
-  season: Season;
   schemaVersion: number;
   logsFound: boolean;
 }
@@ -259,7 +241,6 @@ export const Commands = {
   updateSettings: "update_settings",
   completeOnboarding: "complete_onboarding",
   getGameState: "get_game_state",
-  triggerEasterEgg: "trigger_easter_egg",
   getAppInfo: "get_app_info",
   getLimitSetup: "get_limit_setup",
 } as const;
@@ -282,7 +263,6 @@ export interface CommandArgs {
   update_settings: UpdateSettingsArgs;
   complete_onboarding: CompleteOnboardingArgs;
   get_game_state: undefined;
-  trigger_easter_egg: undefined;
   get_app_info: undefined;
   get_limit_setup: undefined;
 }
@@ -294,7 +274,6 @@ export interface CommandResults {
   update_settings: Settings;
   complete_onboarding: Settings;
   get_game_state: GameState;
-  trigger_easter_egg: EasterEggResult;
   get_app_info: AppInfo;
   get_limit_setup: LimitSetup;
 }

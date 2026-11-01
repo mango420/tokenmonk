@@ -29,7 +29,7 @@ use crate::limits::LimitPoll;
 
 /// Safety-net scan for missed file events and for the log folder appearing.
 pub const RESCAN_INTERVAL: Duration = Duration::from_secs(60);
-/// Day rollover, burn rate decay, session idle cut-off, season check.
+/// Day rollover, burn rate decay, session idle cut-off.
 pub const TICK_INTERVAL: Duration = Duration::from_secs(60);
 /// File events are collected this long before the files are read.
 pub const DEBOUNCE: Duration = Duration::from_millis(300);

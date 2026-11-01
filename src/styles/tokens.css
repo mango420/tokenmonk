@@ -5,7 +5,6 @@
  * State lives in data attributes on <html>:
  *   data-theme  = "dark" (default, shipped in v0.1) | "light" (prepared, not shipped)
  *   data-mode   = "max" | "diy"   (absent before onboarding: brand saffron)
- *   data-season = "halloween"     (absent off-season; set from AppInfo.season)
  *
  * Fonts are bundled from the @fontsource packages (Fraunces, Manrope,
  * JetBrains Mono); this file only defines the family stacks.
@@ -27,16 +26,14 @@
   --jade-text: #9be8c4;
   --on-accent: #1a1206;
   --ember: #ff6b57;
-  --pumpkin: #ff8a2b;
-  --pumpkin-text: #ff8a2b;
 
-  /* Scrim behind the ghost overlay: surface-100 at 94 % */
+  /* Scrim behind the level-up overlay: surface-100 at 94 % */
   --scrim: rgba(21, 19, 26, 0.94);
 
   /* Shadow: the popup and toasts only */
   --shadow-popup: 0 12px 32px rgba(0, 0, 0, 0.45);
 
-  /* Mode accents (overridden below by data-mode / data-season) */
+  /* Mode accents (overridden below by data-mode) */
   --accent: var(--saffron);
   --accent-text: var(--saffron-text);
   /* Halo of the header logo and the tray icon */
@@ -81,8 +78,6 @@
   --text-level-line: 26px;
   --text-stat-size: 20px; /* JetBrains Mono 600, stat tiles */
   --text-stat-line: 26px;
-  --text-ghost-size: 28px; /* Fraunces 600, ghost overlay */
-  --text-ghost-line: 32px;
   --text-strong-weight: 700; /* body-size labels such as "Weekly limit" */
 
   /* Spacing (4 px grid) */
@@ -116,7 +111,7 @@
   --bar-height-sm: 6px;
   --badge-size: 36px;
   --badge-border: 3px;
-  --ghost-size: 128px;
+  --logo-size-lg: 128px; /* logo mark on the level-up screen */
 
   /* Icons: line icons, round caps and joins */
   --icon-stroke: 1.75;
@@ -140,9 +135,6 @@
   --jade-text: #266849;
   --on-accent: #1a1206;
   --ember: #b3261e;
-  --pumpkin: #e8700e;
-  /* No light pumpkin-text exists in the design; falls back to the fill. */
-  --pumpkin-text: #e8700e;
   --scrim: rgba(251, 246, 238, 0.94);
   --shadow-popup: 0 12px 32px rgba(34, 28, 22, 0.14);
 }
@@ -158,19 +150,4 @@
   --accent: var(--jade);
   --accent-text: var(--jade-text);
   --halo: var(--jade);
-}
-
-/* Halloween (24 Oct to 2 Nov). Max it out: pumpkin replaces saffron
-   everywhere. Do it yourself: only the halo turns pumpkin, the rest stays jade. */
-:root[data-season="halloween"],
-:root[data-season="halloween"][data-mode="max"] {
-  --accent: var(--pumpkin);
-  --accent-text: var(--pumpkin-text);
-  --halo: var(--pumpkin);
-}
-
-:root[data-season="halloween"][data-mode="diy"] {
-  --accent: var(--jade);
-  --accent-text: var(--jade-text);
-  --halo: var(--pumpkin);
 }

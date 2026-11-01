@@ -203,8 +203,7 @@ mod tests {
     use crate::aggregate::{snapshot, LimitState};
     use crate::contracts::dashboard::BudgetBasis;
     use crate::contracts::{
-        AchievementId, DailyBudget, DataStatus, LimitReading, LimitWindow, Platform, Season,
-        Settings,
+        AchievementId, DailyBudget, DataStatus, LimitReading, LimitWindow, Platform, Settings,
     };
     use crate::limits::LimitPoll;
     use chrono::FixedOffset;
@@ -239,7 +238,7 @@ mod tests {
             self.push(format!("levelUp {}", l.level));
         }
         fn app_info(&self, i: &AppInfo) {
-            self.push(format!("info {:?} logs={}", i.season, i.logs_found));
+            self.push(format!("info logs={}", i.logs_found));
         }
         fn halo(&self, p: Option<f64>) {
             self.push(format!("halo {p:?}"));
@@ -262,7 +261,6 @@ mod tests {
         let info = AppInfo {
             version: "0".into(),
             platform: Platform::Windows,
-            season: Season::Regular,
             schema_version: 1,
             logs_found: true,
         };
@@ -454,7 +452,7 @@ mod tests {
         s.data.state = DataState::NoLogs;
         p.on_snapshot(&mut db2, &s, SnapshotCause::Import);
         assert!(!state.info().logs_found);
-        assert_eq!(rec.count("info Regular logs=false"), 1);
+        assert_eq!(rec.count("info logs=false"), 1);
         // No change, no event.
         p.on_snapshot(&mut db2, &s, SnapshotCause::Import);
         assert_eq!(rec.count("info"), 1);

@@ -20,8 +20,6 @@ export interface GameNoticesOptions {
   sound: boolean;
   /** The popup window is shown. Events are kept while it is hidden. Default `true`. */
   popupVisible?: boolean;
-  /** A higher-priority overlay is open: toasts and the level-up wait. */
-  blocked?: boolean;
 }
 
 export interface GameNotices {
@@ -41,14 +39,13 @@ export interface GameNotices {
  *   popup is open or hidden. Retroactive events are ignored entirely.
  * - Toasts: one at a time, 4 s, click dismisses, hover pauses, three or more
  *   waiting collapse into one. The legacy Boo badge never gets a toast.
- * - Priority: another overlay (`blocked`), then the level-up screen, then toasts.
+ * - Priority: the level-up screen first, then toasts.
  * - `game.retroDone` turning true shows the first-start summary once.
  */
 export function useGameNotices({
   game,
   sound,
   popupVisible = true,
-  blocked = false,
 }: GameNoticesOptions): GameNotices {
   const soundRef = useRef(sound);
   useEffect(() => {
@@ -106,7 +103,7 @@ export function useGameNotices({
   const head = levelQueue[0];
   const screen: LevelScreenModel | null =
     retro ?? (head !== undefined ? { kind: "levelUp", levelUp: head } : null);
-  const screenOpen = popupVisible && !blocked && !screenClosing;
+  const screenOpen = popupVisible && !screenClosing;
 
   const closeScreen = useCallback(() => {
     setScreenClosing(true);
@@ -118,7 +115,7 @@ export function useGameNotices({
   }, [later, retro]);
 
   // Next toast, only when nothing with higher priority is up.
-  const toastAllowed = popupVisible && !blocked && screen === null;
+  const toastAllowed = popupVisible && screen === null;
   useEffect(() => {
     if (toast !== null || unlockQueue.length === 0 || !toastAllowed) return;
     const { item, rest } = nextToast(unlockQueue);

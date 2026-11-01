@@ -160,7 +160,7 @@ resets, but carries no utilisation percentage. It is not used in v0.1.
 ## Timestamps
 
 - Always UTC (`Z`) with milliseconds. Converted to Unix epoch ms on parse;
-  local-time logic (today, night hours, Halloween) happens later.
+  local-time logic (today, night hours) happens later.
 - Within one file timestamps were monotonic, but copied history makes a
   file's first lines older than its file creation. Never assume order across
   files.
