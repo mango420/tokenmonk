@@ -68,8 +68,8 @@ impl Sink for TauriSink {
     fn app_info(&self, info: &AppInfo) {
         self.emit(APP_INFO_CHANGED, info);
     }
-    fn halo(&self, percent: Option<f64>, season: Season) {
-        tray::set_halo(&self.app, percent, season);
+    fn halo(&self, percent: Option<f64>) {
+        tray::set_halo(&self.app, percent);
     }
 }
 
@@ -101,7 +101,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let info = AppInfo {
         version: handle.package_info().version.to_string(),
         platform: platform(),
-        season: tray::season::current_season(),
+        season: Season::Regular,
         schema_version: write_db.schema_version()?,
         logs_found: config.as_ref().is_some_and(|c| c.logs_root.is_dir()),
     };
