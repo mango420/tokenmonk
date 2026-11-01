@@ -1,0 +1,55 @@
+name: Issue key
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  issues: write
+
+jobs:
+  key:
+    name: prefix title and check type label
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v9
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const n = issue.number;
+            const key = `TKM-${n}`;
+            const { owner, repo } = context.repo;
+
+            // 1. Title prefix (idempotent). A stale TKM-<m>: prefix is corrected,
+            // nothing else in the title is touched.
+            const existing = /^TKM-(\d+):\s*/.exec(issue.title);
+            if (!existing || Number(existing[1]) !== n) {
+              const rest = existing ? issue.title.slice(existing[0].length) : issue.title;
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: n,
+                title: `${key}: ${rest}`,
+              });
+            }
+
+            // 2. Type label check, one comment at most.
+            const types = ['feature', 'bug', 'chore'];
+            const labels = issue.labels.map((l) => (typeof l === 'string' ? l : l.name));
+            if (types.some((t) => labels.includes(t))) return;
+
+            const marker = '<!-- tkm-type-label -->';
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number: n,
+              per_page: 100,
+            });
+            if (comments.some((c) => c.body && c.body.includes(marker))) return;
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: n,
+              body: `${marker}\n${key} has no type label. Add one of: feature, bug, chore.`,
+            });
