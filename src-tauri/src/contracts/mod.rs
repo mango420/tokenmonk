@@ -36,16 +36,14 @@ pub mod limits;
 pub mod schema;
 pub mod settings;
 
-pub use app::{AppInfo, Platform, Season};
+pub use app::{AppInfo, Platform};
 pub use commands::{CommandError, CommandErrorCode, CompleteOnboardingArgs, UpdateSettingsArgs};
 pub use dashboard::{
     BudgetBasis, BurnRate, DailyBudget, DashboardSnapshot, DataState, DataStatus, SessionStats,
     TokenBreakdown,
 };
 pub use events::{NavigateTo, View};
-pub use game::{
-    AchievementId, AchievementProgress, AchievementUnlocked, EasterEggResult, GameState, LevelUp,
-};
+pub use game::{AchievementId, AchievementProgress, AchievementUnlocked, GameState, LevelUp};
 pub use limits::{
     LimitError, LimitReading, LimitReason, LimitSetup, LimitSource, LimitStatus, LimitWindow,
     LimitsView,

@@ -7,7 +7,7 @@
 //! | `game-updated`         | `GameState`           | after XP, level or progress changes    |
 //! | `achievement-unlocked` | `AchievementUnlocked` | once per live (non-retroactive) unlock |
 //! | `level-up`             | `LevelUp`             | once per live level change             |
-//! | `app-info-changed`     | `AppInfo`             | when the season flips                  |
+//! | `app-info-changed`     | `AppInfo`             | when `logsFound` changes               |
 //! | `navigate`             | `NavigateTo`          | tray menu asks the popup to show a view|
 //!
 //! All events are emitted to every window. Payloads are full state, never

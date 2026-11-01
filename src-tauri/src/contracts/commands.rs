@@ -7,7 +7,6 @@
 //! | `update_settings`     | `UpdateSettingsArgs`      | `Settings`         |
 //! | `complete_onboarding` | `CompleteOnboardingArgs`  | `Settings`         |
 //! | `get_game_state`      | none                      | `GameState`        |
-//! | `trigger_easter_egg`  | none                      | `EasterEggResult`  |
 //! | `get_app_info`        | none                      | `AppInfo`          |
 //! | `get_limit_setup`     | none                      | `LimitSetup`       |
 //!
@@ -24,18 +23,16 @@ pub const GET_SETTINGS: &str = "get_settings";
 pub const UPDATE_SETTINGS: &str = "update_settings";
 pub const COMPLETE_ONBOARDING: &str = "complete_onboarding";
 pub const GET_GAME_STATE: &str = "get_game_state";
-pub const TRIGGER_EASTER_EGG: &str = "trigger_easter_egg";
 pub const GET_APP_INFO: &str = "get_app_info";
 pub const GET_LIMIT_SETUP: &str = "get_limit_setup";
 
 /// Every command name, for registration checks in tests.
-pub const ALL: [&str; 8] = [
+pub const ALL: [&str; 7] = [
     GET_DASHBOARD,
     GET_SETTINGS,
     UPDATE_SETTINGS,
     COMPLETE_ONBOARDING,
     GET_GAME_STATE,
-    TRIGGER_EASTER_EGG,
     GET_APP_INFO,
     GET_LIMIT_SETUP,
 ];
