@@ -11,6 +11,7 @@ import { execFileSync } from 'node:child_process';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stripKey } from './issue-title.mjs';
 
 const TYPES = ['feature', 'bug', 'chore'];
 
@@ -42,7 +43,7 @@ function row(issue) {
     .filter((l) => l.startsWith('area:'))
     .map((l) => l.slice('area:'.length))
     .sort();
-  const title = issue.title.replace(/^TKM-\d+(?::\s*|\s+)/i, '');
+  const title = stripKey(issue.title);
   return `| TKM-${issue.number} | ${cell(title)} | ${type} | ${areas.join(', ') || '-'} | ${status(issue)} | [#${issue.number}](${issue.url}) |`;
 }
 
