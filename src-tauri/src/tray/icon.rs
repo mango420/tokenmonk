@@ -1,14 +1,11 @@
 //! Tray icon artwork: SVG generation (pure) and rasterisation.
 //!
 //! The icon is built at runtime from the brand marks in `assets/brand`. Only
-//! the halo arc (and, in the Halloween season, its colour) is changed; no
-//! other shape is touched (docs/DESIGN.md, "Logo and halo").
+//! the halo arc is changed; no other shape is touched (docs/DESIGN.md, "Logo and halo").
 
 use std::f64::consts::PI;
 
 use resvg::{tiny_skia, usvg};
-
-use crate::contracts::app::Season;
 
 const MARK_COLOUR: &str = include_str!("../../../assets/brand/tokenmonk-mark.svg");
 const MARK_MONO: &str = include_str!("../../../assets/brand/tokenmonk-mark-mono.svg");
@@ -17,9 +14,6 @@ const MARK_MONO: &str = include_str!("../../../assets/brand/tokenmonk-mark-mono.
 const HALO_RADIUS: f64 = 54.0;
 /// Halo placeholder in the brand files (a 72 % sample arc) with its caps.
 const HALO_SAMPLE: &str = r#"stroke-linecap="round" stroke-dasharray="244 340""#;
-/// Saffron halo stroke in the colour mark, and the pumpkin that replaces it.
-const SAFFRON_STROKE: &str = r##"stroke="#F5A142""##;
-const PUMPKIN_STROKE: &str = r##"stroke="#FF8A2B""##;
 
 /// Edge length of the rendered icon in pixels (square). Large enough for
 /// 2x displays; the OS scales it down to 16 to 22 points.
@@ -34,12 +28,10 @@ pub enum Mark {
     Mono,
 }
 
-/// Complete look of the tray icon for one platform and season.
+/// Complete look of the tray icon for one platform.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IconStyle {
     pub mark: Mark,
-    /// Halo drawn in pumpkin instead of saffron (colour mark only).
-    pub pumpkin: bool,
     /// Hand the image to the OS as a template (macOS menu bar tints it).
     pub template: bool,
 }
@@ -47,34 +39,26 @@ pub struct IconStyle {
 impl IconStyle {
     /// Picks the style.
     ///
-    /// - macOS, regular season: mono mark as template image.
-    /// - Halloween: colour mark with a pumpkin halo. A template image cannot
-    ///   carry colour, so on macOS the template flag is dropped for the season.
+    /// - macOS: mono mark as template image.
     /// - Other platforms: colour mark (its own disc keeps it readable on any
     ///   taskbar theme).
-    pub fn pick(macos: bool, season: Season) -> Self {
-        match (macos, season) {
-            (true, Season::Regular) => Self {
+    pub fn pick(macos: bool) -> Self {
+        if macos {
+            Self {
                 mark: Mark::Mono,
-                pumpkin: false,
                 template: true,
-            },
-            (_, Season::Halloween) => Self {
+            }
+        } else {
+            Self {
                 mark: Mark::Colour,
-                pumpkin: true,
                 template: false,
-            },
-            (false, Season::Regular) => Self {
-                mark: Mark::Colour,
-                pumpkin: false,
-                template: false,
-            },
+            }
         }
     }
 
     /// Style for the platform this build runs on.
-    pub fn for_current_platform(season: Season) -> Self {
-        Self::pick(cfg!(target_os = "macos"), season)
+    pub fn for_current_platform() -> Self {
+        Self::pick(cfg!(target_os = "macos"))
     }
 }
 
@@ -104,12 +88,7 @@ pub fn halo_svg(style: IconStyle, percent: Option<f64>) -> String {
         // Zero length with round caps would still paint a dot.
         r#"stroke-linecap="butt" stroke-dasharray="0 340""#.to_string()
     };
-    let svg = base.replace(HALO_SAMPLE, &halo);
-    if style.pumpkin && style.mark == Mark::Colour {
-        svg.replace(SAFFRON_STROKE, PUMPKIN_STROKE)
-    } else {
-        svg
-    }
+    base.replace(HALO_SAMPLE, &halo)
 }
 
 /// Rasterises `svg` to straight (non-premultiplied) RGBA, `size` x `size`.
@@ -145,9 +124,8 @@ pub fn render_icon(style: IconStyle, percent: Option<f64>) -> Result<Vec<u8>, St
 mod tests {
     use super::*;
 
-    const REGULAR_COLOUR: IconStyle = IconStyle {
+    const COLOUR: IconStyle = IconStyle {
         mark: Mark::Colour,
-        pumpkin: false,
         template: false,
     };
 
@@ -164,7 +142,6 @@ mod tests {
     fn brand_files_contain_the_markers_we_replace() {
         assert!(MARK_COLOUR.contains(HALO_SAMPLE));
         assert!(MARK_MONO.contains(HALO_SAMPLE));
-        assert!(MARK_COLOUR.contains(SAFFRON_STROKE));
     }
 
     #[test]
@@ -181,52 +158,33 @@ mod tests {
 
     #[test]
     fn svg_carries_the_requested_arc() {
-        let svg = halo_svg(REGULAR_COLOUR, Some(72.0));
+        let svg = halo_svg(COLOUR, Some(72.0));
         assert!(svg.contains(r#"stroke-dasharray="244.29 340""#), "{svg}");
         assert!(!svg.contains(r#"stroke-dasharray="244 340""#));
-        let mono = halo_svg(IconStyle::pick(true, Season::Regular), Some(10.0));
+        let mono = halo_svg(IconStyle::pick(true), Some(10.0));
         assert!(mono.contains(r#"stroke-dasharray="33.93 340""#), "{mono}");
     }
 
     #[test]
     fn empty_halo_has_no_round_cap_dot() {
         for p in [None, Some(0.0)] {
-            let svg = halo_svg(REGULAR_COLOUR, p);
+            let svg = halo_svg(COLOUR, p);
             assert!(svg.contains(r#"stroke-linecap="butt" stroke-dasharray="0 340""#));
         }
     }
 
     #[test]
-    fn halloween_turns_only_the_halo_pumpkin() {
-        let svg = halo_svg(IconStyle::pick(false, Season::Halloween), Some(50.0));
-        assert!(svg.contains(PUMPKIN_STROKE));
-        assert!(!svg.contains(SAFFRON_STROKE));
-        // The monk's robe keeps its saffron fill.
-        assert!(svg.contains(r##"fill="#F5A142""##));
-    }
-
-    #[test]
-    fn style_per_platform_and_season() {
-        let mac = IconStyle::pick(true, Season::Regular);
-        assert_eq!(
-            (mac.mark, mac.template, mac.pumpkin),
-            (Mark::Mono, true, false)
-        );
-        let win = IconStyle::pick(false, Season::Regular);
-        assert_eq!(
-            (win.mark, win.template, win.pumpkin),
-            (Mark::Colour, false, false)
-        );
-        for macos in [true, false] {
-            let s = IconStyle::pick(macos, Season::Halloween);
-            assert_eq!((s.mark, s.template, s.pumpkin), (Mark::Colour, false, true));
-        }
+    fn style_per_platform() {
+        let mac = IconStyle::pick(true);
+        assert_eq!((mac.mark, mac.template), (Mark::Mono, true));
+        let win = IconStyle::pick(false);
+        assert_eq!((win.mark, win.template), (Mark::Colour, false));
     }
 
     #[test]
     fn halo_fills_clockwise_from_twelve() {
         // 50 %: the right half (3 o'clock) is filled, the left half (9 o'clock) is track.
-        let rgba = render_icon(REGULAR_COLOUR, Some(50.0)).unwrap();
+        let rgba = render_icon(COLOUR, Some(50.0)).unwrap();
         assert_eq!(rgba.len(), (ICON_SIZE * ICON_SIZE * 4) as usize);
         let mid = ICON_SIZE / 2;
         let ring = (f64::from(ICON_SIZE) / 128.0 * 54.0).round() as u32;
@@ -236,7 +194,7 @@ mod tests {
 
     #[test]
     fn empty_halo_renders_track_only() {
-        let rgba = render_icon(REGULAR_COLOUR, None).unwrap();
+        let rgba = render_icon(COLOUR, None).unwrap();
         let mid = ICON_SIZE / 2;
         let ring = (f64::from(ICON_SIZE) / 128.0 * 54.0).round() as u32;
         assert!(near(pixel(&rgba, mid + ring, mid), [0x2A, 0x26, 0x31]));
@@ -246,7 +204,7 @@ mod tests {
 
     #[test]
     fn mono_icon_is_black_with_alpha_only() {
-        let rgba = render_icon(IconStyle::pick(true, Season::Regular), Some(60.0)).unwrap();
+        let rgba = render_icon(IconStyle::pick(true), Some(60.0)).unwrap();
         assert!(rgba.as_chunks::<4>().0.iter().any(|p| p[3] > 0));
         assert!(rgba
             .as_chunks::<4>()

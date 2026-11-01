@@ -14,13 +14,13 @@ use chrono::{Local, TimeZone};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::app::{AppState, DbGameStore};
-use crate::contracts::events::{ACHIEVEMENT_UNLOCKED, GAME_UPDATED, SETTINGS_CHANGED};
+use crate::contracts::events::SETTINGS_CHANGED;
 use crate::contracts::{
-    AppInfo, CommandError, CommandErrorCode, DashboardSnapshot, EasterEggResult, EpochMs,
-    GameState, LimitSetup, Mode, Settings, SettingsPatch,
+    AppInfo, CommandError, CommandErrorCode, DashboardSnapshot, EpochMs, GameState, LimitSetup,
+    Mode, Settings, SettingsPatch,
 };
 use crate::db::DbError;
-use crate::game::{easter_egg, evaluate, persist, Facts, GameStore};
+use crate::game::{evaluate, Facts, GameStore};
 use crate::limits::setup::current_statusline_command;
 use crate::watcher::IngestHandle;
 
@@ -97,34 +97,6 @@ pub(crate) fn game_state<Tz: TimeZone>(
         .with_db(|db| DbGameStore::new(db).load())
         .map_err(storage)?;
     Ok(evaluate(&data, &Facts::default(), mode, now, tz, false).state)
-}
-
-/// The ghost easter egg. Returns the result and, when Boo was newly
-/// unlocked, the game state to announce.
-pub(crate) fn run_easter_egg<Tz: TimeZone>(
-    state: &AppState,
-    now: EpochMs,
-    tz: &Tz,
-) -> Result<(EasterEggResult, Option<GameState>), CommandError> {
-    let _guard = state.game_lock.lock().unwrap_or_else(|e| e.into_inner());
-    let mode = state.settings().mode;
-    let (result, evaluation) = state
-        .with_db(|db| {
-            let mut store = DbGameStore::new(db);
-            let prev = store.load()?;
-            let (result, evaluation) = easter_egg(&prev, mode, now, tz);
-            persist(&mut store, &prev, &evaluation, false)?;
-            Ok((result, evaluation))
-        })
-        .map_err(storage)?;
-    if !result.newly_unlocked {
-        return Ok((result, None));
-    }
-    let mut game = evaluation.state;
-    // The evaluation has no day facts: keep the preview the worker computed.
-    game.daily_xp_preview = state.game().and_then(|g| g.daily_xp_preview);
-    state.set_game(game.clone());
-    Ok((result, Some(game)))
 }
 
 fn emit<T: serde::Serialize + Clone>(app: &AppHandle, event: &str, payload: &T) {
@@ -207,19 +179,6 @@ pub fn get_game_state(state: State<'_, Arc<AppState>>) -> Result<GameState, Comm
 }
 
 #[tauri::command]
-pub fn trigger_easter_egg(
-    app: AppHandle,
-    state: State<'_, Arc<AppState>>,
-) -> Result<EasterEggResult, CommandError> {
-    let (result, announce) = run_easter_egg(&state, now_ms(), &Local)?;
-    if let Some(game) = announce {
-        emit(&app, ACHIEVEMENT_UNLOCKED, &result.achievement);
-        emit(&app, GAME_UPDATED, &game);
-    }
-    Ok(result)
-}
-
-#[tauri::command]
 pub fn get_app_info(state: State<'_, Arc<AppState>>) -> Result<AppInfo, CommandError> {
     Ok(state.info())
 }
@@ -234,7 +193,7 @@ pub fn get_limit_setup() -> Result<LimitSetup, CommandError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contracts::{AchievementId, Platform, Season};
+    use crate::contracts::{Platform, Season};
     use crate::db::Db;
     use chrono::FixedOffset;
 
@@ -334,22 +293,6 @@ mod tests {
         assert!(!g.retro_done);
         // Nothing was written.
         assert!(s.with_db(|db| db.xp_events()).unwrap().is_empty());
-    }
-
-    #[test]
-    fn easter_egg_unlocks_boo_once() {
-        let s = state(Mode::Max);
-        let now = 1_793_232_000_000;
-        let (first, announce) = run_easter_egg(&s, now, &tz()).unwrap();
-        assert!(first.newly_unlocked);
-        assert_eq!(first.achievement.id, AchievementId::Boo);
-        let game = announce.expect("announced");
-        assert_eq!(s.game().unwrap(), game);
-
-        let (again, announce) = run_easter_egg(&s, now + 5_000, &tz()).unwrap();
-        assert!(!again.newly_unlocked);
-        assert!(announce.is_none());
-        assert_eq!(again.achievement.unlocked_at, first.achievement.unlocked_at);
     }
 
     #[test]

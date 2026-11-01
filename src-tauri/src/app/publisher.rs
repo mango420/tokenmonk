@@ -14,7 +14,7 @@ use super::facts::{build_facts, BudgetCache, Scope};
 use super::game_store::DbGameStore;
 use crate::contracts::EpochMs;
 use crate::contracts::{
-    AchievementUnlocked, AppInfo, DashboardSnapshot, DataState, GameState, LevelUp, Mode, Season,
+    AchievementUnlocked, AppInfo, DashboardSnapshot, DataState, GameState, LevelUp, Mode,
 };
 use crate::db::{Db, DbError};
 use crate::game::{run_evaluation, Evaluation, Facts, GameStore};
@@ -30,7 +30,7 @@ pub trait Sink: Send {
     fn achievement(&self, unlocked: &AchievementUnlocked);
     fn level_up(&self, level_up: &LevelUp);
     fn app_info(&self, info: &AppInfo);
-    fn halo(&self, percent: Option<f64>, season: Season);
+    fn halo(&self, percent: Option<f64>);
 }
 
 /// Tray halo value for a snapshot: the 5-hour percentage in Max it out, the
@@ -53,7 +53,6 @@ pub struct AppPublisher<S: Sink> {
     sink: S,
     state: Arc<AppState>,
     zone: ClockZone,
-    season_now: fn() -> Season,
     /// The startup scan is over; game evaluation starts.
     import_done: bool,
     /// Oldest timestamp of usage seen since the last successful evaluation.
@@ -67,27 +66,18 @@ impl<S: Sink> AppPublisher<S> {
             sink,
             state,
             zone,
-            season_now: crate::tray::season::current_season,
             import_done: false,
             pending_from: None,
             budget_cache: HashMap::new(),
         }
     }
 
-    /// Replaces the clock-based season (tests).
-    pub fn with_season(mut self, season_now: fn() -> Season) -> Self {
-        self.season_now = season_now;
-        self
-    }
-
-    /// Keeps `AppInfo` current (logs found, season flips) and announces changes.
+    /// Keeps `AppInfo` current (logs found) and announces changes.
     fn refresh_info(&self, snapshot: &DashboardSnapshot) {
         let mut info = self.state.info();
         let logs_found = snapshot.data.state != DataState::NoLogs;
-        let season = (self.season_now)();
-        if info.logs_found != logs_found || info.season != season {
+        if info.logs_found != logs_found {
             info.logs_found = logs_found;
-            info.season = season;
             self.state.set_info(info.clone());
             self.sink.app_info(&info);
         }
@@ -188,8 +178,7 @@ impl<S: Sink> IngestPublisher for AppPublisher<S> {
         self.refresh_info(snapshot);
 
         let mode = self.state.settings().mode;
-        self.sink
-            .halo(halo_percent(mode, snapshot), self.state.info().season);
+        self.sink.halo(halo_percent(mode, snapshot));
 
         match cause {
             SnapshotCause::Import => {}
@@ -214,7 +203,8 @@ mod tests {
     use crate::aggregate::{snapshot, LimitState};
     use crate::contracts::dashboard::BudgetBasis;
     use crate::contracts::{
-        AchievementId, DailyBudget, DataStatus, LimitReading, LimitWindow, Platform, Settings,
+        AchievementId, DailyBudget, DataStatus, LimitReading, LimitWindow, Platform, Season,
+        Settings,
     };
     use crate::limits::LimitPoll;
     use chrono::FixedOffset;
@@ -251,8 +241,8 @@ mod tests {
         fn app_info(&self, i: &AppInfo) {
             self.push(format!("info {:?} logs={}", i.season, i.logs_found));
         }
-        fn halo(&self, p: Option<f64>, s: Season) {
-            self.push(format!("halo {p:?} {s:?}"));
+        fn halo(&self, p: Option<f64>) {
+            self.push(format!("halo {p:?}"));
         }
     }
 
@@ -266,10 +256,6 @@ mod tests {
             .unwrap()
             .and_utc()
             .timestamp_millis()
-    }
-
-    fn regular() -> Season {
-        Season::Regular
     }
 
     fn setup(mode: Mode) -> (AppPublisher<Recorder>, Recorder, Arc<AppState>, Db) {
@@ -289,8 +275,7 @@ mod tests {
             info,
         ));
         let rec = Recorder::default();
-        let publisher = AppPublisher::new(rec.clone(), Arc::clone(&state), ClockZone::Fixed(tz()))
-            .with_season(regular);
+        let publisher = AppPublisher::new(rec.clone(), Arc::clone(&state), ClockZone::Fixed(tz()));
         (publisher, rec, state, Db::open_in_memory().unwrap())
     }
 
@@ -370,7 +355,7 @@ mod tests {
         let s = snap(&db, Mode::Max, now, &LimitState::default());
         p.on_snapshot(&mut db, &s, SnapshotCause::Import);
         assert_eq!(state.dashboard().unwrap(), s);
-        assert_eq!(rec.log(), ["dashboard", "halo None Regular"]);
+        assert_eq!(rec.log(), ["dashboard", "halo None"]);
         assert!(state.game().is_none(), "no evaluation while importing");
     }
 
@@ -461,18 +446,15 @@ mod tests {
     }
 
     #[test]
-    fn season_flip_and_missing_logs_update_app_info() {
+    fn missing_logs_update_app_info() {
         let (p, rec, state, db) = setup(Mode::Max);
-        let mut p = p.with_season(|| Season::Halloween);
+        let mut p = p;
         let mut db2 = db;
         let mut s = snap(&db2, Mode::Max, ms(28, 12), &LimitState::default());
         s.data.state = DataState::NoLogs;
         p.on_snapshot(&mut db2, &s, SnapshotCause::Import);
-        assert_eq!(state.info().season, Season::Halloween);
         assert!(!state.info().logs_found);
-        assert_eq!(rec.count("info Halloween logs=false"), 1);
-        // Halo uses the new season.
-        assert!(rec.log().contains(&"halo None Halloween".to_string()));
+        assert_eq!(rec.count("info Regular logs=false"), 1);
         // No change, no event.
         p.on_snapshot(&mut db2, &s, SnapshotCause::Import);
         assert_eq!(rec.count("info"), 1);
