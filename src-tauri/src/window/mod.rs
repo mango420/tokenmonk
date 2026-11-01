@@ -9,7 +9,7 @@
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use tauri::{AppHandle, Manager, PhysicalPosition, WebviewWindow, WindowEvent};
+use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewWindow, WindowEvent};
 use tauri_plugin_positioner::{Position, WindowExt};
 
 use crate::limits::LimitsHandle;
@@ -41,6 +41,21 @@ fn moved_by_user(
         }
         _ => false,
     }
+}
+
+/// True if the centre of a window at `pos` with `size` lies on one of the
+/// `screens` (position and size of each monitor).
+fn centre_on_screen(
+    pos: PhysicalPosition<i32>,
+    size: PhysicalSize<u32>,
+    screens: &[(PhysicalPosition<i32>, PhysicalSize<u32>)],
+) -> bool {
+    let cx = i64::from(pos.x) + i64::from(size.width) / 2;
+    let cy = i64::from(pos.y) + i64::from(size.height) / 2;
+    screens.iter().any(|(p, s)| {
+        let (x, y) = (i64::from(p.x), i64::from(p.y));
+        (x..x + i64::from(s.width)).contains(&cx) && (y..y + i64::from(s.height)).contains(&cy)
+    })
 }
 
 /// Outcome of a tray click on a popup in a given state.
@@ -98,8 +113,7 @@ pub fn show(app: &AppHandle) {
     let Some(popup) = app.get_webview_window(LABEL) else {
         return;
     };
-    let placed = LAST_PLACED.lock().ok().and_then(|last| *last);
-    if !moved_by_user(placed, popup.outer_position().ok()) {
+    if !stays_where_dragged(&popup) {
         place(&popup);
     }
     if let Err(e) = popup.show() {
@@ -134,6 +148,24 @@ pub fn toggle(app: &AppHandle) {
         ToggleAction::Hide => hide(app),
         ToggleAction::Nothing => {}
     }
+}
+
+/// The user dragged the popup away from where `place` put it, and it is still
+/// on a connected monitor (the one it was dragged to may be unplugged since).
+fn stays_where_dragged(popup: &WebviewWindow) -> bool {
+    let placed = LAST_PLACED.lock().ok().and_then(|last| *last);
+    let (Ok(pos), Ok(size), Ok(monitors)) = (
+        popup.outer_position(),
+        popup.outer_size(),
+        popup.available_monitors(),
+    ) else {
+        return false;
+    };
+    let screens: Vec<_> = monitors
+        .iter()
+        .map(|m| (*m.position(), *m.size()))
+        .collect();
+    moved_by_user(placed, Some(pos)) && centre_on_screen(pos, size, &screens)
 }
 
 /// Moves the popup next to the tray icon, kept inside the screen. Before the
@@ -181,6 +213,29 @@ mod tests {
         assert!(!moved_by_user(at(10, 10), None));
         assert!(!moved_by_user(at(10, 10), at(11, 9)));
         assert!(moved_by_user(at(10, 10), at(10, 200)));
+    }
+
+    #[test]
+    fn popup_on_unplugged_monitor_is_off_screen() {
+        let popup = PhysicalSize::new(360, 680);
+        let main = (PhysicalPosition::new(0, 0), PhysicalSize::new(1920, 1080));
+        let left = (
+            PhysicalPosition::new(-1280, 0),
+            PhysicalSize::new(1280, 1024),
+        );
+        let on_left = PhysicalPosition::new(-800, 100);
+        assert!(centre_on_screen(on_left, popup, &[main, left]));
+        assert!(!centre_on_screen(on_left, popup, &[main]));
+        assert!(centre_on_screen(
+            PhysicalPosition::new(1700, 300),
+            popup,
+            &[main]
+        ));
+        assert!(!centre_on_screen(
+            PhysicalPosition::new(1800, 300),
+            popup,
+            &[main]
+        ));
     }
 
     #[test]
