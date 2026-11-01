@@ -11,7 +11,7 @@ const GLYPH: Record<AchievementId, IconName> = {
   rateLimitRambo: "bolt",
   soClose: "target",
   tokenMonk: "person",
-  boo: "ghost", // legacy "Halloween 2026" badge, still rendered for those who have it
+  boo: "ghost", // retired "Halloween 2026" badge: never toasts (isToastable), icon only for existing unlocks
 };
 
 interface AchievementToastProps {

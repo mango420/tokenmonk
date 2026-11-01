@@ -388,10 +388,7 @@ fn state_matches_the_curve() {
 fn boo_is_not_earnable() {
     let mut store = MemoryStore::default();
     let now = ms(2026, 11, 2, 12, 0);
-    let f = Facts {
-        boo_at: Some(now),
-        ..Facts::default()
-    };
+    let f = Facts::default();
     for mode in [Mode::Max, Mode::Diy] {
         let ev = apply(&mut store, &f, mode, now, false);
         assert!(!unlocked(&ev).contains(&AchievementId::Boo));
@@ -529,7 +526,6 @@ fn facts_at(h: &History, now: i64, from: NaiveDate) -> Facts {
     Facts {
         days,
         limits: h.limits.iter().copied().filter(|l| l.at <= now).collect(),
-        boo_at: None,
     }
 }
 
