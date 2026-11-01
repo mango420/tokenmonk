@@ -38,7 +38,6 @@ function tokens(total: number): TokenBreakdown {
 const appInfo: AppInfo = {
   version: "0.1.0",
   platform: "windows",
-  season: "regular",
   schemaVersion: 1,
   logsFound: true,
 };

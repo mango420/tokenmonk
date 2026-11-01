@@ -69,7 +69,6 @@ function placeholders(): AppData {
     appInfo: {
       version: "",
       platform: "windows",
-      season: "regular",
       schemaVersion: 0,
       logsFound: false,
     },

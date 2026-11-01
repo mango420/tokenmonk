@@ -37,7 +37,6 @@ export default function App() {
     game: data.game,
     sound: data.settings.sound,
     popupVisible,
-    blocked: false,
   });
   useBackendEvent(Events.achievementUnlocked, notices.pushUnlock, !usesMockData);
   useBackendEvent(Events.levelUp, notices.pushLevelUp, !usesMockData);
