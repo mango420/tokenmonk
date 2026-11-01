@@ -122,6 +122,10 @@ jobs:
 
       - run: npm ci
 
+      # release-please.yml creates the tag and a draft release; releaseDraft
+      # must stay true so tauri-action finds that draft by tag and uploads to
+      # it instead of creating a second release.
+      #
       # Binaries are unsigned (no Apple or Windows code-signing secrets);
       # macOS gets an ad-hoc signature from tauri.conf.json. While
       # UPDATER_ARTIFACTS is 'false' no updater artifacts are built or
