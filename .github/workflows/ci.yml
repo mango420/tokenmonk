@@ -4,6 +4,9 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Started by feature-register.yml for the refresh branch: PRs made with
+  # GITHUB_TOKEN start no pull_request runs, workflow_dispatch does.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -80,3 +83,7 @@ jobs:
       - name: Guard the pull request range
         if: github.event_name == 'pull_request'
         run: node scripts/guard.mjs --range origin/${{ github.base_ref }}..HEAD
+
+      - name: Guard the dispatched branch range
+        if: github.event_name == 'workflow_dispatch'
+        run: node scripts/guard.mjs --range origin/main..HEAD

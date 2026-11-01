@@ -118,6 +118,13 @@ Superseded: releases are cut through the release PR, see "Automatic versioning w
 - PR title and squash subject: `<type>(<scope>): <short> (TKM-<n>)`; the PR body still ends in `Closes #<n>`. The PR key check in CI (`scripts/check-pr-key.mjs`) requires the `(TKM-<n>)` title suffix and the branch format, with the same key in both; dependabot and release branches are skipped.
 - `docs/FEATURES.md` is the feature register, generated from the issue tracker by `node scripts/features.mjs` (needs an authenticated `gh`). It is never edited by hand; regenerate and commit it when issues change.
 
+## Checks on the register refresh PR (2026-11-01)
+
+- `feature-register.yml` creates the refresh PR with the built-in `GITHUB_TOKEN`. Events raised by `GITHUB_TOKEN` start no workflow runs, so `ci.yml` and `pr-key.yml` would never run on that PR.
+- Exception per GitHub docs: `workflow_dispatch` events raised by `GITHUB_TOKEN` do create runs. After pushing the refresh branch, the workflow dispatches both checks with `gh workflow run ci.yml --ref <branch>` and `gh workflow run pr-key.yml --ref <branch>`; this needs `actions: write` on the workflow.
+- Chosen because it needs no secret, no GitHub App and no personal access token.
+- Fallback if the dispatched runs do not attach to the PR as checks: a fine-grained personal access token, created by the maintainer and stored as a repository secret, used to create the refresh PR.
+
 ## Automatic versioning with release-please (2026-11-01)
 
 - `googleapis/release-please-action@v4` in `.github/workflows/release-please.yml`, run on every push to `main`. Config: `release-please-config.json` and `.release-please-manifest.json` (starts at `0.1.0`, matching the existing tag `v0.1.0`). Release type `node` (bumps `package.json` and `package-lock.json`) plus extra files `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock` and `src-tauri/tauri.conf.json`, so all versions move together and the tag check in `release.yml` holds.

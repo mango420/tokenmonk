@@ -9,6 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: write
   issues: read
   pull-requests: write
@@ -47,8 +48,7 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # PRs and pushes made with GITHUB_TOKEN do not start pull_request workflows,
-      # so the repository guard runs here, before anything is pushed.
+      # Run the repository guard before anything is pushed.
       - name: Guard
         if: steps.diff.outputs.changed == 'true'
         run: |
@@ -81,6 +81,15 @@ jobs:
               echo "Creating it automatically needs Settings > Actions > General > Workflow permissions > Allow GitHub Actions to create and approve pull requests."
             } >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      # Pushes and PRs made with GITHUB_TOKEN start no pull_request runs, but its
+      # workflow_dispatch events do. The runs attach to the branch head commit, so
+      # their checks (same job names as on a normal PR) show on the refresh PR.
+      - name: Run checks on the refresh branch
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          gh workflow run ci.yml --ref "$REFRESH_BRANCH"
+          gh workflow run pr-key.yml --ref "$REFRESH_BRANCH"
 
       # The register on main already matches the tracker: retire a stale refresh PR.
       - name: Close stale refresh PR
