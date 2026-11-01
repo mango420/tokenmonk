@@ -346,10 +346,10 @@ export type AchievementRowModel =
   | { kind: "progress"; id: AchievementId; name: string; ratio: number; caption: string; mono: boolean }
   | { kind: "next"; id: AchievementId; name: string; caption: string };
 
-/** Picks the single achievement to show (DESIGN.md, "Achievement row rule"). */
 /** Boo is no longer findable; it only survives as the Halloween 2026 badge. */
 const BOO_BADGE_NAME = "Halloween 2026";
 
+/** Picks the single achievement to show (DESIGN.md, "Achievement row rule"). */
 export function buildAchievementRow(game: GameState, now: number): AchievementRowModel | null {
   if (!game.retroDone) return null;
 
