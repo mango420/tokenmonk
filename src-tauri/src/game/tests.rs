@@ -385,21 +385,75 @@ fn state_matches_the_curve() {
 }
 
 #[test]
-fn easter_egg_unlocks_boo_once() {
+fn boo_is_not_earnable() {
     let mut store = MemoryStore::default();
-    let now = ms(2026, 10, 28, 12, 0);
-    let (res, ev) = easter_egg(&store.load().unwrap(), Mode::Max, now, &Utc);
-    assert!(res.newly_unlocked);
-    assert_eq!(res.achievement.id, AchievementId::Boo);
-    assert_eq!(res.achievement.xp, 100);
-    assert_eq!(ev.state.xp_total, 100);
-    persist(&mut store, &GameData::default(), &ev, false).unwrap();
+    let now = ms(2026, 11, 2, 12, 0);
+    let f = Facts {
+        boo_at: Some(now),
+        ..Facts::default()
+    };
+    for mode in [Mode::Max, Mode::Diy] {
+        let ev = apply(&mut store, &f, mode, now, false);
+        assert!(!unlocked(&ev).contains(&AchievementId::Boo));
+        assert_eq!(ev.state.xp_total, 0);
+    }
+}
 
-    let (again, ev2) = easter_egg(&store.load().unwrap(), Mode::Max, now + HOUR, &Utc);
-    assert!(!again.newly_unlocked);
-    assert_eq!(again.achievement.unlocked_at, now);
-    assert!(ev2.ledger.is_empty() && ev2.unlocks.is_empty());
-    assert_eq!(ev2.state.xp_total, 100);
+fn legacy_boo() -> GameData {
+    let at = ms(2026, 10, 28, 12, 0);
+    GameData {
+        ledger: vec![LedgerEntry {
+            earned_at: at,
+            mode: Mode::Max,
+            kind: KIND_ACHIEVEMENT.to_string(),
+            reference: "boo".to_string(),
+            amount: 100,
+            retroactive: false,
+        }],
+        achievements: vec![AchievementRecord {
+            id: AchievementId::Boo,
+            unlocked_at: Some(at),
+            retroactive: false,
+            current: None,
+            target: None,
+            updated_at: at,
+        }],
+        retro_done: true,
+    }
+}
+
+#[test]
+fn legacy_boo_stays_unlocked_and_is_never_regranted() {
+    let mut store = MemoryStore { data: legacy_boo() };
+    let now = ms(2026, 11, 2, 12, 0);
+    let ev = apply(&mut store, &Facts::default(), Mode::Max, now, false);
+    assert!(ev.unlocks.is_empty() && ev.ledger.is_empty());
+    assert_eq!(ev.state.xp_total, 100);
+    let boo = ev
+        .state
+        .achievements
+        .iter()
+        .find(|a| a.id == AchievementId::Boo)
+        .unwrap();
+    assert!(boo.unlocked_at.is_some());
+    assert_eq!(boo.name, "Halloween 2026");
+}
+
+#[test]
+fn retroactive_levelling_never_grants_boo() {
+    let mut store = MemoryStore::default();
+    let first = date(2026, 10, 1);
+    let days: Vec<_> = (0..10)
+        .map(|i| day(first + Days::new(i), 800, Some(5.0)))
+        .collect();
+    let now = day_start_ms(first + Days::new(9), &Utc) + 12 * HOUR;
+    let ev = apply(&mut store, &facts(days), Mode::Max, now, true);
+    assert!(!unlocked(&ev).contains(&AchievementId::Boo));
+    assert!(store
+        .data
+        .achievements
+        .iter()
+        .all(|r| r.id != AchievementId::Boo));
 }
 
 // --- retroactive replay == live -------------------------------------------
@@ -608,43 +662,4 @@ fn replay_equals_live_for_do_it_yourself() {
     );
     assert!(unlocked(&ev).contains(&AchievementId::TokenMonk));
     assert!(!unlocked(&ev).contains(&AchievementId::NightOwl));
-}
-
-#[test]
-fn easter_egg_keeps_token_monk_progress() {
-    let mut store = MemoryStore::default();
-    let first = date(2026, 10, 1);
-    let days: Vec<_> = (0..5)
-        .map(|i| day(first + Days::new(i), 800, Some(5.0)))
-        .collect();
-    let now = day_start_ms(first + Days::new(4), &Utc) + 12 * HOUR;
-    apply(&mut store, &facts(days), Mode::Diy, now, false);
-
-    let (res, ev) = easter_egg(&store.load().unwrap(), Mode::Diy, now + HOUR, &Utc);
-    assert!(res.newly_unlocked);
-    assert!(ev.achievements.iter().all(|r| r.id == AchievementId::Boo));
-    let monk = ev
-        .state
-        .achievements
-        .iter()
-        .find(|a| a.id == AchievementId::TokenMonk)
-        .unwrap();
-    assert_eq!(monk.current, Some(4));
-}
-
-#[test]
-fn easter_egg_works_before_onboarding() {
-    let mut store = MemoryStore::default();
-    let now = ms(2026, 10, 28, 12, 0);
-    let (res, ev) = easter_egg(&store.load().unwrap(), Mode::NoneYet, now, &Utc);
-    assert!(res.newly_unlocked);
-    assert_eq!(ev.ledger.len(), 1);
-    assert_eq!(ev.ledger[0].mode, Mode::Max);
-    assert_eq!(ev.ledger[0].kind, KIND_ACHIEVEMENT);
-    assert_eq!(ev.state.mode, Mode::NoneYet);
-    assert_eq!(ev.state.xp_total, 100);
-    persist(&mut store, &GameData::default(), &ev, false).unwrap();
-    let (again, ev2) = easter_egg(&store.load().unwrap(), Mode::NoneYet, now + HOUR, &Utc);
-    assert!(!again.newly_unlocked);
-    assert!(ev2.ledger.is_empty());
 }
