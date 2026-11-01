@@ -1,8 +1,7 @@
 //! Shared application state (docs/ARCHITECTURE.md, "Threads").
 //!
 //! The ingest worker publishes the newest snapshot and game state here;
-//! command handlers only read the cache. Commands that write (settings, the
-//! easter egg) use their own connection, guarded by a mutex; SQLite's WAL
+//! command handlers only read the cache. Commands that write (settings) use their own connection, guarded by a mutex; SQLite's WAL
 //! mode and busy timeout keep that apart from the ingest worker's writes.
 
 use std::sync::{Mutex, MutexGuard, RwLock};
@@ -24,7 +23,7 @@ pub struct AppState {
     cache: RwLock<Cache>,
     command_db: Mutex<Db>,
     /// Held while the game is evaluated and persisted, so the ingest worker
-    /// and the easter egg command never interleave their load/persist.
+    /// and the commands never interleave their load/persist.
     pub game_lock: Mutex<()>,
 }
 

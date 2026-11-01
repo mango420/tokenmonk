@@ -6,14 +6,12 @@
 //! hand-over to the OS.
 
 pub mod icon;
-pub mod season;
 
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter};
 
-use crate::contracts::app::Season;
 use crate::contracts::events::{NavigateTo, View, NAVIGATE};
 use crate::window;
 
@@ -49,8 +47,7 @@ impl MenuAction {
 /// menu. Call once from the setup hook, after the positioner plugin is
 /// registered.
 pub fn init(app: &AppHandle) -> tauri::Result<()> {
-    let season = season::current_season();
-    let style = IconStyle::for_current_platform(season);
+    let style = IconStyle::for_current_platform();
 
     let open = MenuItem::with_id(app, MENU_OPEN, "Open Tokenmonk", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, MENU_SETTINGS, "Settings", true, None::<&str>)?;
@@ -103,20 +100,20 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
 
 /// Re-renders the tray icon with the halo filled to `percent` (0 to 100,
 /// clockwise from 12 o'clock). `None` shows the track only, for the
-/// "no limit data" state. `season` selects the Halloween look.
+/// "no limit data" state.
 ///
 /// Failures are logged and leave the previous icon in place.
-pub fn set_halo(app: &AppHandle, percent: Option<f64>, season: Season) {
+pub fn set_halo(app: &AppHandle, percent: Option<f64>) {
     let Some(tray) = app.tray_by_id(TRAY_ID) else {
         return;
     };
-    if let Err(e) = apply(&tray, percent, season) {
+    if let Err(e) = apply(&tray, percent) {
         log::warn!("could not update the tray icon: {e}");
     }
 }
 
-fn apply(tray: &TrayIcon, percent: Option<f64>, season: Season) -> Result<(), String> {
-    let style = IconStyle::for_current_platform(season);
+fn apply(tray: &TrayIcon, percent: Option<f64>) -> Result<(), String> {
+    let style = IconStyle::for_current_platform();
     let image = build_image(style, percent)?;
     // One call so macOS does not flicker between icon and template flag.
     tray.set_icon_with_as_template(Some(image), style.template)
