@@ -6,6 +6,8 @@
   "bump-patch-for-minor-pre-major": false,
   "draft": true,
   "force-tag-creation": true,
+  "pull-request-header": "Release PR: merging it tags the release and drafts the GitHub release.",
+  "pull-request-footer": "",
   "packages": {
     ".": {
       "package-name": "tokenmonk",
@@ -18,7 +20,7 @@
         {
           "type": "toml",
           "path": "src-tauri/Cargo.lock",
-          "jsonpath": "$.package[?(@.name=='tokenmonk')].version"
+          "jsonpath": "$.package[?(@.name.value=='tokenmonk')].version"
         },
         {
           "type": "json",
