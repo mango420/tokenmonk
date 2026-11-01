@@ -45,7 +45,6 @@ pub fn run() {
             commands::update_settings,
             commands::complete_onboarding,
             commands::get_game_state,
-            commands::trigger_easter_egg,
             commands::get_app_info,
             commands::get_limit_setup,
         ])
