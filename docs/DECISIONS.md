@@ -81,7 +81,7 @@ CSP is strict: `default-src 'self'`, images and fonts from `self` and `data:`, i
 
 ## Release
 
-Superseded for v0.1: see "v0.1 without updater artifacts" below.
+Superseded: updater artifacts by "v0.1 without updater artifacts", versioning, tagging and the release flow by "Automatic versioning with release-please (2026-11-01)" below. The build jobs, guard checks and secrets described here still apply.
 
 - `.github/workflows/release.yml` runs on pushed tags `v*` (and `workflow_dispatch`). A `guard` job runs `scripts/guard.mjs --all`, checks that both signing secrets are set and non-empty (the key is always password-protected), that `plugins.updater.pubkey` is non-empty and `bundle.createUpdaterArtifacts` is `true`, and (on tags) that the tag equals `v<version>` in `tauri.conf.json`, `Cargo.toml` and `package.json`; the build jobs only start after it passes. Until the release-phase config changes below are on `main`, the guard fails on purpose.
 - Builds: macOS universal (`--target universal-apple-darwin`, both Rust targets installed) and Windows, via `tauri-apps/tauri-action@v1` (also `actions/checkout@v7`, `actions/setup-node@v7`, `Swatinem/rust-cache@v2`, `dtolnay/rust-toolchain@stable`). macOS builds exist only here, never in PR CI.
@@ -90,12 +90,11 @@ Superseded for v0.1: see "v0.1 without updater artifacts" below.
 
 ### Cutting a release
 
-Superseded for v0.1: see "v0.1 without updater artifacts" below.
+Superseded: releases are cut through the release PR, see "Automatic versioning with release-please (2026-11-01)" below. Manual version bumps and hand-pushed tags are gone.
 
-1. One time: `npm run tauri signer generate -- -w <path outside the repo>`; store the private key and password as the two secrets; keep the public key for the config change below.
-2. Bump the version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `package.json` (chore PR), merge to `main`.
-3. Tag the merge commit `v<version>` and push the tag. Never trigger the workflow before the config changes below are on `main`.
-4. Review the draft release (assets for macOS universal and Windows, `latest.json`), then publish it. The endpoint `releases/latest/download/latest.json` resolves only for a published release.
+1. Only when updater artifacts are switched back on, one time: `npm run tauri signer generate -- -w <path outside the repo>`; store the private key and password as the two secrets; keep the public key for the config change below.
+2. Cut the release as described in "Automatic versioning with release-please (2026-11-01)".
+3. When updater artifacts are on: the endpoint `releases/latest/download/latest.json` resolves only for a published release, so check `latest.json` on the draft before publishing it.
 
 ### `tauri.conf.json` changes applied in the release phase
 
@@ -118,3 +117,20 @@ Superseded for v0.1: see "v0.1 without updater artifacts" below.
 - Branch: `<prefix>/TKM-<n>-<short-kebab>` with the usual prefixes (feature/ bugfix/ hotfix/ refactor/ chore/ docs/ test/ ci/).
 - PR title and squash subject: `<type>(<scope>): <short> (TKM-<n>)`; the PR body still ends in `Closes #<n>`. The PR key check in CI (`scripts/check-pr-key.mjs`) requires the `(TKM-<n>)` title suffix and the branch format, with the same key in both; dependabot and release branches are skipped.
 - `docs/FEATURES.md` is the feature register, generated from the issue tracker by `node scripts/features.mjs` (needs an authenticated `gh`). It is never edited by hand; regenerate and commit it when issues change.
+
+## Automatic versioning with release-please (2026-11-01)
+
+- `googleapis/release-please-action@v4` in `.github/workflows/release-please.yml`, run on every push to `main`. Config: `release-please-config.json` and `.release-please-manifest.json` (starts at `0.1.0`, matching the existing tag `v0.1.0`). Release type `node` (bumps `package.json` and `package-lock.json`) plus extra files `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock` and `src-tauri/tauri.conf.json`, so all versions move together and the tag check in `release.yml` holds.
+- Version rule: Conventional Commits on `main` since the last tag decide the bump. Before 1.0 (`bump-minor-pre-major: true`, `bump-patch-for-minor-pre-major: false`): any `feat` gives a minor bump, `fix` only gives a patch bump, a breaking change gives a minor bump. `chore`, `ci`, `docs`, `refactor` and `test` alone give no release. The number of features does not matter; one `feat` or ten give the same bump. Tags are `v<version>` (no component in the tag).
+- Release PR: release-please keeps one PR open on a `release-please--*` branch, titled `chore(main): release x.y.z`, with the bumped versions and the new `CHANGELOG.md` section. Its header and footer are custom and carry no attribution. It has no TKM key; `scripts/check-pr-key.mjs` skips release-please branches.
+- One release per version: merging the release PR makes release-please create the tag and a draft GitHub release with the changelog as notes (`draft: true`, `force-tag-creation: true`). `release.yml` (`tauri-action`, `releaseDraft: true`) runs on the tag, finds that draft by tag and only uploads the installers. Publishing the draft before both builds have finished makes `tauri-action` create a second release, so publish only afterwards.
+- Token: repository secret `RELEASE_PLEASE_TOKEN` (fine-grained PAT or GitHub App token, never in the repo). With it, the release PR runs CI and the tag push triggers `release.yml`. Without it the built-in `GITHUB_TOKEN` is used: events it creates trigger no workflows, so the release PR gets no CI checks, and a `dispatch-release` job (`actions: write`) runs `gh workflow run release.yml --ref <tag>` after a release is created. Either way the repository setting "Allow GitHub Actions to create and approve pull requests" must be on, otherwise release-please cannot open the release PR.
+- `CHANGELOG.md` is generated from now on: release-please prepends a `## [x.y.z]` section per release. It is not edited by hand and has no `[Unreleased]` section (release-please inserts above the first `## [` heading, so it would land above it). The hand-written `0.1.0` section stays as history. Only `feat`, `fix`, `perf` and `revert` commits show up in the generated notes, so write user-visible changes as those types.
+- Carry-over: the Halloween removal was merged after `v0.1.0` as `refactor` commits and does not show up in the generated notes. Add it to the notes of the next draft release by hand before publishing: "Removed: Halloween season look and the ghost easter egg. Changed: Boo is now a legacy Halloween 2026 badge; existing unlocks stay, it can no longer be earned."
+
+### How to cut a release now
+
+1. Merge feature and fix PRs as usual; release-please updates the release PR after every push to `main`.
+2. When ready, merge the release PR through the merge queue (rebase, green checks, squash with the PR title as subject). Exception: its subject `chore(main): release x.y.z` has no TKM key. Without `RELEASE_PLEASE_TOKEN` the PR has no CI checks; the gate is then a reviewer check of the version and changelog diff.
+3. Wait until both `release.yml` builds (macOS universal and Windows) have finished and uploaded to the draft release `v<version>`.
+4. Review the draft (assets for both platforms, notes), then publish it.
