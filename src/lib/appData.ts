@@ -6,14 +6,13 @@
  * browser during development (`vite`): the synthetic scenarios from `mock.ts`,
  * picked by the dev scenario switch. Components only see `AppState`.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { call, describeError, insideTauri, useBackendEvent } from "./backend";
 import {
   Commands,
   Events,
   type AppInfo,
   type DashboardSnapshot,
-  type EasterEggResult,
   type GameState,
   type LimitSetup,
   type Mode,
@@ -23,7 +22,6 @@ import {
 import {
   defaultScenario,
   getMockScenarios,
-  mockBooUnlock,
   mockLimitSetup,
   type MockScenarioId,
 } from "./mock";
@@ -49,8 +47,6 @@ export interface AppActions {
   completeOnboarding: (mode: Mode) => Promise<boolean>;
   /** Reads the status-line setup values. Rejects when the core can't answer. */
   loadLimitSetup: () => Promise<LimitSetup>;
-  /** Asks the core to unlock Boo (idempotent). Rejects when the core can't answer. */
-  triggerEasterEgg: () => Promise<EasterEggResult>;
 }
 
 export interface AppState {
@@ -192,14 +188,12 @@ function useLiveAppData(enabled: boolean): AppState {
 
   const loadLimitSetup = useCallback(() => call(Commands.getLimitSetup), []);
 
-  const triggerEasterEgg = useCallback(() => call(Commands.triggerEasterEgg), []);
-
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
   return {
     phase,
     data,
-    actions: { updateSettings, completeOnboarding, loadLimitSetup, triggerEasterEgg },
+    actions: { updateSettings, completeOnboarding, loadLimitSetup },
     retry,
   };
 }
@@ -209,38 +203,8 @@ function useLiveAppData(enabled: boolean): AppState {
 function useMockAppData(scenario: MockScenarioId): AppState {
   const source = getMockScenarios()[scenario];
   const [settings, setSettings] = useState<Settings>(source.settings);
-  /** When the mock found Boo; `null` until the dev triggers the easter egg. */
-  const [booAt, setBooAt] = useState<number | null>(null);
-  const booRef = useRef<number | null>(null);
   useEffect(() => {
     setSettings(getMockScenarios()[scenario].settings);
-    booRef.current = null;
-    setBooAt(null);
-  }, [scenario]);
-
-  const game = useMemo<GameState>(
-    () =>
-      booAt === null
-        ? source.game
-        : {
-            ...source.game,
-            achievements: source.game.achievements.map((a) =>
-              a.id === "boo" ? { ...a, unlockedAt: booAt } : a,
-            ),
-          },
-    [source, booAt],
-  );
-
-  // Same contract as the core: unlocks once, repeats answer `newlyUnlocked: false`.
-  const triggerEasterEgg = useCallback(async (): Promise<EasterEggResult> => {
-    const known = getMockScenarios()[scenario].game.achievements.find((a) => a.id === "boo");
-    const unlockedAt = known?.unlockedAt ?? booRef.current;
-    const at = unlockedAt ?? Date.now();
-    if (unlockedAt === null) {
-      booRef.current = at;
-      setBooAt(at);
-    }
-    return { newlyUnlocked: unlockedAt === null, achievement: mockBooUnlock(at) };
   }, [scenario]);
 
   const updateSettings = useCallback(async (patch: SettingsPatch) => {
@@ -263,9 +227,9 @@ function useMockAppData(scenario: MockScenarioId): AppState {
       settings,
       appInfo: source.appInfo,
       dashboard: source.dashboard,
-      game,
+      game: source.game,
     },
-    actions: { updateSettings, completeOnboarding, loadLimitSetup, triggerEasterEgg },
+    actions: { updateSettings, completeOnboarding, loadLimitSetup },
     retry: () => undefined,
   };
 }

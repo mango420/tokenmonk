@@ -1,7 +1,7 @@
 /*
  * Popup dashboard styles. Every design value comes from tokens.css variables;
- * this file only composes them. Mode and season colours switch through the
- * data attributes on <html> (see tokens.css), never in here.
+ * this file only composes them. Mode colours switch through the
+ * data attribute on <html> (see tokens.css), never in here.
  */
 
 *,
@@ -214,18 +214,6 @@ button {
   line-height: var(--text-caption-line);
   font-weight: var(--text-caption-weight);
   color: var(--accent-text);
-}
-
-.season-chip {
-  flex: none;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-pill);
-  background: var(--surface-300);
-  color: var(--pumpkin-text);
-  font-size: var(--text-caption-size);
-  line-height: var(--text-caption-line);
-  font-weight: var(--text-caption-weight);
-  white-space: nowrap;
 }
 
 .icon-button {
@@ -455,11 +443,6 @@ button {
 .fill--jade {
   --fill: var(--jade);
   --fill-text: var(--jade-text);
-}
-
-.fill--pumpkin {
-  --fill: var(--pumpkin);
-  --fill-text: var(--pumpkin-text);
 }
 
 .screen {

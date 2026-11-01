@@ -7,7 +7,7 @@ import { isPopupHidden, notify } from "./osNotify";
 
 /**
  * Sends OS notifications while the popup is hidden (docs/DESIGN.md, "While
- * hidden"): non-retroactive unlocks except Boo, and limit warnings. The
+ * hidden"): non-retroactive unlocks and limit warnings. The
  * in-popup toast queue is separate (#12) and still shows on the next open.
  */
 export function useOsNotifications(data: AppData, enabled: boolean): void {
@@ -18,7 +18,7 @@ export function useOsNotifications(data: AppData, enabled: boolean): void {
   useBackendEvent(
     Events.achievementUnlocked,
     (unlock) => {
-      if (unlock.retroactive || unlock.id === "boo") return;
+      if (unlock.retroactive) return;
       void isPopupHidden().then((hidden) => {
         if (!hidden) return;
         const description = latest.current.game.achievements.find((a) => a.id === unlock.id)?.description;

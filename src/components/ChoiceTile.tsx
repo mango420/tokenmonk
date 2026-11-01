@@ -1,7 +1,7 @@
 import { Icon, type IconName } from "./Icon";
 
-/** Fill colour family of a mode; Max it out turns pumpkin during Halloween. */
-export type Fill = "saffron" | "jade" | "pumpkin";
+/** Fill colour family of a mode. */
+export type Fill = "saffron" | "jade";
 
 interface ChoiceTileProps {
   icon: IconName;

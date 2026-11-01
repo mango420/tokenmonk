@@ -35,7 +35,6 @@ export function Onboarding({ data, onChoose }: OnboardingProps) {
   const [selected, setSelected] = useState<PopupMode | null>(null);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
-  const season = data.appInfo.season;
 
   const choose = async () => {
     if (selected === null || saving) return;
@@ -50,7 +49,7 @@ export function Onboarding({ data, onChoose }: OnboardingProps) {
 
   return (
     <>
-      <Header mode={null} haloRatio={importRatio(data.dashboard.data)} season={season} />
+      <Header mode={null} haloRatio={importRatio(data.dashboard.data)} />
       <div className="screen screen--onboarding">
         <h1 className="screen__title">How do you want to vibe?</h1>
         <div className="choice-group" role="radiogroup" aria-label="Mode">
@@ -60,7 +59,7 @@ export function Onboarding({ data, onChoose }: OnboardingProps) {
               icon={mode === "max" ? "flame" : "wrench"}
               name={MODE_LABEL[mode]}
               description={DESCRIPTION[mode]}
-              fill={modeFill(mode, season)}
+              fill={modeFill(mode)}
               selected={selected === mode}
               disabled={saving}
               onSelect={() => setSelected(mode)}
@@ -77,7 +76,7 @@ export function Onboarding({ data, onChoose }: OnboardingProps) {
           <PrimaryButton
             fullWidth
             disabled={selected === null || saving}
-            fill={selected === null ? undefined : modeFill(selected, season)}
+            fill={selected === null ? undefined : modeFill(selected)}
             onClick={() => void choose()}
           >
             {selected === null ? "Pick one" : `Start with ${MODE_LABEL[selected]}`}
