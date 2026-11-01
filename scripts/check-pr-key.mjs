@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Verifies that a pull request carries an issue key.
-//   title:  ends with "(TKM-<n>)"
+//   title:  Conventional Commit "<type>(<scope>)?!?: <short> (TKM-<n>)"
 //   branch: "<prefix>/TKM-<n>-<kebab>", same <n> as the title
 // Bot and release branches are skipped.
 //
@@ -8,8 +8,15 @@
 
 const PREFIXES = ['feature', 'bugfix', 'hotfix', 'refactor', 'chore', 'docs', 'test', 'ci'];
 const BRANCH_RE = new RegExp(`^(?:${PREFIXES.join('|')})/TKM-(\\d+)-[a-z0-9]+(?:-[a-z0-9]+)*$`);
-const TITLE_RE = /\(TKM-(\d+)\)$/;
-const SKIP_BRANCH_RE = /^(?:dependabot|release)\//;
+const TYPES = [
+  'feat', 'fix', 'docs', 'style', 'refactor', 'perf', 'test', 'build', 'ci', 'chore', 'revert',
+];
+// Conventional Commit: <type>(<scope>)?!?: <short> (TKM-<n>)
+const TITLE_RE = new RegExp(
+  `^(?:${TYPES.join('|')})(?:\\([a-zA-Z0-9][\\w./-]*\\))?!?: \\S.*? \\(TKM-(\\d+)\\)$`,
+);
+// The register refresh branch is opened by automation and has no issue key.
+const SKIP_BRANCH_RE = /^(?:(?:dependabot|release)\/|register\/refresh$)/;
 
 const args = process.argv.slice(2);
 const arg = (flag) => {
@@ -29,7 +36,11 @@ if (SKIP_BRANCH_RE.test(branch) || /^dependabot(\[bot\])?$/i.test(author)) {
 const problems = [];
 const t = TITLE_RE.exec(title);
 const b = BRANCH_RE.exec(branch);
-if (!t) problems.push(`title must end with "(TKM-<n>)": ${JSON.stringify(title)}`);
+if (!t) {
+  problems.push(
+    `title must be "<${TYPES.join('|')}>(<scope>)?: <short> (TKM-<n>)": ${JSON.stringify(title)}`,
+  );
+}
 if (!b) {
   problems.push(
     `branch must match "<${PREFIXES.join('|')}>/TKM-<n>-<kebab>": ${JSON.stringify(branch)}`,

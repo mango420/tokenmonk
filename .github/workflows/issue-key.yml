@@ -5,6 +5,7 @@ on:
     types: [opened, edited]
 
 permissions:
+  contents: read
   issues: write
 
 jobs:
@@ -12,6 +13,8 @@ jobs:
     name: prefix title and check type label
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
+
       - uses: actions/github-script@v9
         with:
           script: |
@@ -20,17 +23,14 @@ jobs:
             const key = `TKM-${n}`;
             const { owner, repo } = context.repo;
 
-            // 1. Title prefix (idempotent). A stale TKM-<m>: prefix is corrected,
-            // nothing else in the title is touched.
-            const existing = /^TKM-(\d+):\s*/.exec(issue.title);
-            if (!existing || Number(existing[1]) !== n) {
-              const rest = existing ? issue.title.slice(existing[0].length) : issue.title;
-              await github.rest.issues.update({
-                owner,
-                repo,
-                issue_number: n,
-                title: `${key}: ${rest}`,
-              });
+            // 1. Title prefix (idempotent). "TKM-<m> foo" and "TKM-<m>: foo" both
+            // become "TKM-<n>: foo"; see scripts/issue-title.mjs.
+            const { normalizeTitle } = await import(
+              `${process.env.GITHUB_WORKSPACE}/scripts/issue-title.mjs`
+            );
+            const title = normalizeTitle(issue.title, n);
+            if (title !== issue.title) {
+              await github.rest.issues.update({ owner, repo, issue_number: n, title });
             }
 
             // 2. Type label check, one comment at most.

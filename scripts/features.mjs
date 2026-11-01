@@ -42,7 +42,7 @@ function row(issue) {
     .filter((l) => l.startsWith('area:'))
     .map((l) => l.slice('area:'.length))
     .sort();
-  const title = issue.title.replace(/^TKM-\d+:\s*/, '');
+  const title = issue.title.replace(/^TKM-\d+(?::\s*|\s+)/i, '');
   return `| TKM-${issue.number} | ${cell(title)} | ${type} | ${areas.join(', ') || '-'} | ${status(issue)} | [#${issue.number}](${issue.url}) |`;
 }
 
