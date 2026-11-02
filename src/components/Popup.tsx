@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { TitleBar } from "./TitleBar";
 
 interface PopupProps {
   children: ReactNode;
@@ -12,6 +13,7 @@ interface PopupProps {
 export function Popup({ children, overlay }: PopupProps) {
   return (
     <div className="popup">
+      <TitleBar />
       {children}
       {overlay}
     </div>

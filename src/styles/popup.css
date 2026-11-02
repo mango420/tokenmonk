@@ -160,6 +160,64 @@ button {
   background: var(--ink);
 }
 
+/* --------------------------------------------------------------- title bar */
+
+/* The hover zone is the popup padding, so it never covers content. */
+.titlebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--popup-padding);
+  z-index: 1;
+}
+
+.titlebar__bar {
+  display: flex;
+  justify-content: flex-end;
+  height: var(--space-8);
+  background: var(--surface-200);
+  border-bottom: 1px solid var(--line);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--fade-ms) linear;
+}
+
+.titlebar:hover .titlebar__bar,
+.titlebar:focus-within .titlebar__bar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.titlebar__button {
+  width: var(--hit-target);
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.titlebar__button:hover {
+  background: var(--surface-300);
+  color: var(--ink);
+}
+
+.titlebar__button--close:hover {
+  background: var(--ember);
+  color: var(--on-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .titlebar__bar {
+    transition: none;
+  }
+}
+
 /* ----------------------------------------------------------------- header */
 
 .header {

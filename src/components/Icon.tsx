@@ -18,6 +18,14 @@ const PATHS = {
       <path d="M5 15V6a2 2 0 0 1 2-2h8" />
     </>
   ),
+  windowMaximize: <rect x="5" y="5" width="14" height="14" rx="1" />,
+  windowRestore: (
+    <>
+      <rect x="4" y="9" width="11" height="11" rx="1" />
+      <path d="M9 9V5h11v11h-5" />
+    </>
+  ),
+  windowClose: <path d="M6 6l12 12M18 6L6 18" />,
   chevronLeft: <path d="M15 5l-7 7 7 7" />,
   check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
   moon: <path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" />,
