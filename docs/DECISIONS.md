@@ -23,10 +23,10 @@ Rust (`src-tauri/Cargo.toml`):
 | `notify` | Watch the Claude Code project log directory for new lines. No separate debouncer crate for now; one can be added later via a decision here if event bursts need it |
 | `chrono` (`serde`) | Timestamps and window math (5 hour and weekly windows) |
 | `dirs` | Locate the home directory and the app data directory |
-| `reqwest` (`json`, `rustls`, no default features) | Limit lookup against Anthropic; rustls avoids a system OpenSSL dependency |
+| `reqwest` (`json`, `rustls`, no default features) | Dropped (2026-11-03): planned for a network limit lookup that v0.1 does not have; see "Design refresh". Still listed in `Cargo.toml` until a `chore` PR removes it |
 | `thiserror` | Typed errors in library modules |
 | `log` | Logging facade |
-| `resvg` | Renders the halo tray icon (SVG to RGBA) at runtime |
+| `resvg` | Renders the tray ring icon (SVG to RGBA) at runtime |
 | `tempfile` (dev) | Temporary directories in tests |
 
 Tauri plugins (Rust crate and matching npm package):
@@ -41,7 +41,7 @@ Tauri plugins (Rust crate and matching npm package):
 | `single-instance` | Only one tray instance at a time (Rust only, no JS API) |
 | `positioner` (`tray-icon`) | Place the popup next to the tray icon |
 
-npm: `react`, `react-dom` (UI), `@tauri-apps/api` (IPC), the six plugin packages above (without single-instance), `@fontsource/fraunces`, `@fontsource/manrope`, `@fontsource/jetbrains-mono` (bundled fonts, no network requests at runtime).
+npm: `react`, `react-dom` (UI), `@tauri-apps/api` (IPC), the six plugin packages above (without single-instance), `@fontsource/schibsted-grotesk`, `@fontsource/martian-mono` (bundled fonts, no network requests at runtime; they replace `@fontsource/fraunces`, `@fontsource/manrope` and `@fontsource/jetbrains-mono`, see "Design refresh").
 Dev: `typescript`, `vite`, `@vitejs/plugin-react`, `@types/react`, `@types/react-dom`, `@tauri-apps/cli`.
 
 `updater`, `autostart` and `single-instance` are desktop-only crates (target-gated in `Cargo.toml`), registered under `#[cfg(desktop)]`.
@@ -141,3 +141,18 @@ Superseded: releases are cut through the release PR, see "Automatic versioning w
 2. When ready, merge the release PR through the merge queue (green checks, squash with the PR title as subject). Exceptions: its subject `chore(main): release x.y.z` has no TKM key, and there is no manual rebase or force-push, because release-please rebuilds its branch from `main` on every push (manual changes would be overwritten). Without `RELEASE_PLEASE_TOKEN` the PR has no CI checks; the gate is then a reviewer check of the version and changelog diff.
 3. Wait until both `release.yml` builds (macOS universal and Windows) have finished and uploaded to the draft release `v<version>`.
 4. Review the draft (assets for both platforms, notes), then publish it.
+
+## Design refresh (2026-11-03)
+
+The popup follows the refreshed prototype; DESIGN.md and `tokens.css` describe it (TKM-79).
+
+- Fonts: Schibsted Grotesk (UI text, weights 400, 500, 700) and Martian Mono (all data numbers, weights 300, 400, 500), bundled through `@fontsource/schibsted-grotesk` and `@fontsource/martian-mono` (owner decision). They replace Fraunces, Manrope and JetBrains Mono. The package swap and the imports land in TKM-80; no CDN, no runtime network.
+- Theme: light and dark both ship; the theme follows the OS, `data-theme` forces one. New palettes and accents (saffron #E39A0B, jade #1F8A64). No danger colour: the ring never turns red, the status copy carries the urgency. `tokens.css` keeps a block of legacy aliases so the current components render until the frontend refresh removes them.
+- Ring direction: the popup ring and the tray icon show percent left and drain as a window is used (before: percent used, filling up). The popup ring shows the window picked in the "5 hours" / "Week" segment in both modes; the Do it yourself budget gauge is gone and the budget moves to the "Daily budget" stat. Tray: ring plus centre dot, both in the mode accent, 5-hour percent left in both modes, dotted track without limit data (owner decision; the prototype's light grey dot is replaced by the accent).
+- The header brand mark is static (arc and dot), no longer a live halo. The monk files in `assets/brand/` stay the app icon source for now.
+- Motion: only the ring draw (1.1 s, first dashboard render after start), the toast slide (280 ms) and the switch knob (150 ms); all off under `prefers-reduced-motion: reduce`.
+- Not in the prototype but kept, so nothing regresses: Settings keeps the "Limit data" section, and the dashboard note links to it while `limits.reason = noSource`. The level-up screen and the empty, import, stale and error states are derived from the prototype's parts; DESIGN.md marks their copy as derived.
+- Game (owner decision, prototype copy and rules): one title per mode at every level, "Limit Chaser" (Max it out, also before onboarding) and "Quiet Spender" (Do it yourself); the level ladders go. New descriptions for all five achievements. XP: First Blood 10 (was 25), So Close 60 (was 100), Rate-Limit Rambo 100, Night Owl 50 and Token Monk 150 unchanged. Night Owl: a message between 00:00 and 04:00 local time (was 02:00 to 04:00; only the start moved). Token Monk: one finished day under the daily budget, `usedPercent` below 100 (was 7 days in a row below 20 %), so it becomes a one-shot without `target`. Level curve and mode restrictions unchanged. Stored unlocks and XP events are not rewritten. Boo stays retired (see the carry-over under "Automatic versioning with release-please").
+- Contracts: `View` gains `"achievements"` (Rust `View::Achievements`, serde camelCase), opened from the dashboard level block. Additive: a UI that does not handle it falls back to the dashboard.
+- Pending contract change: `DailyBudget.tokensLeftPerDay` (TS `number | null`, Rust `tokens_left_per_day: Option<f64>`, serde camelCase, `null` never omitted). Meaning: headline tokens that may still be used per day, today included, until the weekly reset. `weeklyLimit` basis: tokens per weekly percent point = headline tokens since the weekly window start (`resetsAt` minus 7 days) divided by the current weekly utilization; value = `(100 - utilization) / daysLeft` times that ratio, at least 0. `null` with the `tokenHistory` basis, at 0 % weekly utilization or without tokens in the window. Like the limit ETA it is an estimate, because the weekly limit also counts claude.ai chats. Adding a field to `DailyBudget` breaks every struct literal of it outside the contracts (aggregate, app tests, the frontend mock), so it lands in its own PR together with those call sites. Until then the "Daily budget" stat shows its `null` state.
+- No network in v0.1, resolved: the limit source is the local status-line bridge ("Limit source"). A source that reads the OAuth usage endpoint was evaluated and dropped. `reqwest` is therefore unused; it is marked dropped in the dependency table and is removed from `Cargo.toml` by a `chore` PR. `LimitReason::Network` stays in the contracts for compatibility; no v0.1 source reports it.

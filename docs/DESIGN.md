@@ -1,305 +1,307 @@
 # Design
 
-The design system for the Tokenmonk app, tray icon and README. All values
+The design system for the Tokenmonk popup, tray icon and README. All values
 live as CSS variables in [`src/styles/tokens.css`](../src/styles/tokens.css);
 components use the variables, never literal values. Brand files are in
 [`assets/brand/`](../assets/brand/).
 
-Where the brand guide and the popup screens disagree, the screens win.
+Source: the refreshed popup prototype (onboarding, dashboard, settings,
+achievements, toast, tray icon). Where an older rule and the prototype
+disagree, the prototype wins. States the prototype does not show are
+derived below from its components and tokens; such copy is marked
+"derived".
 
 ## Personality and voice
 
 The monk is calm, a little smug and secretly competitive. He never panics,
-even at 99 %.
+even with 1 % left.
 
-- **Short and dry.** "Limit in ~40 min at this pace", not "Warning! You are
+- **Short and dry.** "Getting thin. Slow down.", not "Warning! You are
   about to run out!"
-- **Gamer wink, not cringe.** Titles such as *Rate-Limit Rambo* or *Token
-  Monk* are the jokes; the rest of the UI stays plain.
-- **Mode-aware.** Max it out talks like a coach ("Almost there 🔥"), Do it
-  yourself like a teacher ("Breathe. You still have this.").
-- **Numbers first.** Every screen leads with one number in the `counter`
-  style.
+- **Gamer wink, not cringe.** Titles and achievement names (*Limit
+  Chaser*, *Rate-Limit Rambo*) carry the jokes; the rest stays plain.
+- **Mode-aware.** Max it out talks like a coach ("Make it count."), Do it
+  yourself like a friend with a walking habit ("Go for a walk.").
+- **Number first.** The dashboard leads with one big number: percent left.
 - English UI copy, real typographic quotes and apostrophes (’), no em
-  dashes. Percent is written with a space: `72 %`. Thousands use a comma:
-  `184,230`.
+  dashes, no emoji. Separators in running copy are commas ("Level 7, 340
+  of 500 XP"), not dots.
+- Numbers: in running text percent is written with a space (`72 %`) and
+  thousands with a comma (`184,230`). Stat values are compact (see
+  "Number formats").
 
 ## Modes
 
-| Mode | Fill | As text | Icon |
+| Mode | Accent | Name | Description |
 |---|---|---|---|
-| 🔥 Max it out | `--saffron` | `--saffron-text` | flame line icon |
-| 🛠️ Do it yourself | `--jade` | `--jade-text` | wrench line icon |
+| Max it out | `--saffron` #E39A0B | "Max it out" | "Use the whole limit, every window." |
+| Do it yourself | `--jade` #1F8A64 | "Do it yourself" | "Use less. Keep it calm." |
 
-A mode colour never stands alone as a signal; it always comes with the icon
-or the mode name. Text on any fill (`saffron`, `jade`) is
-`--on-accent`. Before onboarding the accent is saffron (brand colour).
-
-Components use the mode-neutral variables, switched by `data-mode` on
-`<html>`:
-
-| Variable | Meaning |
-|---|---|
-| `--accent` | Fills: mode label, weekly bar, level title, badge ring, gauge |
-| `--accent-text` | Accent used as text or thin icon |
-| `--halo` | Halo of the header logo and the tray icon |
-| `--gauge` | Main gauge fill (= `--accent`) |
-| `--gauge-danger` | Gauge fill in danger (= `--ember`) |
-| `--gauge-track` | Unfilled gauge and bar tracks (= `--surface-300`) |
+`--accent` is switched by `data-mode` on `<html>` (`max` or `diy`). Before
+onboarding there is no `data-mode` and the accent is saffron (brand). The
+accent is never the only signal: the mode always comes with its name,
+title or copy. The accent is used for fills and rules only (ring arcs,
+level bar, selected segment underline, selected settings row, switch on,
+toast edge, focus ring), never for text.
 
 ## Colour
 
-Dark is the shipped theme in v0.1 (`:root`). Light values exist under
-`:root[data-theme="light"]` for later.
+Light and dark both ship. The theme follows the OS
+(`prefers-color-scheme`); `data-theme="light"` or `"dark"` on `<html>`
+forces one.
 
-| Token | Dark | Light | Use |
+| Token | Light | Dark | Use |
 |---|---|---|---|
-| `surface-100` | #15131A | #FBF6EE | App and popup background |
-| `surface-200` | #1F1C25 | #F2EADC | Cards, logo disc |
-| `surface-300` | #2A2631 | #E7DCC8 | Hover, pressed, gauge and bar tracks, badge pill background |
-| `line` | #3A3440 | #CDBFA6 | Hairlines only, never the sole border of a control |
-| `ink` | #F4EEE4 | #221C16 | Primary text and numbers, XP bar fill |
-| `ink-muted` | #A89F94 | #665C52 | Labels, captions, timestamps, settings icon |
-| `saffron` | #F5A142 | #F5A142 | Max it out fill, brand |
-| `saffron-text` | #F5A142 | #8F4808 | Saffron as text |
-| `jade` | #9BE8C4 | #3FAF7E | Do it yourself fill |
-| `jade-text` | #9BE8C4 | #266849 | Jade as text |
-| `on-accent` | #1A1206 | #1A1206 | Text and icons on accent fills |
-| `ember` | #FF6B57 | #B3261E | Limit danger and errors only |
-| `scrim` | surface-100 at 94 % | surface-100 at 94 % | Overlay background (level-up screen) |
-| `shadow-popup` | 0 12px 32px rgba(0,0,0,.45) | 0 12px 32px rgba(34,28,22,.14) | Popup and toasts only |
+| `page` | #CBCAC4 | #131715 | Backdrop outside the popup card |
+| `pop` | #E4E3DD | #1D2220 | Popup background; toast text; switch knob |
+| `ink` | #181A1B | #E8E7E0 | Primary text and numbers; toast background; ring track (at 22 %) |
+| `ink-2` | #5A5E5C | #98A09B | Labels, captions, units, links, secondary numbers |
+| `line` | #BAB9B1 | #363E3A | Hairlines, bar and switch tracks, popup outline |
+| `saffron` | #E39A0B | #E39A0B | Max it out accent, brand |
+| `jade` | #1F8A64 | #1F8A64 | Do it yourself accent |
 
-No gradients, no neon glow, no purple.
+`shadow-popup`: a 1 px `line` outline plus `0 28px 60px -24px` black at
+40 %. No gradients, no neon glow, no purple, no danger colour: the ring
+never turns red; the copy carries the urgency.
 
 ## Typography
 
-Fonts are bundled from `@fontsource/fraunces`, `@fontsource/manrope` and
-`@fontsource/jetbrains-mono` (no CDN, works offline).
+Fonts are bundled from `@fontsource/schibsted-grotesk` (weights 400, 500,
+700) and `@fontsource/martian-mono` (weights 300, 400, 500); no CDN, works
+offline.
 
-| Style | Family | Size / line | Weight | Use |
-|---|---|---|---|---|
-| display | Fraunces | 40 / 44 | 600 | Level-up screen, wordmark (large) |
-| title | Fraunces | 24 / 30 | 600 | Window and section titles, onboarding title ("How do you want to vibe?") |
-| heading | Manrope | 16 / 22 | 700 | Card headings, burn and mood line |
-| body | Manrope | 14 / 20 | 400 | Default text |
-| caption | Manrope | 12 / 16 | 500 | Labels, hints, timestamps |
-| counter | JetBrains Mono | 32 / 36 | 600 | The big live number |
-| mono | JetBrains Mono | 12 / 16 | 500 | Token counts in lists, XP lines, percentages |
+- `--font-sans` Schibsted Grotesk: all UI text. Body 14 px, line height
+  1.4, weight 400; emphasis is weight 500.
+- `--font-mono` Martian Mono: every number that is data (percent, token
+  counts, XP, durations, times) with `font-variant-numeric: tabular-nums`.
 
-Popup-specific sizes from the screens: wordmark Fraunces 600 18/22, level
-Fraunces 600 20/26, stat value JetBrains Mono 600 20/26, strong body
-labels Manrope 700 14/20. Fraunces is never
-used for UI labels.
+| Style | Family, weight | Size / tracking | Use |
+|---|---|---|---|
+| hero | mono 300 | 70, -0.05em, line 1 | Ring centre: percent left |
+| hero-sm | mono 300 | 46, -0.05em, line 1 | Ring centre without limit data: tokens today |
+| hero-unit | mono 300 | 22, `ink-2`, 2 px left gap | The `%` after the hero |
+| onboard-title | sans 500 | 32, -0.025em, line 1.08 | "How do you want to vibe?" |
+| ach-title | sans 500 | 28, -0.02em | Title on the achievements screen |
+| title | sans 500 | 22, -0.02em | "Settings" |
+| choice-lg | sans 500 | 21, -0.015em | Onboarding choice name |
+| status | sans 500 | 17, -0.01em | Status line under the ring |
+| stat | mono 400 | 26, -0.03em, line 1.2 | Stat values |
+| choice | sans 500 | 15.5 | Settings mode row name |
+| brand | sans 500 | 15, -0.01em | "Tokenmonk" wordmark |
+| row | sans 500 | 15 | Level title, achievement name |
+| toast-title | sans 500 | 14.5 | Toast name |
+| caption | sans 400 | 13, `ink-2` | Ring caption, stat labels, descriptions, section labels |
+| mono-sm | mono 400 | 12.5, `ink-2` | Reset line, level line on the achievements screen |
+| small | sans or mono 400 | 12, `ink-2` | Stat units, "Level 7", XP figure (mono), achievement state |
+| note | sans 400 | 11.5, `ink-2` | Footer notes |
 
-Every live number uses the mono family with `font-variant-numeric:
-tabular-nums`.
+### Number formats
 
-## Spacing, radius, shadow
+- Percent left: integer, `max(0, round(100 - utilization))`.
+- Compact token values (stats, hero-sm): below 1,000 as is; below
+  1,000,000 one decimal plus `k` ("4.2k"); above that one decimal plus `M`
+  ("1.2M").
+- Reset durations: under 24 h "Hh Mm" ("2h 14m", "0h 41m"); from 24 h
+  "Dd Hh" ("3d 4h"). Prefixed "Resets in ".
+- XP: full numbers with thousands commas ("1,240 / 1,850 XP").
 
-- Spacing on a 4 px grid: `space-1` 4, `space-2` 8, `space-3` 12,
-  `space-4` 16, `space-6` 24, plus `space-8` 32 (overlay padding).
-- Radius: `radius-sm` 6 (inputs, chips, toggles), `radius-md` 12 (cards,
-  buttons, popup), `radius-lg` 20 (large panels, achievement tiles,
-  onboarding choices), `radius-pill` 999 (mode badges, progress bars).
-- One shadow, `shadow-popup`, for the popup and toasts only.
+## Spacing, radius, motion
 
-## Popup layout (360 x 680)
-
-The popup is 360 x 680 px, radius 12, background `surface-100`, padding 16,
-a single column with a 12 px gap between blocks. Hit targets are at least
-44 x 44. Top to bottom:
-
-1. **Header** (height 44): logo button (44 x 44) showing
-   `assets/brand/tokenmonk-mark.svg` at 36 px with a live halo (decided:
-   the inline drawing in the screens is a simplification of this mark),
-   wordmark "Tokenmonk" (Fraunces 600 18/22) above the mode label (caption,
-   `--accent-text`, 12 px mode icon at stroke 2, gap 4). Settings button 44 x 44, radius 12, 20 px gear icon
-   in `ink-muted`, stroke 1.75.
-2. **Halo gauge card**: `surface-200`, radius 12, padding 16, gap 16. Gauge
-   132 x 132, circle radius 58, stroke 10, round caps, track
-   `--gauge-track`, fill clockwise from 12 o'clock. Centre: counter value
-   plus caption.
-   - Max it out: value = 5-hour limit %; caption "5h limit"; right column
-     (gap 8): burn line (heading) and "Resets in 2 h 14 min" (caption,
-     `ink-muted`). Fill is `--gauge`, `--gauge-danger` at 90 % and above.
-     Burn line: "Limit in ~N min at this pace" (N rounded to 5, at least 5);
-     at 100 % "Limit reached. Breathe."
-   - Do it yourself: value = share of today's budget used (may exceed
-     100 %, the ring is capped at full); caption "of today’s budget";
-     right column: mood line (heading) and XP line (mono, `--accent-text`,
-     ember when over budget). Fill is `--gauge`, `--gauge-danger` above
-     100 %. Mood lines: 0 % "No AI yet today. Pure so far."; below 75 %
-     "Calm. N % of today’s budget left."; 75 to 100 % "Careful. The AI is
-     creeping in."; above 100 % "Over budget. The AI wins today." XP line:
-     "+N XP if you stop now", over budget "+0 XP today".
-3. **Stat tiles**: two equal columns, gap 12; each `surface-200`, radius 12,
-   padding 12, gap 4: caption label (`ink-muted`) over a stat value. Labels
-   "Tokens today" and "This session".
-4. **Weekly card** (full width): `surface-200`, radius 12, padding 12, gap 8.
-   Row: label (Manrope 700 14/20) and value (mono) with space-between; bar
-   8 px, pill, track `--gauge-track`, fill `--accent`; caption below.
-   - Max it out: "Weekly limit", caption "Resets Thursday, 09:00".
-   - Do it yourself: "Weekly limit used", caption "Lower is better here.
-     Resets Thursday, 09:00".
-5. **Level card**: same card style. Row: "Level 7" (Fraunces 600 20/26) and
-   the title (caption, `--accent-text`); XP bar 8 px with `ink` fill;
-   caption in mono "1,240 / 1,850 XP to level 8" (`ink-muted`).
-6. **Achievement row**: card, padding 12, gap 12, items centred. Badge 36 px
-   circle, 3 px `--accent` ring, 16 px glyph in `ink` (mini halo). Text
-   column: name (Manrope 700 14/20) and a caption.
-   - Unlocked variant (Max screen): "Night Owl unlocked", detail "Tokens
-     burned at 02:47", trailing "+50 XP" (mono, `--accent-text`).
-   - Progress variant (DIY screen): name "Token Monk", a 6 px bar (fill
-     `--accent`), caption "4 of 7 days under 20 %".
-7. **Footer note**, pushed to the bottom: caption size, regular weight,
-   `ink-muted`, centred: "Limit % includes claude.ai chats · token stats from
-   Claude Code only".
-
-All numbers and copy in the screens are samples; real values come from
-`DashboardSnapshot` and `GameState`.
-
-## Logo and halo
-
-The mark is a monk inside a ring. The ring is the **halo gauge**: filled
-clockwise from 12 o'clock with the current value, round line ends.
-
-- `tokenmonk-mark.svg`: full colour on its own `surface-200` disc, halo
-  saffron, track `surface-300`. Works on both themes.
-- `tokenmonk-mark-mono.svg`: single black ink, track at 30 % opacity. For
-  the macOS menu bar (template image) and Windows tray contrast variants.
-  Recolour by tinting, never by editing shapes.
-
-The files are drawn at 128 x 128 with a sample 72 % halo; in the app the
-arc length is live (`stroke-dasharray` on the halo circle, radius 54).
-
-Rules: never on a saffron fill, never rotated, no second ring, the monk
-stays inside the halo, no gradient in the halo. Minimum size 16 px (tray);
-below 32 px the face may lose its eyes.
-
-Halo colour and value:
-
-| Where | Max it out | Do it yourself |
-|---|---|---|
-| Header logo halo | `--halo`, value = 5-hour % | `--halo`, value = budget used (capped at 100) |
-| Tray icon halo | same as header | same as header |
-
-The tray icon is rendered in Rust from the mark shapes with the live arc.
-
-## Iconography
-
-Line icons, 1.75 px stroke (2 px at 12 px size), round caps and joins,
-matching the halo's round ends. Sizes 20 (buttons), 16 (badge glyphs), 12
-(inline with captions). The mode emojis 🔥 and 🛠️ may appear in UI text.
-Achievement badges are circles (mini halos) with one glyph inside.
-
-## Derived screens
-
-The mockups show the two dashboards and one overlay only; the overlay
-layout is reused below. Everything below is derived from them: same tokens, same components, no new colours,
-fonts or sizes. Where a size is not a named token it is built from the
-spacing scale (for example `space-8 + space-2` = 40). Copy in quotes is
-final; numbers in it are samples.
-
-Shared building blocks used below:
-
-- **Card**: `surface-200`, `radius-md`, padding `card-padding` (12).
-- **Primary button**: min height `hit-target`, padding 0 `space-6`,
-  `radius-md`, `--accent` fill, `on-accent` text, Manrope 700 14/20.
-  Disabled: `surface-300` fill, `ink-muted` text. Full width where stated.
-- **Icon button**: `hit-target` square, `radius-md`, `icon-size` line icon in
-  `ink-muted`, hover `surface-300` (as the settings button).
-- **Choice tile**: `surface-200`, `radius-lg`, padding `space-4`, gap
-  `space-2`, min height `hit-target`. Hover `surface-300`. Selected: 2 px
-  inset ring in the tile's mode fill (`--saffron` or `--jade`) plus an
-  `icon-size` check icon in the mode's text colour, so selection never relies on colour
-  alone.
-- **Toggle** (not in the mockups, derived): track `space-8 + space-2` x
-  `space-6` (40 x 24), `radius-sm`; knob `space-4` (16), `radius-sm`, inset
-  `space-1`. Off: track `surface-300`, knob `ink-muted`. On: track
-  `--accent`, knob `on-accent`. The whole settings row is the hit target.
-- **Overlay**: covers the whole popup, `--scrim`, padding `space-8`,
-  centred column, gap `space-4`.
-
-Motion: toasts and overlays fade in and out on opacity only, duration from
-one named UI constant (`FADE_MS = 150`), not a design token. Nothing else
-animates. With `prefers-reduced-motion: reduce` they appear and disappear
-without the fade.
+- Spacing: `space-1` 4, `space-2` 8, `space-3` 12, `space-4` 16, `space-5`
+  20, `space-6` 24. Odd values from the prototype (14, 18, 22, 30) are
+  written as named layout values in this document and live in the
+  component CSS as sums of tokens or as tokens where they repeat.
+- Radius: `radius-popup` 18, `radius-switch` 12, `radius-toast` 8,
+  `radius-focus` 4, `radius-bar` 2. Rows and choices have no radius and no
+  fill; they are separated by 1 px `line` hairlines on top.
+- Focus: `:focus-visible` outline 2 px `--accent`, offset 3, radius 4.
+- Motion, allowed and nothing else:
+  - Ring draw: the arcs draw from 0 to their length in 1.1 s,
+    `cubic-bezier(.3,.7,.2,1)`, the first time the dashboard renders after
+    start. Later value changes jump.
+  - Toast slide: up from below the popup edge (`translateY(140%)` to 0)
+    in 280 ms, `cubic-bezier(.2,.8,.2,1)`, and back down when it leaves.
+  - Switch knob: slides 18 px in 150 ms.
+  - With `prefers-reduced-motion: reduce` all three are off: the ring
+    shows its final length, the toast and knob appear in place.
 
 Sound: one short synthesized tone per unlock or level-up (generated in the
 UI, no audio file). It plays only when `Settings.sound` is on, once per
 event, whether the popup is open or hidden.
 
+## Popup layout (360 x 680)
+
+The popup is 360 x 680 px, radius 18, background `pop`, `shadow-popup`,
+overflow hidden. Each screen is a column with padding 20 (top), 24 (sides),
+18 (bottom). There are no cards and no icons; actions are text links
+(`ink-2`, hover `ink`, padding 6 px vertical) or full-width rows.
+
+### Shared parts
+
+- **Top row**: min height 32, items centred, space-between. Brand on the
+  left: the brand mark at 26 px, gap 10, "Tokenmonk" (brand style). On
+  sub-screens the top row holds only the text link "Back" (Esc does the
+  same).
+- **Brand mark** (static, not a gauge): viewBox 32 x 32; an arc on a
+  circle r 12, stroke 3.2, `--accent`, round caps, `stroke-dasharray 58
+  100`, rotated -70°; a centre dot r 3.4 in `ink`.
+- **Level bar**: track `line`, fill `--accent`, radius 2, height 3
+  (dashboard) or 4 (achievements screen), width = `GameState.progress`.
+- **Hairline row**: full width, 1 px `line` on top, no fill.
+- **Note**: note style, min height 16.
+
+### Dashboard
+
+Top to bottom:
+
+1. **Top row**: brand left; text link "Settings" right.
+2. **Segment** (margin top 16, gap 20): two text buttons "5 hours" and
+   "Week", weight 500, padding 4 0, 2 px bottom rule. Selected: `ink` text,
+   `--accent` rule (`aria-pressed`). Unselected: `ink-2`, no rule. The
+   selection is local UI state, starts at "5 hours" and is not saved.
+   Without limit data the segment is hidden and its 30 px height kept.
+3. **Ring** (248 x 248, centred, margin top 8):
+   - Track: circle r 104, stroke `ink` at 22 %, width 2, round caps,
+     dotted (`stroke-dasharray 1.5 7`).
+   - Main arc: r 104, `--accent`, width 14, round caps, from 12 o'clock
+     clockwise, length = percent left of the selected window. It drains as
+     the window is used.
+   - Inner arc: r 96, `--accent` at 35 %, width 4, round caps, length =
+     0.93 x the main arc.
+   - Both arcs share a hand-drawn wobble: an SVG filter (region -10 %,
+     120 %) of `feTurbulence` `fractalNoise`, base frequency 0.045, 2
+     octaves, seed 4, into `feDisplacementMap` scale 5. The track is not
+     filtered.
+   - Centre: hero number plus `%` (hero-unit), caption "left" (margin top
+     6) below.
+4. **Status line** (status style, centred, margin top 8), from percent
+   left of the selected window and the mode:
+
+   | Percent left | Max it out | Do it yourself |
+   |---|---|---|
+   | 60 and more | "Barely touched. Use it." | "Light day. Nicely done." |
+   | 30 to 59 | "Good pace." | "Mid-range. Breathe." |
+   | 10 to 29 | "Nearly there. As planned." | "Getting thin. Slow down." |
+   | below 10 | "Almost gone. Make it count." | "Nearly out. Go for a walk." |
+
+5. **Reset line** (mono-sm, centred, margin top 4, min height 18): "Resets
+   in 2h 14m" from the selected window's `resetsAt`; empty when it is
+   `null`.
+6. **Stats** (two equal columns, gap 24, margin top 24). Each: label
+   (caption), value (stat style, margin top 2), unit (small).
+   - "Burn rate": `burnRate.tokensPerMinute`, compact; unit "tokens per
+     minute".
+   - "Daily budget": `DailyBudget.tokensLeftPerDay`, compact; unit "tokens
+     left per day". If it is `null` (or `dailyBudget` is `null`): value
+     "n/a", unit "needs limit data". The field is a pending contract
+     change (DECISIONS.md, "Design refresh"); until it lands the stat shows
+     this `null` state.
+7. **Level block**, pushed to the bottom (margin top auto): a full-width
+   button, 1 px `line` on top, padding 14 0 6. Row (space-between,
+   baseline): `GameState.title` (row style) and "340 / 500 XP" (small,
+   mono, `xpIntoLevel / xpForLevel`); below "Level 7" (small); then the
+   level bar (3 px, margin top 10). Opens the achievements screen.
+8. **Note** (margin top 10): see "Note line" below.
+
+### Note line
+
+One line, first match wins:
+
+| Condition | Text |
+|---|---|
+| `data.state = importing` | "Reading logs, 24 of 38 files." (derived; numbers mono) |
+| `data.state = noLogs` | "No Claude Code logs yet. Start a session." (derived) |
+| `data.state = error` | "Can’t read the logs. Retrying in the background." (derived) |
+| `limits.reason = noSource` | "No limit data yet. Setup is in Settings." as a text link to Settings, scrolled to "Limit data" (derived, see DECISIONS.md) |
+| limits shown | "Limit % includes claude.ai chats. Token stats are Claude Code only." |
+| otherwise | empty |
+
+### Dashboard states
+
+- **No limit data** (`limits.status = unavailable`): segment hidden; ring
+  track only; centre hero-sm with `today.total` (compact) and caption
+  "tokens today"; status line "No limit data. Showing tokens only."; reset
+  line empty; daily budget stat in its `null` state.
+- **Selected window missing** (`limits` usable but the selected window is
+  `null`, for example a fresh 5-hour window before the next reply): ring
+  track only; centre as in "No limit data"; status line "Fresh window.
+  Numbers on your next reply." (derived); reset line empty. The other tab
+  still works.
+- **Stale** (`limits.status = stale`): values as usual, hero in `ink-2`;
+  the reset line reads "As of 14:05. Updates on your next reply."
+  (`fetchedAt`, local 24 h time, derived).
+- **No logs** (`data.state = noLogs`): token numbers are 0; ring and
+  status line follow the limits as usual; the note line explains it.
+- **History replay** (`GameState.retroDone = false`): the level block
+  shows "Counting old XP. Hold still." instead of "Level N" and a bar
+  track only (derived).
+
+All numbers and copy in examples are samples; real values come from
+`DashboardSnapshot` and `GameState`.
+
 ### Onboarding
 
-Shown while `Settings.mode = noneYet` (`View = onboarding`). The accent is
-saffron (brand) until a mode is chosen. On every start while onboarding is
-pending the popup opens by itself, so the choice is not hidden behind the
-tray icon.
+Shown while `Settings.mode = noneYet` (`View = onboarding`); the popup
+opens by itself on every start while it is pending. Accent: saffron.
 
-Layout (360 x 680, padding `popup-padding`, column, gap `space-6`):
+1. Top row: brand only.
+2. Title "How do you want to vibe?" (onboard-title, margin 30 0 8).
+3. "Pick one. You can switch later." (`ink-2`, margin bottom 22).
+4. Two choice rows, full width, each filling half of the remaining height
+   (`flex: 1`), 1 px `line` on top, padding 22 0, gap 16, items centred:
+   the brand mark at 52 px drawn in that mode's accent (`--saffron`,
+   `--jade`), then the name (choice-lg) over the description (14 px,
+   `ink-2`, margin top 2). Hover underlines the name (offset 4). Names
+   and descriptions as in "Modes".
+5. Note (margin top 18): "Mindful about your tokens. Or not."
 
-1. Header: logo button and wordmark as on the dashboard, no mode label, no
-   settings button. The logo halo shows the import progress (below).
-2. Title "How do you want to vibe?" (title style, `ink`).
-3. Two choice tiles, full width, stacked, gap `space-3`. Each: row with the
-   `icon-size` mode icon in the mode text colour (`--saffron-text`,
-   `--jade-text`) and the name (heading, `ink`), then the description
-   (body, `ink-muted`).
-   - "🔥 Max it out": "Use every token you pay for. XP for burning the
-     limit."
-   - "🛠️ Do it yourself": "Give the AI as little as possible. XP for staying
-     under budget."
-4. Caption (`ink-muted`): "Both paths level up. Switch any time in
-   settings."
-5. Pushed to the bottom: primary button, full width. Nothing selected:
-   disabled, "Pick one". Selected: fill in the selected mode's fill,
-   "Start with Max it out" or "Start with Do it yourself".
-6. Below the button, the import line (mono, `ink-muted`, centred):
-   "Reading logs · 24 / 38 files" while `data.state = importing`,
-   "184,230 tokens found today" when ready, "No Claude Code logs yet" for
-   `noLogs`. This is the screen's number.
+A click chooses at once: `complete_onboarding { mode }`; the following
+`settings-changed` switches to the dashboard. While the call runs both
+rows are disabled. On `CommandError` the note reads "Couldn’t save that.
+Try again." (derived) and the rows are enabled again.
 
-States: nothing selected, one selected, saving (button disabled, label
-unchanged), error (caption in `ember` above the button: "Couldn’t save
-that. Try again."). Choosing calls `complete_onboarding { mode }`; the
-following `settings-changed` switches to the dashboard.
-
-Fed by: `Settings`, `complete_onboarding`, `DashboardSnapshot.data`,
-`DashboardSnapshot.today.total`.
+Fed by: `Settings`, `complete_onboarding`.
 
 ### Settings
 
-`View = settings`, opened by the header settings button or by the tray menu
-(`navigate`). Back to the dashboard: the back button or Esc.
+`View = settings`, opened by "Settings" on the dashboard or by the tray
+menu (`navigate`). Back: the "Back" link or Esc. The screen scrolls
+vertically when taller than the popup; the top row stays.
 
-Layout (360 x 680, padding `popup-padding`, column, gap `space-6`):
+1. Top row: "Back".
+2. Title "Settings" (title style, margin 16 0 6).
+3. Label "Mode" (`ink-2`, margin bottom 10), then a radio group of two
+   rows (`role="radio"`), 1 px `line` on top, padding 14 0: name (choice)
+   over description (caption). The checked row has a 3 px `--accent` bar
+   flush with the popup's left edge, full row height.
+4. Gap 18, then switch rows (space-between, 1 px `line` on top, padding
+   14 0): label left, switch right (`role="switch"`):
+   - "Sound"
+   - "Start at login"
+   - Switch: 42 x 24, radius 12, track `line`; knob 18, round, `pop`,
+     inset 3. On: track `--accent`, knob moved 18 px.
+   A final empty hairline row closes the list.
+5. **Limit data** (below; not in the prototype, kept because it is the
+   only place to set limits up).
+6. Note, pushed to the bottom: "Tokenmonk 0.1.0, MIT. Ideas and bugs go to
+   GitHub issues." (version from `AppInfo.version`).
 
-1. Header row (height `header-height`): icon button with a chevron-left icon
-   (aria-label "Back to dashboard"), title "Settings" (title style).
-2. Number block: counter "12,400" (`GameState.xpTotal`) over the caption
-   "XP total. Kept when you switch modes." (`ink-muted`).
-3. Section "Mode" (caption label, `ink-muted`): two choice tiles side by
-   side, gap `space-3`, padding `space-3`; icon and name only ("🔥 Max it
-   out", "🛠️ Do it yourself"); the current mode is selected. Caption below:
-   "Titles follow the mode. XP stays."
-4. Hairline (`line`), then the toggle rows, each min height `hit-target`, label
-   (Manrope 700 14/20) over a caption (`ink-muted`), toggle at the right:
-   - "Sound", caption "On unlocks and level-ups".
-   - "Start at login", caption "Lives in the tray, not in your way".
-5. Hairline, then section "Limit data" (see below).
-6. Footer, pushed to the bottom (caption, `ink-muted`, centred):
-   "Tokenmonk 0.1.0" from `AppInfo.version`.
+Every change applies at once through `update_settings { patch }`, no save
+button. While a call runs the control stays in its new position; on
+`CommandError` it flips back and the note "Couldn’t save that. Try
+again." appears under the section (derived). Switching mode changes the
+accent after `settings-changed`.
 
-The settings view scrolls vertically when its content is taller than the
-popup; the header row stays in place.
+Fed by: `Settings`, `update_settings`, `settings-changed`,
+`AppInfo.version`, `NavigateTo`, `LimitSetup`, `DashboardSnapshot.limits`.
 
 #### Limit data
 
-Column, gap `space-3`. Tokenmonk never edits Claude Code settings; this
-section only shows what to paste.
+Derived from the settings rows; same tokens. Tokenmonk never edits Claude
+Code settings; this section only shows what to paste.
 
-1. Caption label "Limit data" (`ink-muted`).
-2. Status line (Manrope 700 14/20), from `DashboardSnapshot.limits`:
+1. Label "Limit data" (`ink-2`, margin top 18, margin bottom 10).
+2. Status (weight 500), from `DashboardSnapshot.limits`:
 
    | Limits | Text |
    |---|---|
@@ -307,12 +309,12 @@ section only shows what to paste.
    | `unavailable`, `noSource` or no `reason` | "Not set up yet." |
    | `unavailable`, other reasons | "Can’t read the limit file. Next reply fixes it." |
 
-3. Setup copy (caption, `ink-muted`): "Limits come from Claude Code’s
-   status line. Local only, no login. Add this to
-   ~/.claude/settings.json:" (the path in mono).
-4. Snippet card: `surface-200`, `radius-sm`, padding `space-3`, mono style
-   (`--text-mono-*`), `ink`, text selectable, wraps long lines anywhere
-   (`white-space: pre-wrap`, `overflow-wrap: anywhere`). Content is
+3. Setup copy (caption): "Limits come from Claude Code’s status line.
+   Local only, no login. Add this to ~/.claude/settings.json:" (the path in
+   mono).
+4. Snippet block: 1 px `line` border, radius 8, padding 12, mono 12,
+   `ink`, selectable, wraps anywhere (`white-space: pre-wrap`,
+   `overflow-wrap: anywhere`). Content is
    `JSON.stringify({ statusLine: { type: "command", command } }, null, 2)`
    with `command = LimitSetup.statuslineCommand`, for example:
 
@@ -325,293 +327,151 @@ section only shows what to paste.
    }
    ```
 
-   Icon button (copy icon, aria-label "Copy snippet") in the card's top
-   right corner. After a successful copy the caption under the card reads
-   "Copied. Paste it, then send Claude Code one message." for 2 s. If
-   copying fails, the caption reads "Couldn’t copy. Select it and copy by
-   hand." If `statuslineCommand` is `null`, the card is replaced by the
-   caption "Couldn’t find the Tokenmonk executable. Reinstall, then look
-   again."; the copy button, the PowerShell alternative and the chain hint
-   (item 5) are not shown. If `get_limit_setup` fails, the same parts are
-   replaced by the caption "Couldn’t look up the setup line. Close Settings
-   and open it again." (`ink-muted`). While the call runs, none of them is
-   shown yet.
+   Text link "Copy" at the block's top right. After a successful copy the
+   caption under the block reads "Copied. Paste it, then send Claude Code
+   one message." for 2 s. If copying fails: "Couldn’t copy. Select it and
+   copy by hand." If `statuslineCommand` is `null`, the block is replaced by
+   "Couldn’t find the Tokenmonk executable. Reinstall, then look again.";
+   the copy link, the PowerShell alternative and the chain hint are not
+   shown. If `get_limit_setup` fails, the same parts are replaced by
+   "Couldn’t look up the setup line. Close Settings and open it again."
+   While the call runs none of them is shown yet.
 
    Windows, path with a space (`AppInfo.platform = windows` and
-   `statuslineCommand` starts with `"`): below the card, the caption "No
-   Git Bash? Claude Code then uses PowerShell. Use this one instead:"
-   (`ink-muted`) and a second snippet card (same style, own copy button,
-   same feedback captions) built the same way with `command = "& " +
-   statuslineCommand`. Otherwise this alternative is not shown.
-5. Chain hint (caption, `ink-muted`): "Already have a status line? Keep it.
-   Add this line to your script after it reads the input:" followed by a
-   second snippet card (same style, own copy button) with
-   `printf '%s' "$input" | <command> >/dev/null`, where `<command>` is
-   `statuslineCommand`.
-6. Plan note (caption, `ink-muted`): "Needs a Pro or Max plan. Numbers show
-   up after the first reply."
+   `statuslineCommand` starts with `"`): below the block, the caption "No
+   Git Bash? Claude Code then uses PowerShell. Use this one instead:" and a
+   second block (same style, own copy link and captions) with
+   `command = "& " + statuslineCommand`. Otherwise not shown.
+5. Chain hint (caption): "Already have a status line? Keep it. Add this
+   line to your script after it reads the input:" and a block (own copy
+   link) with `printf '%s' "$input" | <command> >/dev/null`, where
+   `<command>` is `statuslineCommand`.
+6. Plan note (caption): "Needs a Pro or Max plan. Numbers show up after
+   the first reply."
 
 Fed by: `LimitSetup` (`get_limit_setup`, called once when the view opens),
 `DashboardSnapshot.limits` (`status`, `reason`, `fetchedAt`).
 
-States: every change applies at once through `update_settings { patch }`,
-no save button. While a call runs the control stays in its new position;
-on `CommandError` it flips back and the caption "Couldn’t save that. Try
-again." appears under the section in `ember`. Switching mode changes the
-accent immediately after `settings-changed`.
+### Achievements
 
-Fed by: `Settings`, `update_settings`, `settings-changed`,
-`GameState.xpTotal`, `AppInfo.version`, `NavigateTo`, `LimitSetup`,
-`DashboardSnapshot.limits`.
+`View = achievements`, opened by the dashboard's level block. Back: the
+"Back" link or Esc. Scrolls vertically when needed.
+
+1. Top row: "Back".
+2. `GameState.title` (ach-title, margin top 16, margin bottom 0).
+3. "Level 7, 340 of 500 XP" (mono-sm, margin top 2).
+4. Level bar, 4 px, margin 12 0 24.
+5. "Achievements, 2 of 5" (`ink-2`, margin bottom 6): unlocked count of
+   the listed rows, then the listed count.
+6. One row per listed achievement, in display order
+   (`GameState.achievements`): 1 px `line` on top, padding 11 0,
+   space-between, gap 12. Left: name (row style) over description
+   (caption). Right: "Unlocked" or "Locked" (small, no wrap, padding top
+   3). Locked rows show name and description at 50 % opacity.
+
+Listed: every achievement except secret ones that are still locked. Boo
+("Halloween 2026") is a retired legacy badge: secret and no longer
+earnable, so it is listed only for players who already unlocked it.
+
+Fed by: `GameState` (`title`, `level`, `xpIntoLevel`, `xpForLevel`,
+`progress`, `achievements`).
 
 ### Achievement toast
 
 Shown for every `achievement-unlocked` with `retroactive = false`, inside
-the popup.
+the popup on any screen.
 
-Layout: a card floating over the top of the popup, inset `popup-padding`
-from top, left and right (width `popup-width` minus twice
-`popup-padding`), `shadow-popup`, padding `card-padding`, gap `space-3`,
-items centred. Content is the unlocked variant of the achievement row:
-badge (`badge-size`, `--accent` ring, `icon-size-sm` glyph in `ink`), name "Night Owl
-unlocked" (Manrope 700 14/20) over the detail (caption, `ink-muted`),
-trailing "+50 XP" (mono, `--accent-text`). Detail is
-`AchievementUnlocked.detail`, else the achievement's `description`.
+Layout: absolute, inset 16 from left, right and bottom; background `ink`,
+text `pop`, radius 8, padding 12 16 12 18. A 3 px `--accent` bar on the
+left edge, inset 8 top and bottom, radius 2. Content: the name
+(toast-title) over one line (12.5, 75 % opacity): `detail`, else the
+achievement's `description`, followed by " +N XP" (for example "Coding
+after midnight. +50 XP"). It slides in and out (see Motion).
 
-States and rules:
+Rules:
 
-- One toast at a time, visible 4 s, click dismisses, pointer hover pauses
-  the timer.
+- One toast at a time, visible 3.4 s, click dismisses, pointer hover
+  pauses the timer.
 - Queue: events that arrive while the popup is hidden are kept and shown
-  on the next open, oldest first, in addition to the OS notification
-  (see while hidden). Three or more waiting collapse into one
-  toast: "3 achievements unlocked", detail "Newest: Night Owl", trailing
-  the summed "+150 XP".
-- Boo is a retired badge and can no longer be unlocked, so it never gets
-  a toast.
-- Priority: level-up screen, then toasts. A toast waits while an overlay
-  is open.
-- Sound: the synthesized tone (see Sound above), only with
-  `Settings.sound` on.
+  on the next open, oldest first, in addition to the OS notification.
+  Three or more waiting collapse into one toast: "3 achievements
+  unlocked", line "Newest: Night Owl. +150 XP" (summed XP).
+- Boo can no longer be unlocked, so it never gets a toast.
+- Priority: level-up screen, then toasts. A toast waits while the level-up
+  screen is open.
+- Sound: the synthesized tone, only with `Settings.sound` on.
 
-While hidden: when the popup is hidden, achievement unlocks and limit
-warnings also go out as OS notifications through the notification plugin.
-The in-popup queue above still shows on the next open; the OS
-notification does not replace it. No OS notification for `retroactive =
-true`. The tone
-follows `Settings.sound`; the notification itself is sent without its own
-sound where the plugin allows it, so the tone is not doubled.
+While hidden: achievement unlocks and limit warnings also go out as OS
+notifications through the notification plugin. The in-popup queue still
+shows on the next open. No OS notification for `retroactive = true`. The
+notification is sent without its own sound where the plugin allows it, so
+the tone is not doubled.
 
 | Notification | When | Title | Body |
 |---|---|---|---|
-| Unlock | `achievement-unlocked`, not retroactive | "Night Owl unlocked · +50 XP" | detail, else description |
+| Unlock | `achievement-unlocked`, not retroactive | "Night Owl unlocked, +50 XP" | detail, else description |
 | Max it out, 90 % | `limits.fiveHour.utilization` crosses 90 | "5h limit at 90 %" | "Limit in ~25 min at this pace." |
 | Max it out, 100 % | crosses 100 | "5h limit at 100 %" | "Limit reached. Breathe." |
 | Do it yourself, over budget | `dailyBudget.usedPercent` crosses 100 | "Today’s budget at 100 %" | "Over budget. The AI wins today." |
 
-Each limit warning fires once per crossing upwards: once per 5-hour window
+Each limit warning fires once per upward crossing: once per 5-hour window
 (`fiveHour.resetsAt`) and once per day for the budget. None while
-`limits.status` is not `ok` (Max it out), none for stale values, and none
-while `fiveHour = null` (fresh window, see "Limits unavailable and
-stale"). The
-body of the 90 % warning uses the burn line rule (N from
-`burnRate.limitEtaMinutes`); without an ETA the body is omitted. Level-ups
-get no OS notification; the level-up screen waits for the next open.
+`limits.status` is not `ok` (Max it out), none for stale values, none while
+`fiveHour = null`. The 90 % body uses `burnRate.limitEtaMinutes` (N rounded
+to 5, at least 5); without an ETA the body is omitted. Level-ups get no OS
+notification; the level-up screen waits for the next open.
 
-Fed by: `AchievementUnlocked` (`achievement-unlocked`),
-`GameState.achievements` for the description, `Settings.sound`; limit
-warnings from `DashboardSnapshot.limits`, `burnRate` and `dailyBudget`.
+Fed by: `AchievementUnlocked`, `GameState.achievements`, `Settings.sound`;
+limit warnings from `DashboardSnapshot.limits`, `burnRate`, `dailyBudget`.
 
 ### Level-up screen
 
-Shown for every `level-up` with `retroactive = false`, as an overlay. Same
-queueing as toasts (shown on the next open if the popup was hidden).
+Not in the prototype; derived from the achievements screen. Shown for
+every `level-up` with `retroactive = false`, over the current screen
+(background `pop`, same padding), queued like toasts.
 
-Layout: overlay. Top to bottom: the logo mark at `logo-size-lg` (128) with
-the halo full in `--halo`; "Level 8" (display, `ink`); the mode line
-(heading, `--accent-text`): Max it out "Keep burning 🔥", Do it yourself
-"Well earned. Breathe."; the XP line (mono, `ink-muted`) "0 / 2,100 XP to
-level 9" from the following `GameState`; primary button "Back to work".
+Top to bottom: the brand mark at 52 px; "Level 8" (onboard-title); the
+mode line (status style): Max it out "Keep burning.", Do it yourself
+"Well earned. Breathe."; "Level 8, 0 of 2,100 XP" (mono-sm); the level bar
+(4 px); the text link "Back to work". Several levels at once (`level -
+previousLevel > 1`): "+2 levels" (mono-sm) under the title. Esc and the
+link close it. Tone only with `Settings.sound` on.
 
-Variants:
+Retro summary: when `retroDone` turns from false to true in this run, the
+screen shows once with "Level 6", the line "Straight from your history."
+and "4 achievements, 3,420 XP" (unlocked count, `xpTotal`). Skipped at
+level 1 with no unlocks. No toasts for retroactive unlocks.
 
-- Title changed (`titleChanged`): a line before the mode line, caption
-  `ink-muted` "New title" over the title (heading, `--accent-text`):
-  "Rate-Limit Rambo". The mode line is then omitted.
-- Several levels at once (`level - previousLevel > 1`): display "Level 9",
-  caption under it "+2 levels" (mono, `ink-muted`).
-- Retro summary: see first-start import.
+Fed by: `LevelUp`, `GameState`, `Settings.sound`.
 
-Esc and the button close it. The synthesized tone plays only with
-`Settings.sound` on.
+## Tray icon
 
-Fed by: `LevelUp` (`level-up`), `GameState.xpIntoLevel`,
-`GameState.xpForLevel`, `GameState.level`, `Settings.sound`.
+Rendered in Rust (resvg) at runtime; `tokens.css` mirrors its values.
+viewBox 24 x 24:
 
-### First-start import (retroactive levelling)
+- Track: circle r 8.5, stroke `--tray-track` #8A8D8B at 60 %, width 2.
+  Without limit data (no 5-hour value) the track is dotted
+  (`stroke-dasharray 1.5 3`) and there is no arc.
+- Arc: r 8.5, stroke `--accent` of the current mode, width 2.6, round
+  caps, from 12 o'clock clockwise, length = 5-hour percent left. It drains
+  as the window is used.
+- Centre dot: r 2.2, filled in `--accent` of the current mode.
 
-Two phases: the log import (`data.state = importing`, can start before
-onboarding) and the XP replay after onboarding (`GameState.retroDone =
-false`). The dashboard stays visible; only these blocks change.
-
-- **Halo gauge card, import variant** (both modes, replaces the mode
-  variant while `data.state = importing`): counter "62 %" =
-  `filesDone / filesTotal` (0 % while `filesTotal = 0`), caption "logs
-  read"; ring fill `--accent`, never danger. Right column: heading
-  "Reading your history." over the caption (mono, `ink-muted`) "24 / 38
-  files". The header halo shows the same value.
-- **Stat tiles and weekly card**: live as normal; numbers grow during the
-  import.
-- **Level card while `retroDone = false`**: "Level 1" and title as
-  delivered; XP bar track only; caption "Counting old XP. Hold still."
-  (caption, `ink-muted`). There is no replay progress in the contracts, so
-  this state has no number.
-- **Achievement row while `retroDone = false`**: hidden.
-- **Retro summary**: when `retroDone` turns from false to true in this
-  run, show the level-up screen once in a summary variant: display
-  "Level 6", heading "Straight from your history." (`--accent-text`), mono
-  line "4 achievements · 3,420 XP" (unlocked count from
-  `GameState.achievements`, `xpTotal`), button "Back to work". Skipped when
-  the result is level 1 with no unlocks. No toasts for retroactive
-  unlocks.
-
-Fed by: `DataStatus` (`state`, `filesTotal`, `filesDone`),
-`GameState.retroDone`, `level`, `title`, `xpTotal`, `achievements`.
-
-### Empty state (no logs yet)
-
-`data.state = noLogs` (`AppInfo.logsFound = false`).
-
-- **Halo gauge card**: ring track only; counter "0", caption "tokens
-  today". Right column: heading "No logs yet." over the caption
-  (`ink-muted`) "Start a Claude Code session. I pick it up by myself."
-- **Stat tiles**: "0" and "Idle" (see idle session).
-- **Weekly card**: limits as delivered (usually unavailable, below).
-- **Level card**: as delivered (Level 1, 0 XP).
-- **Achievement row**: progress variant per the row rule (First Blood, bar
-  empty).
-
-Related states on the same card:
-
-- **Idle session** (`session = null`, any data state): the "This session"
-  tile shows "Idle" in the stat value style, `ink-muted`.
-- **Log folder unreadable** (`data.state = error`): ring track only,
-  counter keeps today's total, heading "Can’t read the logs." (`ember`),
-  caption "Retrying in the background." `detail` is not shown in v0.1.
-
-Fed by: `DataStatus.state`, `AppInfo.logsFound`, `DashboardSnapshot.today`,
-`DashboardSnapshot.session`.
-
-### Limits unavailable and stale
-
-v0.1 gets limits from Claude Code’s status line (ARCHITECTURE.md,
-"Limits"). Until that is set up, or when no window is current,
-`limits.status = unavailable` with `reason = noSource`. The app then runs
-on token data and says so.
-
-**Unavailable**, Max it out gauge card: ring track only, header halo track
-only; counter = `burnRate.tokensPerMinute`, caption "tokens / min". Values
-of 10,000 and more are shortened inside the gauge to one decimal with `k`
-("12.4k") so they fit the ring; everywhere else full numbers. Right column:
-heading "No limit data. Running on tokens." over the reason caption
-(`ink-muted`):
-
-| `reason` | Caption |
-|---|---|
-| `noSource` | "Hook up Claude Code’s status line in Settings." |
-| `notSignedIn` | "Not signed in to Claude." |
-| `network` | "Offline. Trying again in 5 min." |
-| `invalidResponse`, `other` | "The limit file talked nonsense. Next reply fixes it." |
-
-With `reason = noSource` the caption is a text button (`accent-text`,
-underlined, min height `hit-target`) that opens Settings, scrolled to
-"Limit data". The setup itself lives only in Settings.
-
-**Unavailable**, Do it yourself: the gauge runs on `dailyBudget` with
-`basis = tokenHistory` as usual. If `dailyBudget = null` (not enough
-history): ring track only, counter = today's total (shortened as above),
-caption "tokens today", heading "Learning your normal." over the caption
-"A budget needs a few days of history."
-
-**Unavailable**, weekly card (both modes, `limits.weekly = null`): label as
-usual, value "n/a" (mono, `ink-muted`), bar track only, caption "No limit
-data. Token stats still count." With `reason = noSource` the caption is
-"No limit data yet. Setup is in Settings." (same text button style as
-above, so Do it yourself shows the hint too).
-
-**Unavailable**, footer note: "No limit data · token stats from Claude Code
-only".
-
-**Stale** (`status = stale`, last good reading kept): gauge, weekly card
-and halo show the last values as usual; the counter turns `ink-muted`; in
-the right column the reset caption is replaced by "As of 14:05. Updates
-on your next reply."
-(`fetchedAt`, local 24 h time). The footer stays as usual. Ember danger
-still applies to stale values.
-
-**Fresh 5-hour window** (`fiveHour = null`, `weekly` set, `status = ok` or
-`stale`): the 5-hour window has reset and no reading has arrived since
-(ARCHITECTURE.md, Aggregates, "Limit status").
-
-- Max it out gauge card: ring track only; counter =
-  `burnRate.tokensPerMinute` (shortened as above), caption "tokens / min";
-  right column heading "Fresh window." over the caption "Numbers on your
-  next reply." (`ink-muted`). Burn line: no ETA.
-- Header halo and tray halo (Max it out): track only, as in the
-  unavailable state. Do it yourself halos keep showing the budget.
-- Weekly card, Do it yourself gauge and `dailyBudget` (`weeklyLimit`
-  basis): unchanged, from `weekly`. Stale styling applies to them as
-  usual.
-- Footer: as usual.
-- 90 % and 100 % notifications: none, there is no 5-hour value to cross.
-  The first reading of the new window (new `fiveHour.resetsAt`) starts a
-  new crossing count; if it already is at or above 90 and `status = ok`,
-  the 90 % warning fires once.
-
-`source` and `detail` are not shown in v0.1.
-
-Fed by: `LimitsView` (`status`, `reason`, `fiveHour`, `weekly`,
-`fetchedAt`), `BurnRate.tokensPerMinute`, `DailyBudget`,
-`DashboardSnapshot.today.total`.
-
-### Achievement row rule
-
-The row shows one achievement, picked in this order:
-
-1. **Latest unlock**: `recentUnlocks[0]` if its `unlockedAt` is within the
-   last 24 h. Unlocked variant (name "… unlocked", detail, "+N XP").
-2. **In progress**: otherwise, from `achievements` in display order, the
-   ones that are locked, not `secret`, with `mode` null or the current
-   mode, and with `current` and `target` set; pick the highest
-   `current / target`, ties by display order. Progress variant: name, 6 px
-   bar (`bar-height-sm`, `--accent`), caption `progressLabel`, else mono
-   "4 / 7".
-3. **Next up**: if none has progress, the first eligible locked one in
-   display order, bar empty, caption its `description`.
-4. **All done**: the latest unlock regardless of age.
-
-Boo ("Halloween 2026") is a retired legacy badge that can no longer be
-earned. It is `secret`, so it never shows as in progress or next up; an
-existing unlock shows like any other.
-
-Retroactive unlocks count like any other; their historical `unlockedAt`
-usually makes them older than 24 h. The row is hidden while
-`retroDone = false`.
-
-Fed by: `GameState.recentUnlocks`, `GameState.achievements`,
-`GameState.mode`.
+Value: 5-hour percent left in both modes. Before onboarding the accent is
+saffron. The brand files in `assets/brand/` (the monk mark) remain the
+app icon source; the popup uses the brand mark described above.
 
 ## Not covered by the design / out of scope
 
-Out of scope for v0.1:
-
-- The about screen. It has no `View` in the contracts.
+Out of scope for v0.1: the about screen (no `View` in the contracts).
 
 Open points:
 
-- Copy buttons in "Limit data" use the web Clipboard API
+- Copy links in "Limit data" use the web Clipboard API
   (`navigator.clipboard.writeText`); whether it works in the Tauri webviews
-  on both platforms is unverified. No clipboard plugin in v0.1; on failure
-  the fallback copy applies and the snippet stays selectable.
-- "Limit data" has no mockup; it is derived from the settings rows and
-  card building blocks only.
+  on both platforms is unverified. On failure the fallback copy applies
+  and the snippet stays selectable.
+- The prototype lists all achievements regardless of mode; whether
+  mode-only achievements need a hint for the other mode is open.
+- The new brand mark (arc and dot) exists only as the inline drawing
+  above, not yet as a file in `assets/brand/`.
