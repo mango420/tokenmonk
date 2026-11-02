@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { FADE_MS } from "../features/game";
 import { describeError, insideTauri } from "../lib/backend";
 import { Icon } from "./Icon";
+
+/**
+ * Fade duration. Same value as the toast fade in features/game (`FADE_MS`), kept
+ * local so shared UI does not depend on a feature. Not a design token.
+ */
+const FADE_MS = 150;
 
 const FADE_STYLE = { "--fade-ms": `${FADE_MS}ms` } as CSSProperties;
 
@@ -31,6 +36,16 @@ export function TitleBar() {
       void unlisten.then((off) => off());
     };
   }, [native, sync]);
+
+  // The popup fills a maximized window (see popup.css).
+  useEffect(() => {
+    const root = document.documentElement;
+    if (maximized) root.dataset.maximized = "";
+    else delete root.dataset.maximized;
+    return () => {
+      delete root.dataset.maximized;
+    };
+  }, [maximized]);
 
   // Plain browser (dev preview): there is no window to control.
   if (!native) return null;

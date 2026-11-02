@@ -52,6 +52,18 @@ button {
   overflow: hidden;
 }
 
+/* Maximized window (flag set by TitleBar): the popup fills it edge to edge. */
+html[data-maximized] .stage {
+  display: block;
+}
+
+html[data-maximized] .popup {
+  width: 100%;
+  height: 100vh;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 /* ------------------------------------------------------------ text styles */
 
 .live-number {
