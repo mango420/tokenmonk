@@ -4,7 +4,9 @@
 //! (hidden at start, no decorations). It hides when it loses focus and
 //! when the user closes it; the app keeps living in the tray. The header is a
 //! drag region; once the user drags the popup away from the tray it opens
-//! where they left it until the app restarts.
+//! where they left it until the app restarts. The frontend may also close or
+//! toggle-maximize it; a maximized popup is restored before it hides, so the
+//! remembered position never describes the maximized frame.
 
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -22,6 +24,38 @@ pub const LABEL: &str = "main";
 const BLUR_GRACE: Duration = Duration::from_millis(250);
 
 static LAST_BLUR_HIDE: Mutex<Option<Instant>> = Mutex::new(None);
+
+/// Blur is judged only after this delay, so a focus flicker that comes with a
+/// native move loop can settle first.
+const BLUR_SETTLE: Duration = Duration::from_millis(100);
+
+/// A window move this recent means the blur belongs to a drag, not to the user
+/// clicking elsewhere.
+const DRAG_WINDOW: Duration = Duration::from_millis(400);
+
+/// When the popup last reported a move (drag, maximize or `place`).
+static LAST_MOVE: Mutex<Option<Instant>> = Mutex::new(None);
+
+/// Moves the app causes itself (`place`, maximize, restore) report `Moved`
+/// too. Moves and resizes reported until this instant are not drags.
+static APP_MOVE_UNTIL: Mutex<Option<Instant>> = Mutex::new(None);
+
+/// How long after an app-initiated move or resize `Moved` events are ignored.
+const APP_MOVE_SLACK: Duration = Duration::from_millis(300);
+
+fn mark_app_move() {
+    if let Ok(mut until) = APP_MOVE_UNTIL.lock() {
+        *until = Some(Instant::now() + APP_MOVE_SLACK);
+    }
+}
+
+fn in_app_move() -> bool {
+    APP_MOVE_UNTIL
+        .lock()
+        .ok()
+        .and_then(|until| *until)
+        .is_some_and(|t| Instant::now() < t)
+}
 
 /// Where `place` last put the popup. If it sits elsewhere when it opens
 /// again, the user dragged it there.
@@ -77,6 +111,69 @@ fn toggle_action(visible: bool, since_blur_hide: Option<Duration>) -> ToggleActi
     }
 }
 
+/// What to do once a blur has settled.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BlurAction {
+    Hide,
+    /// The blur came with a drag: take the focus back instead of hiding.
+    Refocus,
+    Ignore,
+}
+
+fn blur_action(visible: bool, focused: bool, since_move: Option<Duration>) -> BlurAction {
+    if !visible || focused {
+        BlurAction::Ignore
+    } else if since_move.is_some_and(|d| d < DRAG_WINDOW) {
+        BlurAction::Refocus
+    } else {
+        BlurAction::Hide
+    }
+}
+
+/// Unmaximizes the popup if needed, without counting it as a drag.
+fn restore(popup: &WebviewWindow) {
+    if popup.is_maximized().unwrap_or(false) {
+        mark_app_move();
+        let _ = popup.unmaximize();
+    }
+}
+
+/// Judges a blur until it is settled: hides the popup, or takes the focus back
+/// while a drag is going on. Focus can be refused, so it asks again after each
+/// refocus; that ends because a refocus emits no `Moved` and `DRAG_WINDOW`
+/// runs out.
+fn settle_blur(handle: &WebviewWindow) {
+    loop {
+        std::thread::sleep(BLUR_SETTLE);
+        let since_move = LAST_MOVE
+            .lock()
+            .ok()
+            .and_then(|last| last.map(|t| t.elapsed()));
+        let visible = handle.is_visible().unwrap_or(false);
+        let focused = handle.is_focused().unwrap_or(false);
+        match blur_action(visible, focused, since_move) {
+            BlurAction::Hide => {
+                if let Ok(mut last) = LAST_BLUR_HIDE.lock() {
+                    *last = Some(Instant::now());
+                }
+                dismiss(handle);
+                return;
+            }
+            BlurAction::Refocus => {
+                let _ = handle.set_focus();
+            }
+            BlurAction::Ignore => return,
+        }
+    }
+}
+
+/// Restores a maximized popup, then hides it. Restoring happens while the
+/// window is still visible, because a hidden window ignores it on Windows.
+fn dismiss(popup: &WebviewWindow) {
+    restore(popup);
+    let _ = popup.hide();
+}
+
 /// Prepares the popup: hides it on blur and on close, and on macOS keeps the
 /// app out of the Dock. Call once from the setup hook.
 pub fn init(app: &AppHandle) -> tauri::Result<()> {
@@ -89,16 +186,23 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
     let handle = popup.clone();
     popup.on_window_event(move |event| match event {
         WindowEvent::Focused(false) => {
-            if handle.is_visible().unwrap_or(false) {
-                if let Ok(mut last) = LAST_BLUR_HIDE.lock() {
+            let handle = handle.clone();
+            std::thread::spawn(move || settle_blur(&handle));
+        }
+        WindowEvent::Moved(_) => {
+            let maximized = handle.is_maximized().unwrap_or(false);
+            if !maximized && !in_app_move() {
+                if let Ok(mut last) = LAST_MOVE.lock() {
                     *last = Some(Instant::now());
                 }
-                let _ = handle.hide();
             }
         }
+        // A size change (maximize or restore, from the app or the frontend)
+        // brings a move that is not a drag.
+        WindowEvent::Resized(_) => mark_app_move(),
         WindowEvent::CloseRequested { api, .. } => {
             api.prevent_close();
-            let _ = handle.hide();
+            dismiss(&handle);
         }
         _ => {}
     });
@@ -113,6 +217,8 @@ pub fn show(app: &AppHandle) {
     let Some(popup) = app.get_webview_window(LABEL) else {
         return;
     };
+    restore(&popup);
+    mark_app_move();
     if !stays_where_dragged(&popup) {
         place(&popup);
     }
@@ -129,7 +235,7 @@ pub fn show(app: &AppHandle) {
 /// Hides the popup.
 pub fn hide(app: &AppHandle) {
     if let Some(popup) = app.get_webview_window(LABEL) {
-        let _ = popup.hide();
+        dismiss(&popup);
     }
 }
 
@@ -191,6 +297,42 @@ fn place(popup: &WebviewWindow) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn blur_without_recent_move_hides() {
+        assert_eq!(blur_action(true, false, None), BlurAction::Hide);
+        let old = Some(DRAG_WINDOW + Duration::from_millis(1));
+        assert_eq!(blur_action(true, false, old), BlurAction::Hide);
+    }
+
+    #[test]
+    fn blur_during_a_drag_refocuses() {
+        let recent = Some(Duration::from_millis(20));
+        assert_eq!(blur_action(true, false, recent), BlurAction::Refocus);
+    }
+
+    #[test]
+    fn refused_refocus_ends_in_hide() {
+        // Refocus fails every time, so only the time since the last move grows.
+        let mut since_move = Duration::from_millis(20);
+        let mut rounds = 0;
+        let last = loop {
+            let action = blur_action(true, false, Some(since_move));
+            if action != BlurAction::Refocus {
+                break action;
+            }
+            rounds += 1;
+            since_move += BLUR_SETTLE;
+        };
+        assert_eq!(last, BlurAction::Hide);
+        assert!(rounds >= 1);
+    }
+
+    #[test]
+    fn settled_or_hidden_blur_is_ignored() {
+        assert_eq!(blur_action(true, true, None), BlurAction::Ignore);
+        assert_eq!(blur_action(false, false, None), BlurAction::Ignore);
+    }
 
     #[test]
     fn visible_popup_hides() {
