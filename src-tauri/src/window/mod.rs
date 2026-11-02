@@ -36,6 +36,27 @@ const DRAG_WINDOW: Duration = Duration::from_millis(400);
 /// When the popup last reported a move (drag, maximize or `place`).
 static LAST_MOVE: Mutex<Option<Instant>> = Mutex::new(None);
 
+/// Moves the app causes itself (`place`, maximize, restore) report `Moved`
+/// too. Moves and resizes reported until this instant are not drags.
+static APP_MOVE_UNTIL: Mutex<Option<Instant>> = Mutex::new(None);
+
+/// How long after an app-initiated move or resize `Moved` events are ignored.
+const APP_MOVE_SLACK: Duration = Duration::from_millis(300);
+
+fn mark_app_move() {
+    if let Ok(mut until) = APP_MOVE_UNTIL.lock() {
+        *until = Some(Instant::now() + APP_MOVE_SLACK);
+    }
+}
+
+fn in_app_move() -> bool {
+    APP_MOVE_UNTIL
+        .lock()
+        .ok()
+        .and_then(|until| *until)
+        .is_some_and(|t| Instant::now() < t)
+}
+
 /// Where `place` last put the popup. If it sits elsewhere when it opens
 /// again, the user dragged it there.
 static LAST_PLACED: Mutex<Option<PhysicalPosition<i32>>> = Mutex::new(None);
@@ -109,12 +130,47 @@ fn blur_action(visible: bool, focused: bool, since_move: Option<Duration>) -> Bl
     }
 }
 
+/// Unmaximizes the popup if needed, without counting it as a drag.
+fn restore(popup: &WebviewWindow) {
+    if popup.is_maximized().unwrap_or(false) {
+        mark_app_move();
+        let _ = popup.unmaximize();
+    }
+}
+
+/// Judges a blur until it is settled: hides the popup, or takes the focus back
+/// while a drag is going on. Focus can be refused, so it asks again after each
+/// refocus; that ends because a refocus emits no `Moved` and `DRAG_WINDOW`
+/// runs out.
+fn settle_blur(handle: &WebviewWindow) {
+    loop {
+        std::thread::sleep(BLUR_SETTLE);
+        let since_move = LAST_MOVE
+            .lock()
+            .ok()
+            .and_then(|last| last.map(|t| t.elapsed()));
+        let visible = handle.is_visible().unwrap_or(false);
+        let focused = handle.is_focused().unwrap_or(false);
+        match blur_action(visible, focused, since_move) {
+            BlurAction::Hide => {
+                if let Ok(mut last) = LAST_BLUR_HIDE.lock() {
+                    *last = Some(Instant::now());
+                }
+                dismiss(handle);
+                return;
+            }
+            BlurAction::Refocus => {
+                let _ = handle.set_focus();
+            }
+            BlurAction::Ignore => return,
+        }
+    }
+}
+
 /// Restores a maximized popup, then hides it. Restoring happens while the
 /// window is still visible, because a hidden window ignores it on Windows.
 fn dismiss(popup: &WebviewWindow) {
-    if popup.is_maximized().unwrap_or(false) {
-        let _ = popup.unmaximize();
-    }
+    restore(popup);
     let _ = popup.hide();
 }
 
@@ -131,33 +187,19 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
     popup.on_window_event(move |event| match event {
         WindowEvent::Focused(false) => {
             let handle = handle.clone();
-            std::thread::spawn(move || {
-                std::thread::sleep(BLUR_SETTLE);
-                let since_move = LAST_MOVE
-                    .lock()
-                    .ok()
-                    .and_then(|last| last.map(|t| t.elapsed()));
-                let visible = handle.is_visible().unwrap_or(false);
-                let focused = handle.is_focused().unwrap_or(false);
-                match blur_action(visible, focused, since_move) {
-                    BlurAction::Hide => {
-                        if let Ok(mut last) = LAST_BLUR_HIDE.lock() {
-                            *last = Some(Instant::now());
-                        }
-                        dismiss(&handle);
-                    }
-                    BlurAction::Refocus => {
-                        let _ = handle.set_focus();
-                    }
-                    BlurAction::Ignore => {}
-                }
-            });
+            std::thread::spawn(move || settle_blur(&handle));
         }
         WindowEvent::Moved(_) => {
-            if let Ok(mut last) = LAST_MOVE.lock() {
-                *last = Some(Instant::now());
+            let maximized = handle.is_maximized().unwrap_or(false);
+            if !maximized && !in_app_move() {
+                if let Ok(mut last) = LAST_MOVE.lock() {
+                    *last = Some(Instant::now());
+                }
             }
         }
+        // A size change (maximize or restore, from the app or the frontend)
+        // brings a move that is not a drag.
+        WindowEvent::Resized(_) => mark_app_move(),
         WindowEvent::CloseRequested { api, .. } => {
             api.prevent_close();
             dismiss(&handle);
@@ -175,9 +217,8 @@ pub fn show(app: &AppHandle) {
     let Some(popup) = app.get_webview_window(LABEL) else {
         return;
     };
-    if popup.is_maximized().unwrap_or(false) {
-        let _ = popup.unmaximize();
-    }
+    restore(&popup);
+    mark_app_move();
     if !stays_where_dragged(&popup) {
         place(&popup);
     }
@@ -268,6 +309,23 @@ mod tests {
     fn blur_during_a_drag_refocuses() {
         let recent = Some(Duration::from_millis(20));
         assert_eq!(blur_action(true, false, recent), BlurAction::Refocus);
+    }
+
+    #[test]
+    fn refused_refocus_ends_in_hide() {
+        // Refocus fails every time, so only the time since the last move grows.
+        let mut since_move = Duration::from_millis(20);
+        let mut rounds = 0;
+        let last = loop {
+            let action = blur_action(true, false, Some(since_move));
+            if action != BlurAction::Refocus {
+                break action;
+            }
+            rounds += 1;
+            since_move += BLUR_SETTLE;
+        };
+        assert_eq!(last, BlurAction::Hide);
+        assert!(rounds >= 1);
     }
 
     #[test]
