@@ -44,6 +44,9 @@ pub enum View {
     Settings,
     /// `"onboarding"`
     Onboarding,
+    /// `"achievements"`: title, level and the achievement list, opened from
+    /// the dashboard's level block.
+    Achievements,
 }
 
 /// Payload of `navigate`.

@@ -158,6 +158,7 @@ fn app_info_and_errors_shape() {
         .unwrap(),
         json!({ "view": "settings" })
     );
+    assert_eq!(to_value(View::Achievements).unwrap(), json!("achievements"));
 }
 
 #[test]

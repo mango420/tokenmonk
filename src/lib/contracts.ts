@@ -178,14 +178,14 @@ export interface AchievementProgress {
   unlockedAt: EpochMs | null;
   current: number | null;
   target: number | null;
-  /** For example "4 of 7 days under 20 %". */
+  /** For example "4 of 7". */
   progressLabel: string | null;
 }
 
 export interface AchievementUnlocked {
   id: AchievementId;
   name: string;
-  /** For example "Tokens burned at 02:47". */
+  /** For example "Tokens burned at 00:47". */
   detail: string | null;
   xp: number;
   unlockedAt: EpochMs;
@@ -304,7 +304,7 @@ export const Events = {
 
 export type EventName = (typeof Events)[keyof typeof Events];
 
-export type View = "dashboard" | "settings" | "onboarding";
+export type View = "dashboard" | "settings" | "onboarding" | "achievements";
 
 export interface NavigateTo {
   view: View;
