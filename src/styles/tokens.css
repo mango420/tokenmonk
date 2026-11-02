@@ -3,151 +3,223 @@
  * Source of truth: docs/DESIGN.md.
  *
  * State lives in data attributes on <html>:
- *   data-theme  = "dark" (default, shipped in v0.1) | "light" (prepared, not shipped)
+ *   data-theme  = absent (follow the OS) | "light" | "dark" (forced)
  *   data-mode   = "max" | "diy"   (absent before onboarding: brand saffron)
  *
- * Fonts are bundled from the @fontsource packages (Fraunces, Manrope,
- * JetBrains Mono); this file only defines the family stacks.
+ * Fonts are bundled from the @fontsource packages (Schibsted Grotesk,
+ * Martian Mono); this file only defines the family stacks.
  */
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  /* Colour: dark theme (default) */
-  --surface-100: #15131a;
-  --surface-200: #1f1c25;
-  --surface-300: #2a2631;
-  --line: #3a3440;
-  --ink: #f4eee4;
-  --ink-muted: #a89f94;
-  --saffron: #f5a142;
-  --saffron-text: #f5a142;
-  --jade: #9be8c4;
-  --jade-text: #9be8c4;
-  --on-accent: #1a1206;
-  --ember: #ff6b57;
+  /* Colour: light theme (default when the OS is light) */
+  --page: #cbcac4;
+  --pop: #e4e3dd;
+  --ink: #181a1b;
+  --ink-2: #5a5e5c;
+  --line: #bab9b1;
 
-  /* Scrim behind the level-up overlay: surface-100 at 94 % */
-  --scrim: rgba(21, 19, 26, 0.94);
+  /* Mode accents, the same in both themes */
+  --saffron: #e39a0b;
+  --jade: #1f8a64;
 
-  /* Shadow: the popup and toasts only */
-  --shadow-popup: 0 12px 32px rgba(0, 0, 0, 0.45);
-
-  /* Mode accents (overridden below by data-mode) */
+  /* Mode-neutral accent (overridden below by data-mode) */
   --accent: var(--saffron);
-  --accent-text: var(--saffron-text);
-  /* Halo of the header logo and the tray icon */
-  --halo: var(--accent);
-  /* Main gauge fill; switches to --gauge-danger by state, not by attribute */
-  --gauge: var(--accent);
-  --gauge-danger: var(--ember);
-  --gauge-track: var(--surface-300);
+
+  /* Popup shadow: hairline ring in --line plus a soft drop */
+  --shadow-popup: 0 0 0 1px var(--line), 0 28px 60px -24px rgba(0, 0, 0, 0.4);
+
+  /* Ring track and arc */
+  --ring-track-opacity: 0.22;
+  --ring-inner-opacity: 0.35;
+
+  /* Tray icon (rendered in Rust; mirrored here for docs and previews) */
+  --tray-track: #8a8d8b;
+  --tray-track-opacity: 0.6;
 
   /* Type families */
-  --font-display: "Fraunces", Georgia, serif;
-  --font-sans: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --font-sans: "Schibsted Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Martian Mono", ui-monospace, "SF Mono", Consolas, monospace;
 
-  /* Type scale: size / line height / weight */
-  --text-display-size: 40px;
-  --text-display-line: 44px;
-  --text-display-weight: 600;
-  --text-title-size: 24px;
-  --text-title-line: 30px;
-  --text-title-weight: 600;
-  --text-heading-size: 16px;
-  --text-heading-line: 22px;
-  --text-heading-weight: 700;
+  /* Weights */
+  --weight-light: 300;
+  --weight-regular: 400;
+  --weight-medium: 500;
+
+  /* Type scale: size, line height, letter spacing */
   --text-body-size: 14px;
-  --text-body-line: 20px;
-  --text-body-weight: 400;
-  --text-caption-size: 12px;
-  --text-caption-line: 16px;
-  --text-caption-weight: 500;
-  --text-counter-size: 32px;
-  --text-counter-line: 36px;
-  --text-counter-weight: 600;
-  --text-mono-size: 12px;
-  --text-mono-line: 16px;
-  --text-mono-weight: 500;
+  --text-body-line: 1.4;
+  --text-hero-size: 70px; /* mono light, ring centre */
+  --text-hero-sm-size: 46px; /* mono light, ring centre without limit data */
+  --text-hero-line: 1;
+  --text-hero-tracking: -0.05em;
+  --text-hero-unit-size: 22px; /* mono light, the % after the hero */
+  --text-onboard-title-size: 32px;
+  --text-onboard-title-line: 1.08;
+  --text-onboard-title-tracking: -0.025em;
+  --text-ach-title-size: 28px;
+  --text-title-size: 22px;
+  --text-title-tracking: -0.02em;
+  --text-choice-lg-size: 21px; /* onboarding choice name */
+  --text-choice-lg-tracking: -0.015em;
+  --text-status-size: 17px;
+  --text-status-tracking: -0.01em;
+  --text-stat-size: 26px; /* mono, stat values */
+  --text-stat-line: 1.2;
+  --text-stat-tracking: -0.03em;
+  --text-choice-size: 15.5px; /* settings mode row name */
+  --text-brand-size: 15px;
+  --text-brand-tracking: -0.01em;
+  --text-row-size: 15px; /* level title, achievement name */
+  --text-toast-title-size: 14.5px;
+  --text-caption-size: 13px;
+  --text-mono-sm-size: 12.5px; /* reset line, level line on achievements */
+  --text-small-size: 12px;
+  --text-note-size: 11.5px;
+  --toast-line-opacity: 0.75;
+  --locked-opacity: 0.5;
 
-  /* Popup-specific type sizes taken from the screens */
-  --text-wordmark-size: 18px; /* Fraunces 600 */
-  --text-wordmark-line: 22px;
-  --text-level-size: 20px; /* Fraunces 600, level card */
-  --text-level-line: 26px;
-  --text-stat-size: 20px; /* JetBrains Mono 600, stat tiles */
-  --text-stat-line: 26px;
-  --text-strong-weight: 700; /* body-size labels such as "Weekly limit" */
-
-  /* Spacing (4 px grid) */
+  /* Spacing */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
+  --space-5: 20px;
   --space-6: 24px;
-  --space-8: 32px;
 
   /* Radius */
-  --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
-  --radius-pill: 999px;
+  --radius-popup: 18px;
+  --radius-switch: 12px;
+  --radius-toast: 8px;
+  --radius-focus: 4px;
+  --radius-bar: 2px;
 
   /* Popup layout */
   --popup-width: 360px;
   --popup-height: 680px;
-  --popup-padding: var(--space-4);
+  --popup-padding-top: 20px;
+  --popup-padding-x: 24px;
+  --popup-padding-bottom: 18px;
+  --top-row-height: 32px;
+  --brand-mark-size: 26px;
+  --onboard-mark-size: 52px;
+  --ring-size: 248px; /* viewBox 248 x 248 */
+  --ring-radius: 104px;
+  --ring-stroke: 14px;
+  --ring-inner-radius: 96px;
+  --ring-inner-stroke: 4px;
+  --ring-track-stroke: 2px;
+  --bar-height: 3px; /* level bar, dashboard */
+  --bar-height-lg: 4px; /* level bar, achievements screen */
+  --accent-rule: 3px; /* selected settings row, toast edge */
+  --segment-rule: 2px; /* selected segment underline */
+  --focus-ring: 2px;
+  --switch-width: 42px;
+  --switch-height: 24px;
+  --switch-knob: 18px;
+  --switch-inset: 3px;
+
+  /* Motion (all off under prefers-reduced-motion: reduce) */
+  --motion-ring-draw: 1100ms;
+  --ease-ring-draw: cubic-bezier(0.3, 0.7, 0.2, 1);
+  --motion-toast: 280ms;
+  --ease-toast: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-switch: 150ms;
+  --toast-visible: 3400ms;
+
+  /*
+   * Legacy aliases. The current components still use these names; they map
+   * onto the refreshed values and are removed with the frontend refresh.
+   */
+  --surface-100: var(--pop);
+  --surface-200: var(--pop);
+  --surface-300: var(--line);
+  --ink-muted: var(--ink-2);
+  --saffron-text: var(--saffron);
+  --jade-text: var(--jade);
+  --accent-text: var(--accent);
+  --on-accent: var(--pop);
+  --ember: var(--ink);
+  --scrim: var(--pop);
+  --halo: var(--accent);
+  --gauge: var(--accent);
+  --gauge-danger: var(--accent);
+  --gauge-track: var(--line);
+  --font-display: var(--font-sans);
+  --text-display-size: var(--text-onboard-title-size);
+  --text-display-line: var(--text-onboard-title-line);
+  --text-display-weight: var(--weight-medium);
+  --text-title-line: 1.2;
+  --text-title-weight: var(--weight-medium);
+  --text-heading-size: var(--text-status-size);
+  --text-heading-line: 1.3;
+  --text-heading-weight: var(--weight-medium);
+  --text-body-weight: var(--weight-regular);
+  --text-caption-line: 1.4;
+  --text-caption-weight: var(--weight-regular);
+  --text-counter-size: var(--text-hero-size);
+  --text-counter-line: var(--text-hero-line);
+  --text-counter-weight: var(--weight-light);
+  --text-mono-size: var(--text-small-size);
+  --text-mono-line: 1.4;
+  --text-mono-weight: var(--weight-regular);
+  --text-wordmark-size: var(--text-brand-size);
+  --text-wordmark-line: 1.4;
+  --text-level-size: var(--text-row-size);
+  --text-level-line: 1.4;
+  --text-strong-weight: var(--weight-medium);
+  --space-8: 32px;
+  --radius-sm: var(--radius-toast);
+  --radius-md: var(--radius-popup);
+  --radius-lg: var(--radius-popup);
+  --radius-pill: 999px;
+  --popup-padding: var(--popup-padding-x);
   --popup-gap: var(--space-3);
   --card-padding: var(--space-3);
-  --card-padding-lg: var(--space-4); /* halo gauge card */
+  --card-padding-lg: var(--space-4);
   --hit-target: 44px;
-  --header-height: 44px;
-  --logo-size: 36px;
-  --gauge-size: 132px;
-  --gauge-radius: 58px; /* in the 132 x 132 viewBox */
-  --gauge-stroke: 10px;
-  --bar-height: 8px;
-  --bar-height-sm: 6px;
+  --header-height: var(--top-row-height);
+  --logo-size: var(--brand-mark-size);
+  --logo-size-lg: var(--onboard-mark-size);
+  --gauge-size: var(--ring-size);
+  --gauge-radius: var(--ring-radius);
+  --gauge-stroke: var(--ring-stroke);
+  --bar-height-sm: var(--bar-height);
   --badge-size: 36px;
-  --badge-border: 3px;
-  --logo-size-lg: 128px; /* logo mark on the level-up screen */
-
-  /* Icons: line icons, round caps and joins */
+  --badge-border: var(--accent-rule);
   --icon-stroke: 1.75;
   --icon-size: 20px;
   --icon-size-sm: 16px;
   --icon-size-xs: 12px;
 }
 
-/* Light theme: prepared for later, not shipped in v0.1 */
-:root[data-theme="light"] {
-  color-scheme: light;
-  --surface-100: #fbf6ee;
-  --surface-200: #f2eadc;
-  --surface-300: #e7dcc8;
-  --line: #cdbfa6;
-  --ink: #221c16;
-  --ink-muted: #665c52;
-  --saffron: #f5a142;
-  --saffron-text: #8f4808;
-  --jade: #3faf7e;
-  --jade-text: #266849;
-  --on-accent: #1a1206;
-  --ember: #b3261e;
-  --scrim: rgba(251, 246, 238, 0.94);
-  --shadow-popup: 0 12px 32px rgba(34, 28, 22, 0.14);
+/* Dark theme: follows the OS unless data-theme="light" forces light */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #131715;
+    --pop: #1d2220;
+    --ink: #e8e7e0;
+    --ink-2: #98a09b;
+    --line: #363e3a;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #131715;
+  --pop: #1d2220;
+  --ink: #e8e7e0;
+  --ink-2: #98a09b;
+  --line: #363e3a;
 }
 
 /* Modes */
 :root[data-mode="max"] {
   --accent: var(--saffron);
-  --accent-text: var(--saffron-text);
-  --halo: var(--saffron);
 }
 
 :root[data-mode="diy"] {
   --accent: var(--jade);
-  --accent-text: var(--jade-text);
-  --halo: var(--jade);
 }
