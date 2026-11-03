@@ -68,6 +68,7 @@ export const LimitData = forwardRef<HTMLElement, LimitDataProps>(function LimitD
   const command = setup.state === "ready" ? setup.setup.statuslineCommand : null;
   // A quoted path needs the call operator in PowerShell, which Git Bash can't parse.
   const powerShellAlternative = platform === "windows" && command !== null && command.startsWith('"');
+  const settingsPath = platform === "windows" ? "%USERPROFILE%\\.claude\\settings.json" : "~/.claude/settings.json";
 
   return (
     <section ref={ref} className="limit-data" aria-labelledby="settings-limit-data">
@@ -76,8 +77,8 @@ export const LimitData = forwardRef<HTMLElement, LimitDataProps>(function LimitD
       </span>
       <StatusLine limits={limits} />
       <p className="caption">
-        Limits come from Claude Code’s status line. Local only, no login. Add this to{" "}
-        <span className="limit-data__path">~/.claude/settings.json</span>:
+        Limits come from Claude Code’s status line. Local only, no login. Open{" "}
+        <span className="limit-data__path">{settingsPath}</span>, create it if missing, and add this:
       </p>
 
       {setup.state === "loading" ? null : setup.state === "failed" ? (
@@ -91,6 +92,11 @@ export const LimitData = forwardRef<HTMLElement, LimitDataProps>(function LimitD
       ) : (
         <>
           <SnippetCard text={snippetFor(command)} copyLabel="Copy snippet" />
+          <p className="caption">
+            File already has settings? Put <span className="limit-data__path">"statusLine"</span> at the top
+            level next to them and end the key before it with a comma. Already has a{" "}
+            <span className="limit-data__path">"statusLine"</span>? Replace it, or keep your script (below).
+          </p>
           {powerShellAlternative ? (
             <>
               <p className="caption">No Git Bash? Claude Code then uses PowerShell. Use this one instead:</p>
