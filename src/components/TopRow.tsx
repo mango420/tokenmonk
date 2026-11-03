@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BrandMark } from "./BrandMark";
+import { LogoMark } from "./LogoMark";
 
 interface TopRowProps {
   /** Brand on the left (main screens); sub-screens hold only their link. */
@@ -14,7 +14,7 @@ export function TopRow({ brand = false, children }: TopRowProps) {
     <header className="top-row" data-tauri-drag-region="deep">
       {brand ? (
         <div className="brand">
-          <BrandMark size={26} />
+          <LogoMark ratio={null} />
           <span>Tokenmonk</span>
         </div>
       ) : null}

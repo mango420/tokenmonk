@@ -280,6 +280,13 @@ html[data-maximized] .popup {
   display: block;
 }
 
+/* The monk mark in the top row: track only, static. */
+.brand .logo-mark {
+  flex: none;
+  width: var(--brand-mark-size);
+  height: var(--brand-mark-size);
+}
+
 /* Text link: `ink-2`, `ink` on hover, 6 px above and below. */
 .link {
   padding: var(--gap-6) 0;
