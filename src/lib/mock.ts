@@ -63,7 +63,7 @@ function snapshot(patch: Partial<DashboardSnapshot>): DashboardSnapshot {
     generatedAt: NOW,
     today: tokens(184_230),
     session: session(38_912),
-    burnRate: { tokensPerMinute: 1_240, windowMinutes: 10, limitEtaMinutes: 41 },
+    burnRate: { tokensPerMinute: 1_240, windowMinutes: 15, limitEtaMinutes: 41 },
     limits: {
       status: "ok",
       reason: null,
@@ -269,7 +269,7 @@ const noLogsSnapshot = (): DashboardSnapshot =>
   snapshot({
     today: tokens(0),
     session: null,
-    burnRate: { tokensPerMinute: 0, windowMinutes: 10, limitEtaMinutes: null },
+    burnRate: { tokensPerMinute: 0, windowMinutes: 15, limitEtaMinutes: null },
     limits: noLimits,
     data: noLogsData,
   });
@@ -349,7 +349,7 @@ const buildScenarios = () => ({
     settings: maxSettings,
     appInfo,
     dashboard: snapshot({
-      burnRate: { tokensPerMinute: 2_900, windowMinutes: 10, limitEtaMinutes: 7 },
+      burnRate: { tokensPerMinute: 2_900, windowMinutes: 15, limitEtaMinutes: 7 },
       limits: {
         status: "ok",
         reason: null,
