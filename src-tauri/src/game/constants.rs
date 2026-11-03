@@ -42,31 +42,16 @@ pub const LEVEL_STEP_XP: u64 = 230;
 
 // --- Titles --------------------------------------------------------------
 
-/// `(first level, title)`, ascending. A title holds until the next tier.
-pub const TITLES_MAX: [(u32, &str); 7] = [
-    (1, "Token Sprout"),
-    (3, "Token Page"),
-    (5, "Token Squire"),
-    (9, "Rate-Limit Rambo"),
-    (13, "Context Crusher"),
-    (18, "Burn Baron"),
-    (25, "Token Titan"),
-];
-
-pub const TITLES_DIY: [(u32, &str); 7] = [
-    (1, "Curious Pilgrim"),
-    (3, "Novice Monk"),
-    (6, "Quiet Scribe"),
-    (9, "Hand-Coding Hermit"),
-    (13, "Calm Maker"),
-    (18, "Silent Sage"),
-    (25, "Grand Token Monk"),
-];
+/// Title in Max it out (also before onboarding), at every level.
+pub const TITLE_MAX: &str = "Limit Chaser";
+/// Title in Do it yourself, at every level.
+pub const TITLE_DIY: &str = "Quiet Spender";
 
 // --- Achievements --------------------------------------------------------
 
-/// Night Owl window, local time, start inclusive, end exclusive.
-pub const NIGHT_START_HOUR: u32 = 2;
+/// Night Owl window ("coding after midnight"), local time, start inclusive,
+/// end exclusive.
+pub const NIGHT_START_HOUR: u32 = 0;
 pub const NIGHT_END_HOUR: u32 = 4;
 
 /// Rate-Limit Rambo: a 5-hour reading at or above this percentage.
@@ -78,13 +63,11 @@ pub const SO_CLOSE_PERCENT: f64 = 99.0;
 /// window (the reset timestamp jitters by milliseconds between readings).
 pub const WINDOW_BUCKET_MS: i64 = 60_000;
 
-/// Token Monk: a finished day counts when its budget usage is below this
-/// percentage ...
-pub const TOKEN_MONK_PERCENT: f64 = 20.0;
-/// ... and it takes this many such days in a row.
-pub const TOKEN_MONK_DAYS: u32 = 7;
-/// Calendar days the caller supplies per evaluation so a streak can be found:
-/// the streak target plus the days a missed evaluation can skip.
+/// Token Monk: one finished day with a daily budget counts when its budget
+/// usage is below this percentage.
+pub const TOKEN_MONK_BELOW_PERCENT: f64 = 100.0;
+/// Calendar days the caller supplies per evaluation (live), so a finished day
+/// is still seen when an evaluation was missed.
 pub const STREAK_LOOKBACK_DAYS: u32 = 14;
 
 /// Newest unlocks carried in `GameState::recent_unlocks`.
@@ -109,16 +92,16 @@ pub const ACHIEVEMENTS: [AchievementDef; 6] = [
     AchievementDef {
         id: AchievementId::FirstBlood,
         name: "First Blood",
-        description: "Burn your first tokens.",
+        description: "Your first token, spent.",
         secret: false,
         mode: None,
-        xp: 25,
+        xp: 10,
         target: None,
     },
     AchievementDef {
         id: AchievementId::NightOwl,
         name: "Night Owl",
-        description: "Burn tokens between 02:00 and 04:00.",
+        description: "Coding after midnight.",
         secret: false,
         mode: Some(Mode::Max),
         xp: 50,
@@ -127,7 +110,7 @@ pub const ACHIEVEMENTS: [AchievementDef; 6] = [
     AchievementDef {
         id: AchievementId::RateLimitRambo,
         name: "Rate-Limit Rambo",
-        description: "Hit the 5-hour limit.",
+        description: "Hit the limit. On purpose, we assume.",
         secret: false,
         mode: Some(Mode::Max),
         xp: 100,
@@ -136,20 +119,20 @@ pub const ACHIEVEMENTS: [AchievementDef; 6] = [
     AchievementDef {
         id: AchievementId::SoClose,
         name: "So Close",
-        description: "Stop at 99 % of the 5-hour limit.",
+        description: "Stopped at 99 percent. Restraint or luck.",
         secret: false,
         mode: Some(Mode::Max),
-        xp: 100,
+        xp: 60,
         target: None,
     },
     AchievementDef {
         id: AchievementId::TokenMonk,
         name: "Token Monk",
-        description: "Stay under 20 % of your daily budget for 7 days in a row.",
+        description: "A full day under budget.",
         secret: false,
         mode: Some(Mode::Diy),
         xp: 150,
-        target: Some(TOKEN_MONK_DAYS),
+        target: None,
     },
     AchievementDef {
         id: AchievementId::Boo,

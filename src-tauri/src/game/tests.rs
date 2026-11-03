@@ -116,12 +116,16 @@ fn none_yet_awards_nothing() {
 fn first_blood_and_night_owl_with_local_detail() {
     let tz = FixedOffset::east_opt(3600).unwrap();
     let d = date(2026, 10, 28);
-    // 01:47 UTC is 02:47 local.
-    let ts = ms(2026, 10, 28, 1, 47);
+    // 23:47 UTC is 00:47 local (the next day), inside the midnight window.
+    let ts = ms(2026, 10, 27, 23, 47);
+    assert!(!in_night_window(ms(2026, 10, 28, 4, 0), &Utc));
     assert!(in_night_window(ts, &tz));
     assert!(!in_night_window(ts, &Utc));
     let usage = [(ts, 1_000u64), (ms(2026, 10, 28, 9, 0), 500)];
     let f = facts(vec![DayFacts::from_usage(d, usage, None, &tz)]);
+    // 03:59 and 04:00 local: the window ends at 04:00, exclusive.
+    assert!(in_night_window(ms(2026, 10, 28, 2, 59), &tz));
+    assert!(!in_night_window(ms(2026, 10, 28, 3, 0), &tz));
 
     let ev = evaluate(
         &GameData::default(),
@@ -136,11 +140,11 @@ fn first_blood_and_night_owl_with_local_detail() {
         vec![AchievementId::FirstBlood, AchievementId::NightOwl]
     );
     let owl = &ev.unlocks[1];
-    assert_eq!(owl.detail.as_deref(), Some("Tokens burned at 02:47"));
+    assert_eq!(owl.detail.as_deref(), Some("Coding at 00:47"));
     assert_eq!(owl.xp, 50);
     assert_eq!(owl.unlocked_at, ts);
     assert!(!owl.retroactive);
-    assert_eq!(ev.state.xp_total, 25 + 50);
+    assert_eq!(ev.state.xp_total, 10 + 50);
     assert_eq!(ev.state.recent_unlocks.len(), 2);
 }
 
@@ -267,68 +271,69 @@ fn a_day_stays_with_the_mode_that_earned_it() {
 }
 
 #[test]
-fn token_monk_counts_a_streak_and_unlocks_on_the_seventh_day() {
-    let mut store = MemoryStore::default();
+fn token_monk_is_one_finished_day_under_the_daily_budget() {
     let first = date(2026, 10, 1);
-    let calm = |i: u64| day(first + Days::new(i), 800, Some(5.0));
-
-    // Day 5 of the streak: today is day index 4, four finished days.
-    let days: Vec<_> = (0..5).map(calm).collect();
-    let now = day_start_ms(first + Days::new(4), &Utc) + 12 * HOUR;
-    let ev = apply(&mut store, &facts(days), Mode::Diy, now, false);
-    let monk = ev
-        .state
-        .achievements
-        .iter()
-        .find(|a| a.id == AchievementId::TokenMonk)
-        .unwrap();
-    assert_eq!((monk.current, monk.target), (Some(4), Some(7)));
-    assert_eq!(
-        monk.progress_label.as_deref(),
-        Some("4 of 7 days under 20 %")
-    );
-    assert!(monk.unlocked_at.is_none());
-    assert!(!ev.unlocks.iter().any(|u| u.id == AchievementId::TokenMonk));
-    assert!(
-        ev.achievements
+    let monk = |ev: &Evaluation| {
+        ev.unlocks
             .iter()
-            .any(|r| r.id == AchievementId::TokenMonk && r.current == Some(4)),
-        "progress row is written"
+            .find(|u| u.id == AchievementId::TokenMonk)
+            .cloned()
+    };
+
+    // Today does not count, however calm it is so far.
+    let mut store = MemoryStore::default();
+    let now = day_start_ms(first, &Utc) + 12 * HOUR;
+    let ev = apply(
+        &mut store,
+        &facts(vec![day(first, 800, Some(5.0))]),
+        Mode::Diy,
+        now,
+        false,
     );
+    assert!(monk(&ev).is_none());
 
-    // A busy day breaks the run.
-    let mut days: Vec<_> = (0..5).map(calm).collect();
-    days.push(day(first + Days::new(5), 900_000, Some(80.0)));
-    days.push(calm(6));
-    let now = day_start_ms(first + Days::new(6), &Utc) + HOUR;
+    // A finished day without a budget, over budget, or idle does not count.
+    for d in [
+        day(first, 800, None),
+        day(first, 800, Some(100.0)),
+        day(first, 800, Some(130.0)),
+        day(first, 0, Some(0.0)),
+    ] {
+        let mut store = MemoryStore::default();
+        let now = day_start_ms(first + Days::new(1), &Utc) + HOUR;
+        let ev = apply(&mut store, &facts(vec![d]), Mode::Diy, now, false);
+        assert!(monk(&ev).is_none());
+    }
+
+    // One finished day at 99.9 % unlocks it at the end of that day.
+    let mut store = MemoryStore::default();
+    let days = vec![
+        day(first, 800, Some(99.9)),
+        day(first + Days::new(1), 800, Some(150.0)),
+    ];
+    let now = day_start_ms(first + Days::new(1), &Utc) + HOUR;
     let ev = apply(&mut store, &facts(days), Mode::Diy, now, false);
-    let monk = ev
-        .state
-        .achievements
-        .iter()
-        .find(|a| a.id == AchievementId::TokenMonk)
-        .unwrap();
-    assert_eq!(monk.current, Some(0));
-
-    // Seven calm finished days in a row.
-    let days: Vec<_> = (0..9).map(calm).collect();
-    let now = day_start_ms(first + Days::new(8), &Utc) + HOUR;
-    let mut fresh = MemoryStore::default();
-    let ev = apply(&mut fresh, &facts(days), Mode::Diy, now, false);
-    let unlock = ev
-        .unlocks
-        .iter()
-        .find(|u| u.id == AchievementId::TokenMonk)
-        .expect("token monk");
+    let unlock = monk(&ev).expect("token monk");
     assert_eq!(unlock.xp, 150);
-    assert_eq!(unlock.unlocked_at, day_start_ms(first + Days::new(7), &Utc));
-    let monk = ev
+    assert_eq!(unlock.detail, None);
+    assert_eq!(unlock.unlocked_at, day_start_ms(first + Days::new(1), &Utc));
+    let state = ev
         .state
         .achievements
         .iter()
         .find(|a| a.id == AchievementId::TokenMonk)
         .unwrap();
-    assert_eq!(monk.current, Some(7));
+    assert_eq!((state.current, state.target), (None, None));
+    assert_eq!(state.progress_label, None);
+
+    // Max it out never earns it.
+    let mut store = MemoryStore::default();
+    let days = vec![
+        day(first, 800, Some(5.0)),
+        day(first + Days::new(1), 0, None),
+    ];
+    let ev = apply(&mut store, &facts(days), Mode::Max, now, false);
+    assert!(monk(&ev).is_none());
 }
 
 #[test]
@@ -350,10 +355,10 @@ fn level_up_reports_levels_and_title_change() {
     assert!(!up.title_changed);
     assert!(!up.retroactive);
     assert_eq!(ev.state.level, 2);
-    // 5 short of level 2, plus 10 for the block and 25 for First Blood.
-    assert_eq!(ev.state.xp_into_level, 30);
+    // 5 short of level 2, plus 10 for the block and 10 for First Blood.
+    assert_eq!(ev.state.xp_into_level, 15);
 
-    // 2 -> 3 changes the title ("Token Sprout" -> "Token Page").
+    // 2 -> 3 keeps the title: one per mode.
     let mut prev = GameData::default();
     prev.ledger.push(LedgerEntry {
         earned_at: 0,
@@ -366,8 +371,8 @@ fn level_up_reports_levels_and_title_change() {
     let ev = evaluate(&prev, &f, Mode::Max, ms(2026, 10, 28, 12, 0), &Utc, false);
     let up = ev.level_up.unwrap();
     assert_eq!(up.level, 3);
-    assert!(up.title_changed);
-    assert_eq!(up.title, "Token Page");
+    assert!(!up.title_changed);
+    assert_eq!(up.title, "Limit Chaser");
 }
 
 #[test]
