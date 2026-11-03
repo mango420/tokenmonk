@@ -6,7 +6,8 @@ A small tray app for macOS and Windows that shows your live Claude Code
 token usage and how much of your subscription limit is left, with a bit of
 gamification on top.
 
-Status: version 0.1.0 is in development. No release has been published yet.
+Status: early 0.x releases. Installers are on the
+[Releases page](https://github.com/mango420/tokenmonk/releases).
 
 ## What it does
 
@@ -26,7 +27,7 @@ Status: version 0.1.0 is in development. No release has been published yet.
 
 ## Screenshots
 
-Screenshots will be added with the first release.
+No screenshots yet.
 
 ## Privacy
 
@@ -50,9 +51,16 @@ Everything stays on your machine. No account, no login, no telemetry.
 
 ## Install
 
-Installers for macOS (universal: Apple silicon and Intel) and Windows will
-be attached to the GitHub Releases page of this repository once the first
-release is published.
+Download the installer for your system from the
+[latest release](https://github.com/mango420/tokenmonk/releases/latest)
+(all versions: [Releases page](https://github.com/mango420/tokenmonk/releases)):
+
+- macOS (universal: Apple silicon and Intel): `Tokenmonk_<version>_universal.dmg`
+- Windows: `Tokenmonk_<version>_x64-setup.exe`, or the `.msi` if you prefer
+  it
+
+Tokenmonk does not update itself yet. To update, download and install the
+newer release.
 
 The binaries are **not code-signed** with an Apple or Windows developer
 certificate, so both systems warn you the first time you open the app.

@@ -1,6 +1,6 @@
 # Architecture
 
-Tokenmonk v0.1 is a Tauri 2 tray app for macOS and Windows. Rust owns all
+Tokenmonk is a Tauri 2 tray app for macOS and Windows. Rust owns all
 data work; the React UI only renders snapshots and sends a few commands.
 
 Related documents: [DESIGN.md](DESIGN.md) (look and feel),

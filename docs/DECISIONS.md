@@ -33,7 +33,7 @@ Tauri plugins (Rust crate and matching npm package):
 
 | Plugin | Why |
 |---|---|
-| `updater` | In-app updates from GitHub releases |
+| `updater` | Registered for a later in-app update check (TKM-41); nothing calls it yet |
 | `process` | Relaunch after an update |
 | `notification` | Limit and milestone notifications |
 | `autostart` | Optional start at login |
@@ -106,6 +106,7 @@ Superseded: releases are cut through the release PR, see "Automatic versioning w
 ## v0.1 without updater artifacts (2026-10-31)
 
 - v0.1 ships without auto-update. The repository stays private, binaries are distributed by hand, and the in-app update check (#41) is deferred. No updater signing key exists and none is created for now.
+- Update (2026-11-03): the repository is public and the installers are published on GitHub Releases (v0.1.0 and v0.2.0). Still no auto-update, no signing key and no updater artifacts; the in-app update check stays deferred (TKM-41).
 - `release.yml` has one switch, the workflow-level `UPDATER_ARTIFACTS` (currently `'false'`). While off, the guard skips the signing-secret check and requires `bundle.createUpdaterArtifacts` to be unset or false; the build uploads no `latest.json` (`uploadUpdaterJson: false`) and no `.sig` files (`uploadUpdaterSignatures: false`). The tag and version consistency check and `guard.mjs --all` always run. The empty `plugins.updater.pubkey` stays and does no harm.
 - `bundle.macOS.signingIdentity` is `"-"` (ad-hoc signing, confirmed by the Tauri 2 macOS signing docs); users still approve the app once in Privacy & Security.
 - Switching updater artifacts back on: follow "Cutting a release" step 1 and "`tauri.conf.json` changes applied in the release phase" above (except the signing identity, already set), then set `UPDATER_ARTIFACTS: 'true'` in `release.yml`. The guard then requires both secrets, a non-empty pubkey and `createUpdaterArtifacts: true`.
@@ -133,7 +134,7 @@ Superseded: releases are cut through the release PR, see "Automatic versioning w
 - One release per version: merging the release PR makes release-please create the tag and a draft GitHub release with the changelog as notes (`draft: true`, `force-tag-creation: true`). `release.yml` (`tauri-action`, `releaseDraft: true`) runs on the tag, finds that draft by tag and only uploads the installers. Publishing the draft before both builds have finished makes `tauri-action` create a second release, so publish only afterwards.
 - Token: repository secret `RELEASE_PLEASE_TOKEN` (fine-grained PAT or GitHub App token, never in the repo). With it, the release PR runs CI and the tag push triggers `release.yml`. Without it the built-in `GITHUB_TOKEN` is used: events it creates trigger no workflows, so the release PR gets no CI checks, and a `dispatch-release` job (`actions: write`) runs `gh workflow run release.yml --ref <tag>` after a release is created. Without `RELEASE_PLEASE_TOKEN` the repository setting "Allow GitHub Actions to create and approve pull requests" must be on, otherwise release-please cannot open the release PR.
 - `CHANGELOG.md` is generated from now on: release-please prepends a `## [x.y.z]` section per release. It is not edited by hand and has no `[Unreleased]` section (release-please inserts above the first `## [` heading, so it would land above it). The hand-written `0.1.0` section stays as history. The generated notes contain mainly `feat`, `fix`, `perf`, `revert` and `deps` commits, plus breaking changes, so write user-visible changes as those types.
-- Carry-over: the Halloween removal was merged after `v0.1.0` as `refactor` commits and does not show up in the generated notes. Add it to the notes of the next draft release by hand before publishing: "Removed: Halloween season look and the ghost easter egg. Changed: Boo is now a legacy Halloween 2026 badge; existing unlocks stay, it can no longer be earned."
+- Carry-over: the Halloween removal was merged after `v0.1.0` as `refactor` commits and does not show up in the generated notes. Add it to the notes of the next draft release by hand before publishing: "Removed: Halloween season look and the ghost easter egg. Changed: Boo is now a legacy Halloween 2026 badge; existing unlocks stay, it can no longer be earned." Not done for v0.2.0 (published 2026-11-02 with the generated notes only); still open for the v0.3.0 draft.
 
 ### How to cut a release now
 
