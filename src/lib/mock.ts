@@ -73,7 +73,7 @@ function snapshot(patch: Partial<DashboardSnapshot>): DashboardSnapshot {
       weekly: { utilization: 41, resetsAt: WEEKLY_RESET },
       fetchedAt: NOW,
     },
-    dailyBudget: null,
+    dailyBudget: patch.limits?.status === "unavailable" ? null : budget(23, 1_100_000),
     data: ready,
     ...patch,
   };
@@ -89,16 +89,19 @@ const noLimits: DashboardSnapshot["limits"] = {
   fetchedAt: null,
 };
 
-function budget(usedPercent: number): NonNullable<DashboardSnapshot["dailyBudget"]> {
+function budget(
+  usedPercent: number,
+  tokensLeftPerDay: number | null = null,
+): NonNullable<DashboardSnapshot["dailyBudget"]> {
   const allowance = 50_000;
   return {
-    basis: "tokenHistory",
+    basis: tokensLeftPerDay === null ? "tokenHistory" : "weeklyLimit",
     allowance,
     usedToday: Math.round((allowance * usedPercent) / 100),
     usedPercent,
     daysLeft: 7,
     resetsAt: WEEKLY_RESET,
-    tokensLeftPerDay: null,
+    tokensLeftPerDay,
   };
 }
 
@@ -106,10 +109,10 @@ const achievements: AchievementProgress[] = [
   {
     id: "firstBlood",
     name: "First Blood",
-    description: "Burn your first tokens.",
+    description: "Your first token, spent.",
     secret: false,
     mode: null,
-    xp: 25,
+    xp: 10,
     unlockedAt: NOW - 20 * 24 * HOUR,
     current: null,
     target: null,
@@ -118,7 +121,7 @@ const achievements: AchievementProgress[] = [
   {
     id: "nightOwl",
     name: "Night Owl",
-    description: "Burn tokens between 02:00 and 04:00.",
+    description: "Coding after midnight.",
     secret: false,
     mode: "max",
     xp: 50,
@@ -130,7 +133,7 @@ const achievements: AchievementProgress[] = [
   {
     id: "rateLimitRambo",
     name: "Rate-Limit Rambo",
-    description: "Hit the 5-hour limit.",
+    description: "Hit the limit. On purpose, we assume.",
     secret: false,
     mode: "max",
     xp: 100,
@@ -142,10 +145,10 @@ const achievements: AchievementProgress[] = [
   {
     id: "soClose",
     name: "So Close",
-    description: "Stop at 99 % of the 5-hour limit.",
+    description: "Stopped at 99 percent. Restraint or luck.",
     secret: false,
     mode: "max",
-    xp: 100,
+    xp: 60,
     unlockedAt: null,
     current: null,
     target: null,
@@ -154,14 +157,14 @@ const achievements: AchievementProgress[] = [
   {
     id: "tokenMonk",
     name: "Token Monk",
-    description: "Stay under 20 % of the weekly limit for 7 days.",
+    description: "A full day under budget.",
     secret: false,
     mode: "diy",
     xp: 150,
     unlockedAt: null,
-    current: 4,
-    target: 7,
-    progressLabel: "4 of 7 days under 20 %",
+    current: null,
+    target: null,
+    progressLabel: null,
   },
   {
     id: "boo",
@@ -180,7 +183,7 @@ const achievements: AchievementProgress[] = [
 const maxGame: GameState = {
   mode: "max",
   level: 7,
-  title: "Token Squire",
+  title: "Limit Chaser",
   xpTotal: 6_440,
   xpIntoLevel: 1_240,
   xpForLevel: 1_850,
@@ -199,7 +202,7 @@ const maxGame: GameState = {
       id: "firstBlood",
       name: "First Blood",
       detail: null,
-      xp: 25,
+      xp: 10,
       unlockedAt: NOW - 20 * 24 * HOUR,
       retroactive: false,
     },
@@ -211,7 +214,7 @@ const maxGame: GameState = {
 const diyGame: GameState = {
   mode: "diy",
   level: 4,
-  title: "Novice Monk",
+  title: "Quiet Spender",
   xpTotal: 1_900,
   xpIntoLevel: 560,
   xpForLevel: 1_160,
@@ -222,7 +225,7 @@ const diyGame: GameState = {
       id: "firstBlood",
       name: "First Blood",
       detail: null,
-      xp: 25,
+      xp: 10,
       unlockedAt: NOW - 20 * 24 * HOUR,
       retroactive: false,
     },
@@ -236,7 +239,7 @@ const freshGame = (): GameState => ({
   ...maxGame,
   mode: "max",
   level: 1,
-  title: "Novice Monk",
+  title: "Limit Chaser",
   xpTotal: 0,
   xpIntoLevel: 0,
   xpForLevel: 100,
@@ -305,8 +308,8 @@ export const mockUnlock: AchievementUnlocked = {
 export const mockLevelUp: LevelUp = {
   level: 8,
   previousLevel: 7,
-  title: "Rate-Limit Rambo",
-  titleChanged: true,
+  title: "Limit Chaser",
+  titleChanged: false,
   retroactive: false,
 };
 
@@ -430,7 +433,7 @@ const buildScenarios = () => ({
     dashboard: snapshot({
       today: tokens(12_480),
       session: session(1_920),
-      dailyBudget: budget(23),
+      dailyBudget: budget(23, 480_000),
       limits: {
         status: "ok",
         reason: null,

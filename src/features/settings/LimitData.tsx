@@ -16,7 +16,7 @@ type Setup = { state: "loading" } | { state: "failed" } | { state: "ready"; setu
 function StatusLine({ limits }: { limits: LimitsView }) {
   if (limits.status !== "unavailable") {
     return (
-      <p className="label-strong">
+      <p className="limit-data__status">
         {limits.fetchedAt === null ? (
           "Connected."
         ) : (
@@ -32,7 +32,7 @@ function StatusLine({ limits }: { limits: LimitsView }) {
     limits.reason === "noSource" || limits.reason === null
       ? "Not set up yet."
       : "Can’t read the limit file. Next reply fixes it.";
-  return <p className="label-strong">{text}</p>;
+  return <p className="limit-data__status">{text}</p>;
 }
 
 function snippetFor(command: string): string {
@@ -71,7 +71,7 @@ export const LimitData = forwardRef<HTMLElement, LimitDataProps>(function LimitD
 
   return (
     <section ref={ref} className="limit-data" aria-labelledby="settings-limit-data">
-      <span id="settings-limit-data" className="caption">
+      <span id="settings-limit-data" className="label">
         Limit data
       </span>
       <StatusLine limits={limits} />

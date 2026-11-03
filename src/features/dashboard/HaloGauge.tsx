@@ -1,9 +1,7 @@
-import { useState } from "react";
-import { Card } from "../../components/Card";
-import { TextButton } from "../../components/TextButton";
-import type { GaugeModel } from "./model";
+import { useEffect, useState, type CSSProperties } from "react";
+import type { RingModel } from "./model";
 
-/** Reads a pixel token (for example `--gauge-size`) from the document root once. */
+/** Reads a pixel token (for example `--ring-size`) from the document root once. */
 function useTokenPx(name: string): number {
   const [value] = useState(() => {
     const raw = getComputedStyle(document.documentElement).getPropertyValue(name);
@@ -13,55 +11,87 @@ function useTokenPx(name: string): number {
   return value;
 }
 
+/** The arcs draw only the first time the dashboard shows them after start. */
+let ringDrawn = false;
+
+/** Hand-drawn wobble (docs/DESIGN.md, "Dashboard", ring). */
+const ROUGH_FILTER = "tokenmonk-rough";
+
+/** Inner arc length relative to the main arc. */
+const INNER_RATIO = 0.93;
+
 interface HaloGaugeProps {
-  model: GaugeModel;
-  /** Opens Settings at "Limit data". */
-  onOpenLimitSetup?: () => void;
+  model: RingModel;
 }
 
-/** Halo gauge card: ring with counter on the left, burn or mood text on the right. */
-export function HaloGauge({ model, onOpenLimitSetup }: HaloGaugeProps) {
-  const size = useTokenPx("--gauge-size");
-  const radius = useTokenPx("--gauge-radius");
-  const circumference = 2 * Math.PI * radius;
+/**
+ * The ring: dotted track, a main arc and an inner arc that drain as the window
+ * is used, the hero number in the centre. Never changes colour.
+ */
+export function HaloGauge({ model }: HaloGaugeProps) {
+  const size = useTokenPx("--ring-size");
+  const radius = useTokenPx("--ring-radius");
+  const innerRadius = useTokenPx("--ring-inner-radius");
   const centre = size / 2;
-  const filled = model.ratio !== null && model.ratio > 0;
+  const circumference = 2 * Math.PI * radius;
+
+  const left = model.percentLeft;
+  const arcs = left !== null && left > 0;
+  const length = arcs ? (circumference * Math.min(100, left)) / 100 : 0;
+
+  const [animate, setAnimate] = useState(() => !ringDrawn);
+  useEffect(() => {
+    if (arcs) ringDrawn = true;
+  }, [arcs]);
+
+  const arcClass = animate ? "ring__arc ring__arc--draw" : "ring__arc";
+  const gap = circumference.toFixed(1);
 
   return (
-    <Card className="gauge-card">
-      <div className="gauge">
-        <svg className="gauge__ring" viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
-          <circle className="gauge__track" cx={centre} cy={centre} r={radius} />
-          {filled && model.ratio !== null ? (
-            <circle
-              className={`gauge__fill${model.danger ? " gauge__fill--danger" : ""}`}
-              cx={centre}
-              cy={centre}
-              r={radius}
-              strokeDasharray={`${(circumference * model.ratio).toFixed(1)} ${circumference.toFixed(1)}`}
-              transform={`rotate(-90 ${centre} ${centre})`}
-            />
-          ) : null}
-        </svg>
-        <div className="gauge__centre">
-          <span className={`gauge__value live-number${model.stale ? " gauge__value--stale" : ""}`}>
-            {model.value}
-          </span>
-          <span className="gauge__caption">{model.caption}</span>
-        </div>
-      </div>
-      <div className="gauge-card__text">
-        <span className={`gauge-card__heading${model.headingAlert ? " gauge-card__heading--alert" : ""}`}>
-          {model.heading}
-        </span>
-        {model.detail !== null && model.detail.action === "openLimitSetup" ? (
-          <TextButton onClick={onOpenLimitSetup}>{model.detail.text}</TextButton>
-        ) : model.detail !== null ? (
-          <span className={`gauge-card__detail gauge-card__detail--${model.detail.tone}`}>
-            {model.detail.text}
-          </span>
+    <div className="ring" style={{ "--ring-gap": gap } as CSSProperties}>
+      <svg viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
+        <defs>
+          <filter id={ROUGH_FILTER} x="-10%" y="-10%" width="120%" height="120%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="4" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" />
+          </filter>
+        </defs>
+        <circle className="ring__track" cx={centre} cy={centre} r={radius} />
+        {arcs ? (
+          <g filter={`url(#${ROUGH_FILTER})`}>
+            <g transform={`rotate(-90 ${centre} ${centre})`}>
+              <circle
+                className={`${arcClass} ring__arc--main`}
+                cx={centre}
+                cy={centre}
+                r={radius}
+                strokeDasharray={`${length.toFixed(1)} ${gap}`}
+                onAnimationEnd={() => setAnimate(false)}
+              />
+              <circle
+                className={`${arcClass} ring__arc--inner`}
+                cx={centre}
+                cy={centre}
+                r={innerRadius}
+                strokeDasharray={`${(length * INNER_RATIO).toFixed(1)} ${gap}`}
+              />
+            </g>
+          </g>
         ) : null}
+      </svg>
+      <div className="ring__centre">
+        <div className="ring__hero-row">
+          <span
+            className={`ring__hero live-number${model.small ? " ring__hero--sm" : ""}${
+              model.stale ? " ring__hero--stale" : ""
+            }`}
+          >
+            {model.hero}
+          </span>
+          {model.unit === null ? null : <span className="ring__unit live-number">{model.unit}</span>}
+        </div>
+        <span className="ring__caption">{model.caption}</span>
       </div>
-    </Card>
+    </div>
   );
 }

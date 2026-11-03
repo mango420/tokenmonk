@@ -4,8 +4,13 @@
  * Each warning fires once per upward crossing: per 5-hour window
  * (`fiveHour.resetsAt`) for Max it out, per local day for the budget.
  */
-import { limitEtaText } from "../dashboard/model";
 import type { DashboardSnapshot, Mode } from "../../lib/contracts";
+
+/** "Limit in ~25 min at this pace": N rounded to 5, at least 5. */
+export function limitEtaText(etaMinutes: number): string {
+  const rounded = Math.max(5, Math.round(etaMinutes / 5) * 5);
+  return `Limit in ~${rounded} min at this pace`;
+}
 
 export interface OsNotice {
   title: string;

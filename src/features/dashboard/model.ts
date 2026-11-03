@@ -1,35 +1,26 @@
 /**
  * Pure view models for the popup dashboard. Copy and rules follow
- * docs/DESIGN.md (popup layout, limits unavailable and stale, achievement row).
- * "Now" is always `DashboardSnapshot.generatedAt`, so the output is a pure
- * function of the snapshot.
+ * docs/DESIGN.md (popup layout, note line, dashboard states). "Now" is always
+ * `DashboardSnapshot.generatedAt`, so the output is a pure function of the
+ * snapshot.
  */
-import type { Fill } from "../../components/ChoiceTile";
 import type {
-  AchievementId,
   DashboardSnapshot,
-  DataStatus,
   GameState,
-  LimitReason,
+  LimitWindow,
   LimitsView,
   Mode,
 } from "../../lib/contracts";
 import {
   clamp01,
   formatClock,
-  formatDuration,
+  formatCompact,
   formatInt,
-  formatPercent,
-  formatShort,
-  formatWeekdayClock,
+  formatResetIn,
+  percentLeft,
 } from "../../lib/format";
 
 export type PopupMode = "max" | "diy";
-
-/** Fill of a mode's tile and button. */
-export function modeFill(mode: PopupMode): Fill {
-  return mode === "diy" ? "jade" : "saffron";
-}
 
 /** Before onboarding (`noneYet`) the popup falls back to Max it out. */
 export function toPopupMode(mode: Mode): PopupMode {
@@ -41,365 +32,189 @@ export const MODE_LABEL: Record<PopupMode, string> = {
   diy: "Do it yourself",
 };
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const DANGER_MAX_PERCENT = 90;
-const CAREFUL_PERCENT = 75;
-
-// ------------------------------------------------------------------- gauge
-
-export type GaugeDetailTone = "muted" | "mono" | "xp" | "ember";
-
-export interface GaugeModel {
-  /** Counter text in the ring centre. */
-  value: string;
-  caption: string;
-  /** Ring fill 0..1; `null` shows the track only. */
-  ratio: number | null;
-  /** Ring switches to `--gauge-danger`. */
-  danger: boolean;
-  /** Last-known value; the counter is muted. */
-  stale: boolean;
-  /** Right column, heading style. */
-  heading: string;
-  /** Heading in `--ember` (logs unreadable). */
-  headingAlert?: boolean;
-  /** Right column, second line. */
-  detail: {
-    text: string;
-    tone: GaugeDetailTone;
-    /** Renders the text as a button that opens Settings at "Limit data". */
-    action?: "openLimitSetup";
-  } | null;
-}
-
-const REASON_CAPTION: Record<LimitReason, string> = {
-  noSource: "Hook up Claude Code’s status line in Settings.",
-  notSignedIn: "Not signed in to Claude.",
-  network: "Offline. Trying again in 5 min.",
-  invalidResponse: "The limit file talked nonsense. Next reply fixes it.",
-  other: "The limit file talked nonsense. Next reply fixes it.",
+export const MODE_DESCRIPTION: Record<PopupMode, string> = {
+  max: "Use the whole limit, every window.",
+  diy: "Use less. Keep it calm.",
 };
 
-function reasonDetail(reason: LimitReason | null): GaugeModel["detail"] {
-  if (reason === null) return null;
-  return reason === "noSource"
-    ? { text: REASON_CAPTION[reason], tone: "muted", action: "openLimitSetup" }
-    : { text: REASON_CAPTION[reason], tone: "muted" };
+/** The 5 hours / Week segment. */
+export type WindowChoice = "fiveHour" | "weekly";
+
+export const WINDOW_LABEL: Record<WindowChoice, string> = {
+  fiveHour: "5 hours",
+  weekly: "Week",
+};
+
+// -------------------------------------------------------------------- ring
+
+export interface RingModel {
+  /** Hero text in the ring centre. */
+  hero: string;
+  /** `%` after the hero; only with a percent hero. */
+  unit: string | null;
+  caption: string;
+  /** Percent left 0..100 for the arcs; `null` shows the track only. */
+  percentLeft: number | null;
+  /** Last-known value: the hero is `ink-2`. */
+  stale: boolean;
+  /** Smaller hero (tokens today instead of percent). */
+  small: boolean;
+  status: string;
+  /** Reset line; empty string keeps its height. */
+  reset: string;
 }
 
-function limitsAvailable(limits: LimitsView): boolean {
-  return limits.status !== "unavailable" && (limits.fiveHour !== null || limits.weekly !== null);
+const STATUS: Record<PopupMode, readonly [string, string, string, string]> = {
+  // 60 and more, 30 to 59, 10 to 29, below 10
+  max: ["Barely touched. Use it.", "Good pace.", "Nearly there. As planned.", "Almost gone. Make it count."],
+  diy: ["Light day. Nicely done.", "Mid-range. Breathe.", "Getting thin. Slow down.", "Nearly out. Go for a walk."],
+};
+
+/** Status line under the ring from percent left and the mode. */
+export function statusLine(mode: PopupMode, left: number): string {
+  const lines = STATUS[mode];
+  if (left >= 60) return lines[0];
+  if (left >= 30) return lines[1];
+  if (left >= 10) return lines[2];
+  return lines[3];
 }
 
-/** "Limit in ~25 min at this pace": N rounded to 5, at least 5. */
-export function limitEtaText(etaMinutes: number): string {
-  const rounded = Math.max(5, Math.round(etaMinutes / 5) * 5);
-  return `Limit in ~${rounded} min at this pace`;
+/** `limits.status = unavailable`: no limit data at all. */
+export function hasNoLimitData(limits: LimitsView): boolean {
+  return limits.status === "unavailable";
 }
 
-function burnLine(percent: number, etaMinutes: number | null): string {
-  if (percent >= 100 || etaMinutes === 0) return "Limit reached. Breathe.";
-  if (etaMinutes === null) return "Nothing burning right now.";
-  return limitEtaText(etaMinutes);
+export function selectedWindow(limits: LimitsView, choice: WindowChoice): LimitWindow | null {
+  return choice === "fiveHour" ? limits.fiveHour : limits.weekly;
 }
 
-function moodLine(usedPercent: number): string {
-  if (usedPercent <= 0) return "No AI yet today. Pure so far.";
-  if (usedPercent > 100) return "Over budget. The AI wins today.";
-  if (usedPercent >= CAREFUL_PERCENT) return "Careful. The AI is creeping in.";
-  const left = Math.max(0, 100 - Math.round(usedPercent));
-  return `Calm. ${left} % of today’s budget left.`;
+function tokensRing(snap: DashboardSnapshot, status: string): RingModel {
+  return {
+    hero: formatCompact(snap.today.total),
+    unit: null,
+    caption: "tokens today",
+    percentLeft: null,
+    stale: false,
+    small: true,
+    status,
+    reset: "",
+  };
 }
 
-function maxGauge(snap: DashboardSnapshot): GaugeModel {
-  const { limits, burnRate } = snap;
-  const fiveHour = limits.fiveHour;
-  if (limitsAvailable(limits) && fiveHour === null) {
-    // Fresh 5-hour window: the old one reset, no reading has arrived since.
-    return {
-      value: formatShort(burnRate.tokensPerMinute),
-      caption: "tokens / min",
-      ratio: null,
-      danger: false,
-      stale: false,
-      heading: "Fresh window.",
-      detail: { text: "Numbers on your next reply.", tone: "muted" },
-    };
-  }
-  if (!limitsAvailable(limits) || fiveHour === null) {
-    return {
-      value: formatShort(burnRate.tokensPerMinute),
-      caption: "tokens / min",
-      ratio: null,
-      danger: false,
-      stale: false,
-      heading: "No limit data. Running on tokens.",
-      detail: reasonDetail(limits.reason),
-    };
-  }
+export function buildRing(mode: PopupMode, snap: DashboardSnapshot, choice: WindowChoice): RingModel {
+  const { limits } = snap;
+  if (hasNoLimitData(limits)) return tokensRing(snap, "No limit data. Showing tokens only.");
+  const window = selectedWindow(limits, choice);
+  if (window === null) return tokensRing(snap, "Fresh window. Numbers on your next reply.");
+
+  const left = percentLeft(window.utilization);
   const stale = limits.status === "stale";
-  let detailText: string | null = null;
-  if (stale && limits.fetchedAt !== null) {
-    detailText = `As of ${formatClock(limits.fetchedAt)}. Updates on your next reply.`;
-  } else if (fiveHour.resetsAt !== null) {
-    detailText = `Resets in ${formatDuration(fiveHour.resetsAt - snap.generatedAt)}`;
+  let reset = "";
+  if (stale) {
+    if (limits.fetchedAt !== null) {
+      reset = `As of ${formatClock(limits.fetchedAt)}. Updates on your next reply.`;
+    }
+  } else if (window.resetsAt !== null) {
+    reset = `Resets in ${formatResetIn(window.resetsAt - snap.generatedAt)}`;
   }
   return {
-    value: formatPercent(fiveHour.utilization),
-    caption: "5h limit",
-    ratio: clamp01(fiveHour.utilization / 100),
-    danger: fiveHour.utilization >= DANGER_MAX_PERCENT,
+    hero: String(left),
+    unit: "%",
+    caption: "left",
+    percentLeft: left,
     stale,
-    heading: burnLine(fiveHour.utilization, burnRate.limitEtaMinutes),
-    detail: detailText === null ? null : { text: detailText, tone: "muted" },
+    small: false,
+    status: statusLine(mode, left),
+    reset,
   };
 }
 
-function diyGauge(snap: DashboardSnapshot, game: GameState): GaugeModel {
-  const budget = snap.dailyBudget;
-  if (budget === null) {
-    return {
-      value: formatShort(snap.today.total),
-      caption: "tokens today",
-      ratio: null,
-      danger: false,
-      stale: false,
-      heading: "Learning your normal.",
-      detail: { text: "A budget needs a few days of history.", tone: "muted" },
-    };
-  }
-  const over = budget.usedPercent > 100;
-  let detail: GaugeModel["detail"] = null;
-  if (over) {
-    detail = { text: "+0 XP today", tone: "ember" };
-  } else if (game.dailyXpPreview !== null) {
-    detail = { text: `+${formatInt(game.dailyXpPreview)} XP if you stop now`, tone: "xp" };
-  }
-  return {
-    value: formatPercent(budget.usedPercent),
-    caption: "of today’s budget",
-    ratio: clamp01(budget.usedPercent / 100),
-    danger: over,
-    stale: snap.limits.status === "stale" && budget.basis === "weeklyLimit",
-    heading: moodLine(budget.usedPercent),
-    detail,
-  };
-}
+// ------------------------------------------------------------------- stats
 
-/** Import progress 0..1 while importing (0 without files), otherwise `null`. */
-export function importRatio(data: DataStatus): number | null {
-  if (data.state !== "importing") return null;
-  return data.filesTotal > 0 ? clamp01(data.filesDone / data.filesTotal) : 0;
-}
-
-/** First-start log import: both modes, never danger (DESIGN.md, "First-start import"). */
-function importGauge(data: DataStatus): GaugeModel {
-  const ratio = importRatio(data) ?? 0;
-  return {
-    value: formatPercent(ratio * 100),
-    caption: "logs read",
-    ratio,
-    danger: false,
-    stale: false,
-    heading: "Reading your history.",
-    detail: {
-      text: `${formatInt(data.filesDone)} / ${formatInt(data.filesTotal)} files`,
-      tone: "mono",
-    },
-  };
-}
-
-function noLogsGauge(): GaugeModel {
-  return {
-    value: "0",
-    caption: "tokens today",
-    ratio: null,
-    danger: false,
-    stale: false,
-    heading: "No logs yet.",
-    detail: { text: "Start a Claude Code session. I pick it up by myself.", tone: "muted" },
-  };
-}
-
-function logErrorGauge(snap: DashboardSnapshot): GaugeModel {
-  return {
-    value: formatShort(snap.today.total),
-    caption: "tokens today",
-    ratio: null,
-    danger: false,
-    stale: false,
-    heading: "Can’t read the logs.",
-    headingAlert: true,
-    detail: { text: "Retrying in the background.", tone: "muted" },
-  };
-}
-
-export function buildGauge(mode: PopupMode, snap: DashboardSnapshot, game: GameState): GaugeModel {
-  switch (snap.data.state) {
-    case "importing":
-      return importGauge(snap.data);
-    case "noLogs":
-      return noLogsGauge();
-    case "error":
-      return logErrorGauge(snap);
-    case "ready":
-      return mode === "max" ? maxGauge(snap) : diyGauge(snap, game);
-  }
-}
-
-// ------------------------------------------------------------- stat tiles
-
-export interface StatTile {
+export interface StatModel {
   label: string;
   value: string;
-  /** Muted value such as "Idle". */
-  muted?: boolean;
+  unit: string;
 }
 
-export function buildStatTiles(snap: DashboardSnapshot): StatTile[] {
+export function buildStats(snap: DashboardSnapshot): StatModel[] {
+  const left = snap.dailyBudget?.tokensLeftPerDay ?? null;
   return [
-    { label: "Tokens today", value: formatInt(snap.today.total) },
-    snap.session === null
-      ? { label: "This session", value: "Idle", muted: true }
-      : { label: "This session", value: formatInt(snap.session.tokens.total) },
+    {
+      label: "Burn rate",
+      value: formatCompact(snap.burnRate.tokensPerMinute),
+      unit: "tokens per minute",
+    },
+    left === null
+      ? { label: "Daily budget", value: "n/a", unit: "needs limit data" }
+      : { label: "Daily budget", value: formatCompact(left), unit: "tokens left per day" },
   ];
 }
 
-// ------------------------------------------------------------ weekly card
-
-export interface WeeklyModel {
-  label: string;
-  /** `n/a` without limit data. */
-  value: string;
-  ratio: number | null;
-  caption: string;
-  /** The caption is a button that opens Settings at "Limit data". */
-  action?: "openLimitSetup";
-}
-
-export function buildWeekly(mode: PopupMode, limits: LimitsView): WeeklyModel {
-  const label = mode === "max" ? "Weekly limit" : "Weekly limit used";
-  const weekly = limits.weekly;
-  if (weekly === null) {
-    if (limits.reason === "noSource") {
-      return {
-        label,
-        value: "n/a",
-        ratio: null,
-        caption: "No limit data yet. Setup is in Settings.",
-        action: "openLimitSetup",
-      };
-    }
-    return {
-      label,
-      value: "n/a",
-      ratio: null,
-      caption: "No limit data. Token stats still count.",
-    };
-  }
-  const parts: string[] = [];
-  if (mode === "diy") parts.push("Lower is better here.");
-  if (weekly.resetsAt !== null) parts.push(`Resets ${formatWeekdayClock(weekly.resetsAt)}`);
-  return {
-    label,
-    value: formatPercent(weekly.utilization),
-    ratio: clamp01(weekly.utilization / 100),
-    caption: parts.join(" "),
-  };
-}
-
-// ------------------------------------------------------------- level card
+// ------------------------------------------------------------- level block
 
 export interface LevelModel {
-  heading: string;
   title: string;
-  /** `null` shows the track only (old XP still being counted). */
+  /** "340 / 500 XP"; `null` while old XP is being counted. */
+  xp: string | null;
+  /** "Level 7", or the replay line. */
+  line: string;
+  /** `null` shows the track only. */
   ratio: number | null;
-  caption: string;
-  /** Plain muted caption instead of the mono XP line. */
-  counting: boolean;
 }
 
 export function buildLevel(game: GameState): LevelModel {
   if (!game.retroDone) {
-    return {
-      heading: `Level ${game.level}`,
-      title: game.title,
-      ratio: null,
-      caption: "Counting old XP. Hold still.",
-      counting: true,
-    };
+    return { title: game.title, xp: null, line: "Counting old XP. Hold still.", ratio: null };
   }
   return {
-    heading: `Level ${game.level}`,
     title: game.title,
+    xp: `${formatInt(game.xpIntoLevel)} / ${formatInt(game.xpForLevel)} XP`,
+    line: `Level ${game.level}`,
     ratio: clamp01(game.progress),
-    caption: `${formatInt(game.xpIntoLevel)} / ${formatInt(game.xpForLevel)} XP to level ${game.level + 1}`,
-    counting: false,
   };
 }
 
-// ---------------------------------------------------------- achievement row
+// -------------------------------------------------------------------- note
 
-export type AchievementRowModel =
-  | { kind: "unlocked"; id: AchievementId; name: string; detail: string | null; xp: number }
-  | { kind: "progress"; id: AchievementId; name: string; ratio: number; caption: string; mono: boolean }
-  | { kind: "next"; id: AchievementId; name: string; caption: string };
+/** A piece of the note line; numbers are mono. */
+export type NoteSegment = { text: string; mono?: boolean };
 
-/** Boo is no longer findable; it only survives as the Halloween 2026 badge. */
-const BOO_BADGE_NAME = "Halloween 2026";
+export type NoteModel =
+  | { kind: "text"; segments: NoteSegment[] }
+  | { kind: "limitSetup"; text: string };
 
-/** Picks the single achievement to show (DESIGN.md, "Achievement row rule"). */
-export function buildAchievementRow(game: GameState, now: number): AchievementRowModel | null {
-  if (!game.retroDone) return null;
+const NO_NOTE: NoteModel = { kind: "text", segments: [] };
 
-  const unlocked = (u: GameState["recentUnlocks"][number]): AchievementRowModel => ({
-    kind: "unlocked",
-    id: u.id,
-    name: u.id === "boo" ? BOO_BADGE_NAME : u.name,
-    detail: u.detail,
-    xp: u.xp,
-  });
-
-  const latest = game.recentUnlocks[0];
-  if (latest !== undefined && now - latest.unlockedAt <= DAY_MS) return unlocked(latest);
-
-  const eligible = game.achievements.filter(
-    (a) => a.unlockedAt === null && !a.secret && (a.mode === null || a.mode === game.mode),
-  );
-
-  let best: { ratio: number; row: AchievementRowModel } | null = null;
-  for (const a of eligible) {
-    if (a.current === null || a.target === null || a.target <= 0) continue;
-    const ratio = clamp01(a.current / a.target);
-    if (best === null || ratio > best.ratio) {
-      best = {
-        ratio,
-        row: {
-          kind: "progress",
-          id: a.id,
-          name: a.name,
-          ratio,
-          caption: a.progressLabel ?? `${formatInt(a.current)} / ${formatInt(a.target)}`,
-          mono: a.progressLabel === null,
-        },
-      };
-    }
+/** One line, first match wins (docs/DESIGN.md, "Note line"). */
+export function buildNote(snap: DashboardSnapshot): NoteModel {
+  const { data, limits } = snap;
+  if (data.state === "importing") {
+    return {
+      kind: "text",
+      segments: [
+        { text: "Reading logs, " },
+        { text: formatInt(data.filesDone), mono: true },
+        { text: " of " },
+        { text: formatInt(data.filesTotal), mono: true },
+        { text: " files." },
+      ],
+    };
   }
-  if (best !== null) return best.row;
-
-  const next = eligible[0];
-  if (next !== undefined) {
-    return { kind: "next", id: next.id, name: next.name, caption: next.description };
+  if (data.state === "noLogs") {
+    return { kind: "text", segments: [{ text: "No Claude Code logs yet. Start a session." }] };
   }
-
-  return latest === undefined ? null : unlocked(latest);
-}
-
-// ------------------------------------------------------------------ footer
-
-export function footerNote(limits: LimitsView): string {
-  return limitsAvailable(limits)
-    ? "Limit % includes claude.ai chats · token stats from Claude Code only"
-    : "No limit data · token stats from Claude Code only";
+  if (data.state === "error") {
+    return { kind: "text", segments: [{ text: "Can’t read the logs. Retrying in the background." }] };
+  }
+  if (limits.reason === "noSource") {
+    return { kind: "limitSetup", text: "No limit data yet. Setup is in Settings." };
+  }
+  if (!hasNoLimitData(limits)) {
+    return {
+      kind: "text",
+      segments: [{ text: "Limit % includes claude.ai chats. Token stats are Claude Code only." }],
+    };
+  }
+  return NO_NOTE;
 }

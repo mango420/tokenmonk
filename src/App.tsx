@@ -1,7 +1,8 @@
 import { useCallback, useLayoutEffect, useState } from "react";
-import { PrimaryButton } from "./components/PrimaryButton";
+import { TextLink } from "./components/TextLink";
 import { Popup } from "./components/Popup";
 import { ScenarioSwitch } from "./dev/ScenarioSwitch";
+import { AchievementsView } from "./features/achievements/AchievementsView";
 import { Dashboard } from "./features/dashboard/Dashboard";
 import { useGameNotices } from "./features/game";
 import { Header } from "./features/dashboard/Header";
@@ -58,40 +59,43 @@ export default function App() {
   let screen;
   if (app.phase !== "ready") {
     screen = (
-      <>
-        <Header mode={null} haloRatio={null} />
+      <div className="screen">
+        <Header />
         {app.phase === "error" ? (
-          <div className="screen screen--status">
-            <p className="screen__lead">Couldn’t load that. Try again.</p>
-            <PrimaryButton onClick={app.retry}>Try again</PrimaryButton>
+          <div className="screen__status">
+            <p className="status status--left">Couldn’t load that. Try again.</p>
+            <TextLink onClick={app.retry}>Try again</TextLink>
           </div>
         ) : null}
-      </>
+      </div>
     );
   } else if (view === "onboarding") {
-    screen = <Onboarding data={data} onChoose={actions.completeOnboarding} />;
+    screen = <Onboarding onChoose={actions.completeOnboarding} />;
   } else if (view === "settings") {
-    screen = <SettingsView
+    screen = (
+      <SettingsView
         data={data}
         actions={actions}
         onBack={backToDashboard}
         scrollToLimits={limitsTarget}
-      />;
+      />
+    );
+  } else if (view === "achievements") {
+    screen = <AchievementsView game={data.game} onBack={backToDashboard} />;
   } else {
     screen = (
       <Dashboard
         data={data}
         onOpenSettings={() => open("settings")}
         onOpenLimitSetup={() => open("settings", true)}
+        onOpenAchievements={() => open("achievements")}
       />
     );
   }
 
   return (
     <div className="stage">
-      <Popup
-        overlay={notices.node}
-      >{screen}</Popup>
+      <Popup overlay={notices.node}>{screen}</Popup>
       {import.meta.env.DEV && usesMockData ? (
         <ScenarioSwitch
           value={scenario}
