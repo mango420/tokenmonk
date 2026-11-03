@@ -70,6 +70,24 @@ const PHRASES = [
   { re: new RegExp('sk-' + 'ant-' + '[A-Za-z0-9_-]{8,}'), why: 'API key' },
 ];
 
+// Commit-message lines that are removed before the message is scanned.
+// GitHub appends this trailer when a maintainer squash-merges a PR whose
+// commits the Actions bot authored (release-please, register refresh). It names
+// the GitHub Actions bot, not an assistant, so it is the one co-author trailer
+// allowed. Matched as a whole line; every other co-author trailer stays blocked.
+const ALLOWED_MESSAGE_LINES = [
+  new RegExp(
+    '^' + 'Co-' + 'authored-' + 'by: ' +
+      escapeRe('github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>') +
+      '[ \\t]*$',
+    'gim',
+  ),
+];
+
+function stripAllowedLines(text) {
+  return ALLOWED_MESSAGE_LINES.reduce((t, re) => t.replace(re, ''), text);
+}
+
 // Placeholder user names that may appear in synthetic example paths.
 const PLACEHOLDER_USERS = new Set([
   'example', 'user', 'username', 'you', 'me', 'runner', 'test', 'dev', 'alice', 'bob',
@@ -134,7 +152,7 @@ function checkContent(label, buf) {
 }
 
 function checkMessage(label, text) {
-  for (const why of scanText(text)) problems.push(`commit message ${label}: ${why}`);
+  for (const why of scanText(stripAllowedLines(text))) problems.push(`commit message ${label}: ${why}`);
 }
 
 function readBlob(spec) {
