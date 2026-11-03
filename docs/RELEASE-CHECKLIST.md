@@ -1,5 +1,10 @@
 # Release checklist
 
+Run it twice per release: first on the installer from the `dev` test-build
+artifact, before the promotion PR, then on the draft release from `main`,
+before publishing ([RELEASE-FLOW.md](RELEASE-FLOW.md), "Test build" and
+"Draft test").
+
 Manual test of an installed **draft** build, run before the draft is
 published ([RELEASE-FLOW.md](RELEASE-FLOW.md)). Work through the list once
 on macOS and once on Windows. Every item must pass on both platforms; a

@@ -1,123 +1,220 @@
 # Release flow
 
 How a change gets from a pull request to a published release, and where the
-release gate sits. Related: [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md)
-(the manual test), [DECISIONS.md](DECISIONS.md) ("Automatic versioning with
-release-please", "Release ownership", "v0.1 without updater artifacts").
+gates sit. Related: [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) (the manual
+test), [DECISIONS.md](DECISIONS.md) ("Dev and main branches", "Automatic
+versioning with release-please", "Release ownership", "v0.1 without updater
+artifacts").
+
+Status: this flow takes effect when step 5 of the [cutover plan](#cutover-plan)
+is done. Until then PRs still target `main` as before.
 
 ## Principles
 
-- `main` is the only long-lived branch. There is no dev or staging branch.
-- The gate is the draft release: release-please creates every release as a
-  draft, and a draft is never published before its installers have passed
-  [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) on macOS and Windows.
-- Fix forward: a broken release is fixed by a new patch release. Tags are
-  never moved, deleted or recreated, and a published release is never
-  replaced.
+- Two long-lived branches. `dev` takes all day-to-day work. `main` only ever
+  contains code the maintainer has tested as an installed build.
+- Two gates: the `dev` test build is tested before a promotion, the draft
+  release is tested before it is published. Both use
+  [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md).
+- release-please runs on `main` only. Nothing on `dev` bumps a version,
+  creates a tag or a release.
+- Never edit the release files on `dev`: version fields in `package.json`,
+  `package-lock.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`,
+  `src-tauri/tauri.conf.json`, plus `CHANGELOG.md` and
+  `.release-please-manifest.json`. They change only through the release PR
+  on `main`.
+- Fix forward. Tags are never moved, deleted or recreated, and a published
+  release is never replaced.
+- Promotions and hotfixes are started by the maintainer only.
 
-## Flow
+## Daily flow
 
-1. **Feature PR -> `main`.** Every change lands on `main` through a PR with
-   green CI and a review (merge queue). Conventional Commit types decide
-   the next version (`feat` minor, `fix` patch before 1.0; `chore`, `ci`,
+1. Branch `<prefix>/TKM-<n>-<short-kebab>` from `origin/dev`.
+2. PR with base `dev`, title `<type>(<scope>): <short> (TKM-<n>)`, body
+   ending in `Closes #<n>`. CI, guard and PR-key checks run as on `main`
+   today.
+3. Squash-merge through the merge queue with the PR title as subject.
+   Conventional Commit types still decide the next version once the change
+   reaches `main` (`feat` minor, `fix` patch before 1.0; `chore`, `ci`,
    `docs`, `refactor`, `test` alone release nothing).
-2. **Release PR.** After every push to `main`, release-please updates one
-   open release PR (`chore(main): release x.y.z`) with the version bump in
-   all version files and the new `CHANGELOG.md` section. Nobody edits it by
-   hand; release-please rebuilds it on every push.
-3. **Merge the release PR.** release-please creates the tag `v<version>`
-   and a **draft** GitHub release with the changelog as notes
-   (`draft: true`, `force-tag-creation: true`).
-4. **Build.** `release.yml` runs on the tag (directly, or through the
-   `dispatch-release` job when no `RELEASE_PLEASE_TOKEN` is set), builds
-   macOS universal and Windows, and uploads the installers to that draft.
-   Wait until both build jobs have finished: publishing earlier makes
-   `tauri-action` create a second release.
-5. **Gate.** The maintainer downloads the draft assets (the four installers
-   listed in DECISIONS.md, "Release ownership"), installs them on a Mac and
-   a Windows machine and works through
-   [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md). Notes are reviewed and,
-   if needed, edited on the draft.
-6. **Publish.** Only when every item passes on both platforms does the
-   maintainer publish the draft. It then becomes "latest", which is where
-   the README download link points.
 
-If the gate fails, the draft stays unpublished. The fix goes through a
-normal `fix` PR, which produces the next patch release PR. The failed draft
-may be deleted as a release; its tag stays (fix forward, see below).
+The feature register refresh PR targets `dev` as well.
 
-## Fix-forward policy
+## Test build
 
-- A defect found in a draft or a published release is fixed on `main` and
-  shipped as a new patch release (`x.y.z+1`). There is no rollback.
+- A workflow runs on every push to `dev` and on manual dispatch. It builds
+  macOS universal and Windows and uploads the installers as workflow
+  artifacts. No release, no version bump, no tag, no prerelease version.
+- Unsigned, like the releases (they only ever carried updater signatures,
+  and updater artifacts are off). It needs no secrets.
+- Artifacts are kept for 1 day (`retention-days: 1`, the platform
+  minimum). Standard GitHub-hosted runners are free for public
+  repositories.
+- Planned as a reusable build (`workflow_call`) shared with `release.yml`,
+  so the test build and the release build cannot drift apart.
+- The maintainer downloads the artifacts from the run, installs them and
+  works through [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) (or the items
+  the change touches) on macOS and Windows.
+- Caveat for testers: the test installer carries the same version as the
+  last release. A Windows `.msi` with an equal version may not install over
+  the existing installation, so uninstall first or use the NSIS installer
+  (`-setup.exe`).
+
+## Promotion PR
+
+When the test build of `dev` has passed, the maintainer promotes it.
+
+- Head `dev`, base `main`, title `chore(release): promote dev to main`.
+- Merged with a **merge commit**, never squashed. A release-please dry-run
+  on scratch branches showed: with a merge commit every `feat` and `fix`
+  from `dev` keeps its own changelog entry, and the "Merge pull request"
+  commit itself is ignored as unparseable. A squash promotion titled
+  `chore` gave "No user facing commits", so no release, and the per-change
+  granularity was lost.
+- **Freeze rule.** Between merging a promotion and merging (or closing) the
+  release PR it produces, nothing is merged into `dev`. Reason, verified by
+  dry-run: release-please walks the `main` history by committer date and
+  stops at the last release commit. A PR squashed into `dev` after
+  promotion N, but before release PR N is merged, has an older committer
+  date than that release commit and is silently dropped from the next
+  release.
+- The one exception follows from the same mechanism and was not
+  dry-run on its own: a fix for the pending release may land on `dev` if
+  it is promoted again before the release PR is merged (see
+  [Rollback of a bad promotion](#rollback-of-a-bad-promotion)).
+- A promotion with only `docs`, `chore`, `ci` or `test` commits creates no
+  release PR, so no freeze is needed.
+
+## Release PR
+
+- After every push to `main`, release-please updates one open release PR
+  (`chore(main): release x.y.z`, branch `release-please--*`) with the
+  version bump in all version files and the new `CHANGELOG.md` section.
+  Nobody edits it by hand; release-please rebuilds it on every push.
+- Merge it through the merge queue, **squash** with the PR title as
+  subject, as today. It has no TKM key; the PR-key check skips
+  release-please branches.
+- Merging it makes release-please create the tag `v<version>` and a
+  **draft** GitHub release with the changelog as notes. `release.yml` runs
+  on the tag (directly, or through the `dispatch-release` job when no
+  `RELEASE_PLEASE_TOKEN` is set), builds macOS universal and Windows and
+  uploads the installers to that draft.
+- CI on the release PR: events created by the built-in `GITHUB_TOKEN` start
+  no workflow runs, so without the secret `RELEASE_PLEASE_TOKEN` the release
+  PR has no CI checks. Its gate is then a reviewer check of the version and
+  changelog diff. Setting the secret (fine-grained token, this repository
+  only) fixes that without a workflow change.
+
+## Draft test
+
+1. Wait until both `release.yml` build jobs have finished. Publishing
+   earlier makes `tauri-action` create a second release.
+2. Check the draft lists the four installers named in DECISIONS.md
+   ("Release ownership").
+3. Download them from the draft, install on a Mac and a Windows machine
+   and work through [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md). Review and,
+   if needed, edit the notes on the draft.
+
+If the draft test fails, the draft stays unpublished and the fix goes
+forward (see [Fix-forward](#fix-forward)).
+
+## Publish
+
+Only when every item passes on both platforms does the maintainer publish
+the draft by hand. It then becomes "latest", which is where the README
+download link points.
+
+Auto-update is off: releases carry no `.sig` files and no `latest.json`
+(`UPDATER_ARTIFACTS` is `'false'` in `release.yml`). Users update by
+installing the newer release by hand; the in-app update check is tracked
+in #41.
+
+## Back-merge
+
+After each stable release, `main` is merged back into `dev` so `dev` has
+the new version files and `CHANGELOG.md`.
+
+- PR head `main`, base `dev`, title `chore: back-merge main into dev`.
+- Merged with a **merge commit**. A squash back-merge causes add/add
+  conflicts on later promotions.
+- Dry-run result: no conflicts, because `dev` never edits the release
+  files, and the next promotion counts nothing twice. The back-merge
+  triggers no release (release-please runs on `main` only).
+
+## Hotfix
+
+Maintainer-triggered only, for a defect that cannot wait for the next
+promotion.
+
+1. Branch `hotfix/TKM-<n>-<short>` from `origin/main`, commit as `fix(...)`.
+2. PR with base `main`, squash, normal title
+   `fix(<scope>): <short> (TKM-<n>)`.
+3. Merge the release PR that release-please now proposes (patch bump).
+4. Install the draft, run the checklist (at least the affected items plus
+   first start and tray), publish.
+5. Back-merge `main` into `dev` as above.
+
+## Fix-forward
+
+- A defect found in a draft or a published release is fixed through a
+  normal `fix` PR into `dev`, tested in the test build, promoted, and
+  shipped as the next patch release. Urgent cases use the hotfix path.
 - Tags are never moved, deleted or recreated. A version number that was
   tagged is spent, even if its draft is never published.
-- An unpublished draft whose build or gate failed may be deleted as a
+- An unpublished draft whose build or test failed may be deleted as a
   GitHub release; its tag stays. A published release stays as it is; its
   notes may point to the fix release.
 - Rebuilding an existing tag (for example after a CI-only failure) uses
   `release.yml` started from `main` with the `tag` input, never a new tag
   on the same version (DECISIONS.md, "Release ownership").
 
-## Hotfix path
+## Rollback of a bad promotion
 
-1. Branch `hotfix/TKM-<n>-<short>` from `main`, commit as `fix(...)`.
-2. PR -> `main` through the merge queue as usual.
-3. Merge the release PR that release-please now proposes (patch bump).
-4. Install the draft, run the checklist (at least the affected items plus first start and tray).
-5. Publish.
+A promotion turns out bad when the release PR or its draft shows a problem.
 
-## Updater
+- Preferred: fix forward on `dev` and promote again while the release PR
+  stays unmerged. release-please updates the release PR; users are
+  unaffected until a draft is published.
+- If `main` itself must be reverted: open a revert PR on `main` with
+  `git revert -m 1 <merge commit>` of the promotion. Warning: a later
+  promotion of the same changes needs that revert reverted first,
+  otherwise the reverted changes do not come back to `main`.
+- Tags never move. A bad published release is fixed by the next patch
+  release.
 
-Auto-update is off. Releases carry no `.sig` files and no `latest.json`;
-`UPDATER_ARTIFACTS` in `release.yml` is `'false'` (DECISIONS.md, "v0.1
-without updater artifacts"). Users update by installing the newer release
-by hand. The in-app update check is tracked in #41.
+## Cutover plan
 
-## Release PRs and CI
+Ordered; each step starts only when the previous one is done.
 
-While the release PR is opened and updated with the built-in
-`GITHUB_TOKEN`, it gets no CI checks: events created by `GITHUB_TOKEN` do
-not start new workflow runs. The release-please-action README says a
-`token` must be specified "for your workflows to run on Release Please's
-releases and PRs" and recommends a personal access token stored as a
-secret. The workflow already reads `secrets.RELEASE_PLEASE_TOKEN` and
-falls back to `GITHUB_TOKEN`; the secret is currently not set.
-
-Optional fix: create a fine-grained token with access to this repository
-only and store it as the Actions secret `RELEASE_PLEASE_TOKEN`. Then the
-release PR runs CI and the tag push starts `release.yml` itself (the
-`dispatch-release` job is skipped). No workflow change is needed. Until
-then the release PR's gate is a reviewer check of the version and
-changelog diff, and the draft gate above covers the built app.
-
-## Options evaluated
-
-Evaluated for TKM-111, not implemented.
-
-**(a) Beta prereleases from `main`** (`prerelease: true`,
-`prerelease-type: "beta"`, `versioning: "prerelease"`, graduation via a
-`Release-As: x.y.z` commit footer). Verdict: not worth it.
-
-- A dry run of `release-please release-pr --dry-run` against a scratch
-  branch with that config proposed `0.3.0 -> 0.4.0-beta`; adding a
-  `Release-As: 0.4.0` footer switched it to `0.4.0`.
-- Tauri's MSI bundler accepts only a numeric pre-release identifier
-  (`x.y.z-1`, at most 65535), so `0.4.0-beta` breaks the Windows `.msi`.
-- `prerelease` is a config switch on `main`: every graduation needs a
-  config PR plus a `Release-As` commit, and each beta spends a tag.
-- Without an updater nobody receives betas automatically; the draft gate
-  already gives a tested point before publishing.
-
-**(b) Installer artifacts for a labelled PR** (`pull_request` with
-`types: [labeled]`, `tauri-action` without `tagName`/`releaseId`, which
-its README documents as build-only, then `actions/upload-artifact`).
-Verdict: worth it, filed as idea #115.
-
-- Lets the maintainer test risky platform changes (tray, autostart,
-  notifications, window) before they land on `main` and spend a version.
-- Opt-in by label, so normal PRs cost nothing; only users with triage
-  access can add labels. The build needs no secrets (binaries are unsigned).
-- Cost: one workflow that mirrors the `release.yml` build matrix (keep the
-  two in step), macOS runner minutes per labelled push, and artifact
-  storage (retention 1 to 90 days, set it low).
+1. This docs PR, merged into `main` (TKM-140).
+2. No open PRs into `main` except the release-please and register refresh
+   PRs.
+3. Create `dev` from `main` and push it.
+4. Workflow PRs into `main` (devops):
+   - CI, guard and PR-key checks run for PRs into `dev` and into `main`.
+   - PR-key rules for promotion and back-merge PRs: skip the key regex for
+     heads `dev` and `main`, check their fixed titles, and enforce that PRs
+     into `main` come only from `dev`, `hotfix/*` or `release-please--*`
+     branches (rulesets cannot restrict the source branch).
+   - The feature register refresh PR targets `dev`.
+   - The test-installer workflow on push to `dev` and manual dispatch,
+     using a reusable build shared with `release.yml`.
+   - `release.yml` and `release-please.yml` stay `main`-only.
+5. Maintainer, by hand in the repository settings:
+   - Allow merge commits and squash merges; rebase merging off.
+   - Ruleset `dev`: PR required, status checks required, allowed merge
+     methods squash and merge (merge only for back-merge PRs).
+   - Ruleset `main`: PR required, status checks required, allowed merge
+     methods merge and squash, no linear-history rule.
+   - Delete or replace the existing ruleset `protect-main`: it targets
+     `~DEFAULT_BRANCH` and requires linear history, so it must be replaced
+     by the explicit rulesets above before the default branch changes.
+   - Set the default branch to `dev`.
+6. Contributors switch their PR base to `dev` (branch from `origin/dev`).
+7. Rehearsal:
+   - A docs-only PR into `dev`; the test build runs.
+   - Promotion PR `dev` -> `main`, merged with a merge commit; confirm no
+     release PR is created.
+   - A back-merge is not needed (no release), but run it once to prove the
+     checks pass.
+8. QA runs the full Definition of Done on `dev`.

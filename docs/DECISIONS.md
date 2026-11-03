@@ -138,6 +138,8 @@ Superseded: releases are cut through the release PR, see "Automatic versioning w
 
 ### How to cut a release now
 
+Superseded in part by "Dev and main branches (2026-11-04)" below: feature and fix PRs now target `dev`, and changes reach `main` through a promotion PR. Steps 2 to 4 still apply to the release PR on `main`.
+
 1. Merge feature and fix PRs as usual; release-please updates the release PR after every push to `main`.
 2. When ready, merge the release PR through the merge queue (green checks, squash with the PR title as subject). Exceptions: its subject `chore(main): release x.y.z` has no TKM key, and there is no manual rebase or force-push, because release-please rebuilds its branch from `main` on every push (manual changes would be overwritten). Without `RELEASE_PLEASE_TOKEN` the PR has no CI checks; the gate is then a reviewer check of the version and changelog diff.
 3. Wait until both `release.yml` builds (macOS universal and Windows) have finished and uploaded to the draft release `v<version>`.
@@ -170,3 +172,17 @@ The popup follows the refreshed prototype; DESIGN.md and `tokens.css` describe i
 
 - The popup top row shows the monk mark (`assets/brand/tokenmonk-mark.svg`) at 26 px instead of the ring brand mark (TKM-121). It stays static. The file is used as is, with its own fixed colours, in both themes and both modes.
 - The ring brand mark (`tokenmonk-ring-mark.svg`, arc and dot in the mode accent) stays for the onboarding and level-up screens at 52 px. The header line of "Design refresh" above is superseded for the top row only.
+
+## Dev and main branches (2026-11-04)
+
+Reverses the "`main` only" rule of TKM-111 ([RELEASE-FLOW.md](RELEASE-FLOW.md), formerly "`main` is the only long-lived branch") and step 1 of "How to cut a release now" (TKM-140). The full flow is in [RELEASE-FLOW.md](RELEASE-FLOW.md).
+
+- Why: `main` only ever contains code the maintainer has tested as an installed build. Until now a change was first tested as an installed app after it had landed on `main` and spent a version; the draft gate caught problems, but only after the fact.
+- Two long-lived branches. `dev` takes every feature, fix, docs, chore, ci and test PR (squash, PR title as subject, same keys and checks as before). `main` takes only promotion PRs from `dev`, hotfix PRs, the release PR and the back-merge source.
+- Test build: every push to `dev` (and a manual dispatch) builds unsigned test installers for macOS universal and Windows and keeps them as workflow artifacts. No release, no version bump, no tag, no prerelease version. Prerelease versions were not adopted: whether the Windows MSI accepts them is not verified here, and with the updater off nobody would receive them.
+- Promotion: when `dev` has passed the maintainer's test of the installed test build, a PR with head `dev` and base `main` (`chore(release): promote dev to main`) is merged with a merge commit, so every `feat` and `fix` keeps its own changelog line. Only the maintainer starts a promotion.
+- release-please runs on `main` only and works as before: release PR, tag `v<version>`, draft release. The maintainer tests the draft with [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) and publishes it by hand. After each stable release `main` is merged back into `dev` (merge commit).
+- Unchanged: fix-forward, tags never move, the release PR is squash-merged, "Release ownership" and "v0.1 without updater artifacts" still apply.
+- New rules that follow from dry-runs on scratch branches: the freeze between merging a promotion and merging its release PR, and no edits to version files, `CHANGELOG.md` or `.release-please-manifest.json` on `dev` (RELEASE-FLOW.md, "Promotion PR" and "Back-merge").
+- The labelled PR build of idea #115 is covered in large part by the `dev` test build.
+- Repository settings, rulesets and workflow changes land through the cutover plan in [RELEASE-FLOW.md](RELEASE-FLOW.md); until step 5 of that plan is done, the previous flow stays in force.
