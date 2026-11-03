@@ -185,4 +185,4 @@ Reverses the "`main` only" rule of TKM-111 ([RELEASE-FLOW.md](RELEASE-FLOW.md), 
 - Unchanged: fix-forward, tags never move, the release PR is squash-merged, "Release ownership" and "v0.1 without updater artifacts" still apply.
 - New rules that follow from dry-runs on scratch branches: the freeze between merging a promotion and merging its release PR, and no edits to version files, `CHANGELOG.md` or `.release-please-manifest.json` on `dev` (RELEASE-FLOW.md, "Promotion PR" and "Back-merge").
 - The labelled PR build of idea #115 is covered in large part by the `dev` test build.
-- Repository settings, rulesets and workflow changes land through the cutover plan in [RELEASE-FLOW.md](RELEASE-FLOW.md); until step 5 of that plan is done, the previous flow stays in force.
+- Repository settings, rulesets and workflow changes land through the cutover plan in [RELEASE-FLOW.md](RELEASE-FLOW.md); until step 6 of that plan is done, the previous flow stays in force.

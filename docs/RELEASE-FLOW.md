@@ -6,7 +6,7 @@ test), [DECISIONS.md](DECISIONS.md) ("Dev and main branches", "Automatic
 versioning with release-please", "Release ownership", "v0.1 without updater
 artifacts").
 
-Status: this flow takes effect when step 5 of the [cutover plan](#cutover-plan)
+Status: this flow takes effect when step 6 of the [cutover plan](#cutover-plan)
 is done. Until then PRs still target `main` as before.
 
 ## Principles
@@ -154,6 +154,12 @@ promotion.
    first start and tray), publish.
 5. Back-merge `main` into `dev` as above.
 
+A hotfix while a promotion's release PR is still open is accepted. The
+patch release then also ships the promoted content. That content was
+already tested as the `dev` test installer before the promotion (`main`
+only holds tested code), and the draft is tested as usual before
+publishing.
+
 ## Fix-forward
 
 - A defect found in a draft or a published release is fixed through a
@@ -175,10 +181,16 @@ A promotion turns out bad when the release PR or its draft shows a problem.
 - Preferred: fix forward on `dev` and promote again while the release PR
   stays unmerged. release-please updates the release PR; users are
   unaffected until a draft is published.
-- If `main` itself must be reverted: open a revert PR on `main` with
-  `git revert -m 1 <merge commit>` of the promotion. Warning: a later
-  promotion of the same changes needs that revert reverted first,
-  otherwise the reverted changes do not come back to `main`.
+- If `main` itself must be reverted: branch
+  `hotfix/TKM-<n>-revert-promotion` from `origin/main`, run
+  `git revert -m 1 <merge commit>` of the promotion, and open a PR into
+  `main` titled `revert: <short> (TKM-<n>)`, squash-merged like a hotfix.
+- Warning: the next back-merge carries the revert into `dev` as well, so
+  those changes are then gone from `dev` too. To bring them back, revert
+  the revert on `dev` after that back-merge (normal PR into `dev`), test it
+  through the test build and promote again. Until then `dev` lacks those
+  changes. Without the revert of the revert, a later promotion does not
+  bring them back to `main`.
 - Tags never move. A bad published release is fixed by the next patch
   release.
 
@@ -200,21 +212,25 @@ Ordered; each step starts only when the previous one is done.
    - The test-installer workflow on push to `dev` and manual dispatch,
      using a reusable build shared with `release.yml`.
    - `release.yml` and `release-please.yml` stay `main`-only.
-5. Maintainer, by hand in the repository settings:
+5. Fast-forward `dev` to `main` (`dev` has no commits of its own yet), so
+   `dev` carries the new CI, PR-key and test-build workflows before the
+   rehearsal.
+6. Maintainer, by hand in the repository settings:
    - Allow merge commits and squash merges; rebase merging off.
    - Ruleset `dev`: PR required, status checks required, allowed merge
-     methods squash and merge (merge only for back-merge PRs).
+     methods squash and merge (merge only for back-merge PRs), no
+     linear-history rule (the back-merge needs a merge commit).
    - Ruleset `main`: PR required, status checks required, allowed merge
      methods merge and squash, no linear-history rule.
    - Delete or replace the existing ruleset `protect-main`: it targets
      `~DEFAULT_BRANCH` and requires linear history, so it must be replaced
      by the explicit rulesets above before the default branch changes.
    - Set the default branch to `dev`.
-6. Contributors switch their PR base to `dev` (branch from `origin/dev`).
-7. Rehearsal:
+7. Contributors switch their PR base to `dev` (branch from `origin/dev`).
+8. Rehearsal:
    - A docs-only PR into `dev`; the test build runs.
    - Promotion PR `dev` -> `main`, merged with a merge commit; confirm no
      release PR is created.
    - A back-merge is not needed (no release), but run it once to prove the
      checks pass.
-8. QA runs the full Definition of Done on `dev`.
+9. QA runs the full Definition of Done on `dev`.
