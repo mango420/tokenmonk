@@ -5,27 +5,65 @@
  * come from popup.css.
  */
 
+/* Anchored to the bottom edge; slides up from below the popup edge. */
 .game-toast-slot {
   position: absolute;
-  top: var(--popup-padding);
-  left: var(--popup-padding);
-  right: var(--popup-padding);
+  left: var(--space-4);
+  right: var(--space-4);
+  bottom: var(--space-4);
   z-index: 10;
+  transform: translateY(140%);
+  pointer-events: none;
+  transition: transform var(--motion-toast) var(--ease-toast);
+}
+
+.game-toast-slot--shown {
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 .game-toast {
+  position: relative;
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
+  flex-direction: column;
   width: 100%;
-  padding: var(--card-padding);
+  padding: var(--space-3) var(--space-4) var(--space-3) calc(var(--space-4) + var(--space-1) / 2);
   border: 0;
-  border-radius: var(--radius-md);
-  background: var(--surface-200);
-  box-shadow: var(--shadow-popup);
-  color: var(--ink);
+  border-radius: var(--radius-toast);
+  background: var(--ink);
+  color: var(--pop);
   text-align: left;
   cursor: pointer;
+}
+
+/* Accent bar on the left edge, inset top and bottom. */
+.game-toast::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: var(--space-2);
+  bottom: var(--space-2);
+  width: var(--accent-rule);
+  border-radius: var(--radius-bar);
+  background: var(--accent);
+}
+
+.game-toast__title {
+  font-size: var(--text-toast-title-size);
+  line-height: var(--text-body-line);
+  font-weight: var(--weight-medium);
+}
+
+.game-toast__line {
+  font-size: var(--text-mono-sm-size);
+  line-height: var(--text-caption-line);
+  opacity: var(--toast-line-opacity);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-toast-slot {
+    transition: none;
+  }
 }
 
 .game-overlay {

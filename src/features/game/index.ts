@@ -11,7 +11,7 @@
 export { AchievementToast } from "./AchievementToast";
 export { LevelUpScreen } from "./LevelUpScreen";
 export { useGameNotices, type GameNotices, type GameNoticesOptions } from "./useGameNotices";
-export { FADE_MS, TOAST_VISIBLE_MS, TOAST_COLLAPSE_AT } from "./constants";
+export { FADE_MS, TOAST_VISIBLE_MS, TOAST_SLIDE_MS, TOAST_COLLAPSE_AT } from "./constants";
 export { playTone, type Tone } from "./sound";
 export {
   isToastable,

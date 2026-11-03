@@ -1,6 +1,6 @@
 //! Level curve and titles. Pure functions of the XP total and the mode.
 
-use super::constants::{LEVEL_BASE_XP, LEVEL_STEP_XP, TITLES_DIY, TITLES_MAX};
+use super::constants::{LEVEL_BASE_XP, LEVEL_STEP_XP, TITLE_DIY, TITLE_MAX};
 use crate::contracts::Mode;
 
 /// Where an XP total sits on the level curve.
@@ -47,19 +47,13 @@ pub fn level_info(xp_total: u64) -> LevelInfo {
     }
 }
 
-/// Title at `level`. Before onboarding (`NoneYet`) the Max titles apply, as
-/// the popup falls back to Max it out.
-pub fn title_for(mode: Mode, level: u32) -> &'static str {
-    let table: &[(u32, &str)] = match mode {
-        Mode::Diy => &TITLES_DIY,
-        Mode::Max | Mode::NoneYet => &TITLES_MAX,
-    };
-    table
-        .iter()
-        .rev()
-        .find(|(first, _)| level >= *first)
-        .map(|(_, title)| *title)
-        .unwrap_or(table[0].1)
+/// Title of the mode. One title per mode at every level; before onboarding
+/// (`NoneYet`) the Max title applies, as the popup falls back to Max it out.
+pub fn title_for(mode: Mode, _level: u32) -> &'static str {
+    match mode {
+        Mode::Diy => TITLE_DIY,
+        Mode::Max | Mode::NoneYet => TITLE_MAX,
+    }
 }
 
 #[cfg(test)]
@@ -86,12 +80,11 @@ mod tests {
     }
 
     #[test]
-    fn titles_follow_mode_and_level() {
-        assert_eq!(title_for(Mode::Max, 7), "Token Squire");
-        assert_eq!(title_for(Mode::Diy, 4), "Novice Monk");
-        assert_eq!(title_for(Mode::Max, 9), "Rate-Limit Rambo");
-        assert_eq!(title_for(Mode::Max, 8), "Token Squire");
-        assert_eq!(title_for(Mode::Max, 99), "Token Titan");
-        assert_eq!(title_for(Mode::NoneYet, 1), "Token Sprout");
+    fn titles_follow_the_mode_only() {
+        for level in [1, 7, 99] {
+            assert_eq!(title_for(Mode::Max, level), "Limit Chaser");
+            assert_eq!(title_for(Mode::Diy, level), "Quiet Spender");
+            assert_eq!(title_for(Mode::NoneYet, level), "Limit Chaser");
+        }
     }
 }

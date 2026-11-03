@@ -10,7 +10,7 @@ import {
   type LevelScreenModel,
   type ToastItem,
 } from "./model";
-import { fadeOutDelay } from "./motion";
+import { fadeOutDelay, slideOutDelay } from "./motion";
 import { playTone } from "./sound";
 
 export interface GameNoticesOptions {
@@ -37,7 +37,7 @@ export interface GameNotices {
  *
  * - The tone plays once per live event when `sound` is on, whether the
  *   popup is open or hidden. Retroactive events are ignored entirely.
- * - Toasts: one at a time, 4 s, click dismisses, hover pauses, three or more
+ * - Toasts: one at a time, 3.4 s, click dismisses, hover pauses, three or more
  *   waiting collapse into one. The legacy Boo badge never gets a toast.
  * - Priority: the level-up screen first, then toasts.
  * - `game.retroDone` turning true shows the first-start summary once.
@@ -130,10 +130,10 @@ export function useGameNotices({
       setToast(null);
       setToastClosing(false);
       setHover(false);
-    }, fadeOutDelay());
+    }, slideOutDelay());
   }, [later]);
 
-  // The 4 s timer runs only while the toast is visible and not hovered.
+  // The 3.4 s timer runs only while the toast is visible and not hovered.
   const timerRunning = toast !== null && toastAllowed && !hover && !toastClosing;
   useEffect(() => {
     if (!timerRunning) return undefined;

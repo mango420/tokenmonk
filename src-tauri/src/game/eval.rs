@@ -14,8 +14,7 @@ use chrono::{Days, NaiveDate, TimeZone, Timelike};
 use super::constants::{
     achievement_def, AchievementDef, ACHIEVEMENTS, DIY_DAILY_MAX_XP, DIY_UNMEASURED_DAY_XP,
     KIND_ACHIEVEMENT, KIND_DAY, KIND_TOKENS, MAX_BLOCKS_PER_DAY, RAMBO_PERCENT, RECENT_UNLOCKS,
-    SO_CLOSE_PERCENT, TOKENS_PER_BLOCK, TOKEN_MONK_DAYS, TOKEN_MONK_PERCENT, WINDOW_BUCKET_MS,
-    XP_PER_BLOCK,
+    SO_CLOSE_PERCENT, TOKENS_PER_BLOCK, TOKEN_MONK_BELOW_PERCENT, WINDOW_BUCKET_MS, XP_PER_BLOCK,
 };
 use super::levels::{level_info, title_for};
 use super::model::{
@@ -90,11 +89,6 @@ pub fn evaluate<Tz: TimeZone>(
         records.get(&id).is_some_and(|r| r.unlocked_at.is_some())
     };
 
-    // Without day facts there is nothing to recompute; an empty range would
-    // reset the stored progress.
-    let streak = (earn_mode == Some(Mode::Diy) && !facts.days.is_empty())
-        .then(|| token_monk_streak(&facts.days, today, tz));
-
     let mut candidates: Vec<(EpochMs, usize, &'static AchievementDef)> = Vec::new();
     if let Some(m) = earn_mode {
         for (idx, def) in ACHIEVEMENTS.iter().enumerate() {
@@ -106,7 +100,7 @@ pub fn evaluate<Tz: TimeZone>(
                 AchievementId::NightOwl => facts.days.iter().filter_map(|d| d.night_at).min(),
                 AchievementId::RateLimitRambo => rambo_at(&facts.limits),
                 AchievementId::SoClose => so_close_at(&facts.limits, now),
-                AchievementId::TokenMonk => streak.as_ref().and_then(|s| s.unlocked_at),
+                AchievementId::TokenMonk => token_monk_at(&facts.days, today, tz),
                 // Legacy badge: kept for users who unlocked it, never earned again.
                 AchievementId::Boo => None,
             };
@@ -132,27 +126,6 @@ pub fn evaluate<Tz: TimeZone>(
         records.insert(def.id, record.clone());
         changed.push(record);
         unlocks.push(unlocked_from(def, at, retroactive, tz));
-    }
-
-    // Progress of the counted achievement, written when it moves.
-    if let Some(streak) = &streak {
-        let def = achievement_def(AchievementId::TokenMonk);
-        if !is_unlocked(&records, def.id) {
-            let current = streak.run.min(TOKEN_MONK_DAYS);
-            let stored = records.get(&def.id).and_then(|r| r.current).unwrap_or(0);
-            if current != stored {
-                let record = AchievementRecord {
-                    id: def.id,
-                    unlocked_at: None,
-                    retroactive: false,
-                    current: Some(current),
-                    target: def.target,
-                    updated_at: now,
-                };
-                records.insert(def.id, record.clone());
-                changed.push(record);
-            }
-        }
     }
 
     // Level and state.
@@ -310,62 +283,32 @@ fn so_close_at(limits: &[LimitFact], now: EpochMs) -> Option<EpochMs> {
         .min()
 }
 
-struct Streak {
-    /// Qualifying finished days in a row, ending at the last finished day.
-    run: u32,
-    /// End of the day that completed the streak first.
-    unlocked_at: Option<EpochMs>,
-}
-
-/// Token Monk: finished days under `TOKEN_MONK_PERCENT` of the budget in a
-/// row. A day without budget or a missing day breaks the run.
-fn token_monk_streak<Tz: TimeZone>(days: &[DayFacts], today: NaiveDate, tz: &Tz) -> Streak {
-    let mut finished: Vec<&DayFacts> = days.iter().filter(|d| d.day < today).collect();
-    finished.sort_by_key(|d| d.day);
-    finished.dedup_by_key(|d| d.day);
-
-    let mut run = 0u32;
-    let mut unlocked_at = None;
-    let mut last: Option<NaiveDate> = None;
-    for d in finished {
-        if last.is_some_and(|l| l.checked_add_days(Days::new(1)) != Some(d.day)) {
-            run = 0;
-        }
-        let calm = d
-            .budget_used_percent
-            .is_some_and(|p| p < TOKEN_MONK_PERCENT);
-        run = if calm { run + 1 } else { 0 };
-        if run >= TOKEN_MONK_DAYS && unlocked_at.is_none() {
-            unlocked_at = d
-                .day
-                .checked_add_days(Days::new(1))
-                .map(|next| day_start_ms(next, tz));
-        }
-        last = Some(d.day);
-    }
-    // A hole between the last finished day and today breaks the run.
-    if last.is_some_and(|l| l.checked_add_days(Days::new(1)) != Some(today)) {
-        run = 0;
-    }
-    Streak { run, unlocked_at }
+/// Token Monk: the end of the earliest finished active day that had a daily
+/// budget and stayed below `TOKEN_MONK_BELOW_PERCENT` of it.
+fn token_monk_at<Tz: TimeZone>(days: &[DayFacts], today: NaiveDate, tz: &Tz) -> Option<EpochMs> {
+    days.iter()
+        .filter(|d| d.day < today && d.tokens > 0)
+        .filter(|d| {
+            d.budget_used_percent
+                .is_some_and(|p| p < TOKEN_MONK_BELOW_PERCENT)
+        })
+        .map(|d| d.day)
+        .min()
+        .and_then(|day| day.checked_add_days(Days::new(1)))
+        .map(|next| day_start_ms(next, tz))
 }
 
 /// Context line of an unlock, derived from the id and the unlock time so it
 /// needs no storage.
 fn unlock_detail<Tz: TimeZone>(id: AchievementId, at: EpochMs, tz: &Tz) -> Option<String> {
     match id {
-        AchievementId::FirstBlood | AchievementId::Boo => None,
+        AchievementId::FirstBlood | AchievementId::TokenMonk | AchievementId::Boo => None,
         AchievementId::NightOwl => {
             let dt = tz.timestamp_millis_opt(at).single()?;
-            Some(format!(
-                "Tokens burned at {:02}:{:02}",
-                dt.hour(),
-                dt.minute()
-            ))
+            Some(format!("Coding at {:02}:{:02}", dt.hour(), dt.minute()))
         }
         AchievementId::RateLimitRambo => Some("5-hour limit hit".to_string()),
         AchievementId::SoClose => Some("Stopped just short of the limit".to_string()),
-        AchievementId::TokenMonk => Some(format!("{TOKEN_MONK_DAYS} calm days in a row")),
     }
 }
 
@@ -416,13 +359,7 @@ fn build_state<Tz: TimeZone>(
                 unlocked_at: rec.and_then(|r| r.unlocked_at),
                 current,
                 target,
-                progress_label: match (def.id, current, target) {
-                    (AchievementId::TokenMonk, Some(c), Some(t)) => Some(format!(
-                        "{c} of {t} days under {} %",
-                        TOKEN_MONK_PERCENT as u32
-                    )),
-                    _ => None,
-                },
+                progress_label: None,
             }
         })
         .collect();

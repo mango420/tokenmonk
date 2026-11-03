@@ -16,9 +16,9 @@
 //! | 10-25 | 11:00 |   100,000 | 1 (exactly one block)       | 10 |
 //! | 10-28 | 09:00 |   350,000 | 3 (today counts in Max)     | 30 |
 //!
-//! Token XP 460. First Blood (25 XP) and Night Owl (50 XP, the 03:10 message)
-//! unlock at that message: 75 XP. Total 535. Level 1 spans 470 XP, level 2
-//! spans 700, so the player is level 2 with 65 XP into it.
+//! Token XP 460. First Blood (10 XP) and Night Owl (50 XP, the 03:10 message)
+//! unlock at that message: 60 XP. Total 520. Level 1 spans 470 XP, level 2
+//! spans 700, so the player is level 2 with 50 XP into it.
 
 mod common;
 
@@ -40,7 +40,7 @@ const HISTORY: [(u32, u32, u32, u64); 7] = [
     (28, 9, 0, 350_000),
 ];
 
-const XP_TOTAL: u64 = 535;
+const XP_TOTAL: u64 = 520;
 
 fn replay_now() -> i64 {
     utc_ms(2026, 10, 28, 12, 0, 0)
@@ -98,10 +98,10 @@ fn replay_awards_the_expected_xp_and_level() {
     assert_eq!(game.mode, Mode::Max);
     assert_eq!(game.xp_total, XP_TOTAL);
     assert_eq!(game.level, 2);
-    assert_eq!(game.xp_into_level, 65);
+    assert_eq!(game.xp_into_level, 50);
     assert_eq!(game.xp_for_level, 700);
-    assert!((game.progress - 65.0 / 700.0).abs() < 1e-12);
-    assert_eq!(game.title, "Token Sprout");
+    assert!((game.progress - 50.0 / 700.0).abs() < 1e-12);
+    assert_eq!(game.title, "Limit Chaser");
     assert_eq!(game.daily_xp_preview, None, "Max it out has no preview");
 
     // The achievements unlock at the 03:10 message (not at replay time).
@@ -127,7 +127,7 @@ fn replay_awards_the_expected_xp_and_level() {
     assert!(!ledger.iter().any(|(_, r, _)| r.starts_with("2026-10-24")));
     assert!(has("tokens", "2026-10-25/1") && !has("tokens", "2026-10-25/2"));
     assert!(has("tokens", "2026-10-28/3") && !has("tokens", "2026-10-28/4"));
-    assert!(ledger.contains(&("achievement".into(), "firstBlood".into(), 25)));
+    assert!(ledger.contains(&("achievement".into(), "firstBlood".into(), 10)));
     assert!(ledger.contains(&("achievement".into(), "nightOwl".into(), 50)));
     assert_eq!(ledger.len(), 48);
     assert_eq!(rig.xp_total(), XP_TOTAL as i64);
@@ -230,12 +230,12 @@ fn live_unlocks_are_emitted_once_and_never_repeated() {
     assert_eq!(
         xp_after,
         [
-            (20, 95),
-            (21, 295),
-            (22, 495),
-            (24, 495),
-            (25, 505),
-            (28, 535)
+            (20, 80),
+            (21, 280),
+            (22, 480),
+            (24, 480),
+            (25, 490),
+            (28, 520)
         ]
     );
 
@@ -260,7 +260,7 @@ fn live_unlocks_are_emitted_once_and_never_repeated() {
         .iter()
         .any(|e| matches!(e, Event::Game { .. })));
 
-    // One level-up: 495 XP on the 22nd crosses 470.
+    // One level-up: 480 XP on the 22nd crosses 470.
     assert_eq!(
         rig.rec.level_ups(),
         [Event::LevelUp {
@@ -362,4 +362,53 @@ fn a_busy_day_stops_paying_at_twenty_blocks_and_the_cap_is_idempotent() {
         .filter(|(k, r, _)| k == "tokens" && r.starts_with("2026-10-28/"))
         .count();
     assert_eq!(day_rows, 20);
+}
+
+#[test]
+fn the_title_follows_the_mode_at_every_level() {
+    // Pre-onboarding: level 1, no history read yet, still the Max title.
+    let (_dir, file) = full_history();
+    let mut rig = Rig::new(Mode::NoneYet);
+    rig.scan(std::slice::from_ref(&file), replay_now(), false);
+    rig.snap(replay_now(), SnapshotCause::ImportDone);
+    let game = rig.state.game().unwrap();
+    assert_eq!((game.level, game.title.as_str()), (1, "Limit Chaser"));
+
+    // Max it out, level 2 after the replay.
+    rig.set_mode(Mode::Max);
+    rig.snap(replay_now() + 1_000, SnapshotCause::Requested);
+    let game = rig.state.game().unwrap();
+    assert_eq!((game.level, game.title.as_str()), (2, "Limit Chaser"));
+
+    // Do it yourself: the other title, never "Token Sprout".
+    let (_dir, _file, rig) = replayed(Mode::Diy);
+    let game = rig.state.game().unwrap();
+    assert!(game.retro_done);
+    assert_eq!(game.title, "Quiet Spender");
+}
+
+#[test]
+fn night_owl_covers_midnight_to_four() {
+    // A lone message at 01:30 UTC (the test zone) is inside the 00:00-04:00
+    // window; before the refresh only 02:00-04:00 counted.
+    let dir = tempfile::tempdir().unwrap();
+    let file = session_file(dir.path(), SESSION_HEAVY);
+    let mut rig = Rig::new(Mode::Max);
+    rig.snap(utc_ms(2026, 10, 20, 0, 30, 0), SnapshotCause::ImportDone);
+    let at = utc_ms(2026, 10, 20, 1, 30, 0);
+    append_lines(&file, &[heavy_line(1, at, 50_000)]);
+    rig.scan(std::slice::from_ref(&file), at + 1_000, true);
+    rig.snap(at + 1_000, SnapshotCause::Files);
+    assert_eq!(rig.rec.achievements(), ["firstBlood", "nightOwl"]);
+
+    // 04:00 sharp is outside it.
+    let dir = tempfile::tempdir().unwrap();
+    let file = session_file(dir.path(), SESSION_HEAVY);
+    let mut rig = Rig::new(Mode::Max);
+    rig.snap(utc_ms(2026, 10, 20, 3, 0, 0), SnapshotCause::ImportDone);
+    let at = utc_ms(2026, 10, 20, 4, 0, 0);
+    append_lines(&file, &[heavy_line(1, at, 50_000)]);
+    rig.scan(std::slice::from_ref(&file), at + 1_000, true);
+    rig.snap(at + 1_000, SnapshotCause::Files);
+    assert_eq!(rig.rec.achievements(), ["firstBlood"]);
 }

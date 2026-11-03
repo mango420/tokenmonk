@@ -1,35 +1,24 @@
-import { Icon, type IconName } from "../../components/Icon";
-import type { AchievementId } from "../../lib/contracts";
-import { fadeStyle, useFadeShown } from "./motion";
+import { useFadeShown } from "./motion";
 import { toastCopy, type ToastItem } from "./model";
 import "./game.css";
-
-/** Same glyphs as the achievement row on the dashboard. */
-const GLYPH: Record<AchievementId, IconName> = {
-  firstBlood: "drop",
-  nightOwl: "moon",
-  rateLimitRambo: "bolt",
-  soClose: "target",
-  tokenMonk: "person",
-  boo: "ghost", // retired "Halloween 2026" badge: never toasts (isToastable), icon only for existing unlocks
-};
 
 interface AchievementToastProps {
   item: ToastItem;
   /** Description of the achievement, shown when the unlock has no detail. */
   description: string | null;
-  /** `false` fades the toast out. */
+  /** `false` slides the toast out. */
   open: boolean;
   /** Click on the toast. */
   onDismiss: () => void;
-  /** Pointer hover pauses the 4 s timer (kept by the caller). */
+  /** Pointer hover pauses the 3.4 s timer (kept by the caller). */
   onHoverChange: (hovering: boolean) => void;
 }
 
 /**
- * Card floating over the top of the popup (DESIGN.md, Achievement toast):
- * the unlocked variant of the achievement row. Render it inside the popup
- * overlay slot. Timing and queueing live in `useGameNotices`.
+ * Bar anchored to the bottom of the popup (DESIGN.md, Achievement toast):
+ * name over one line of text plus XP, accent bar on the left. Render it
+ * inside the popup overlay slot. Timing and queueing live in
+ * `useGameNotices`; the slide is CSS (off under reduced motion).
  */
 export function AchievementToast({
   item,
@@ -42,10 +31,9 @@ export function AchievementToast({
   const copy = toastCopy(item, description);
   return (
     <div
-      className="game-toast-slot"
+      className={shown ? "game-toast-slot game-toast-slot--shown" : "game-toast-slot"}
       role="status"
       aria-live="polite"
-      style={{ ...fadeStyle(shown), pointerEvents: shown ? "auto" : "none" }}
     >
       <button
         type="button"
@@ -54,14 +42,8 @@ export function AchievementToast({
         onPointerEnter={() => onHoverChange(true)}
         onPointerLeave={() => onHoverChange(false)}
       >
-        <span className="badge">
-          <Icon name={GLYPH[copy.glyph]} size="sm" />
-        </span>
-        <span className="achievement__text">
-          <span className="label-strong">{copy.title}</span>
-          {copy.detail !== null ? <span className="caption">{copy.detail}</span> : null}
-        </span>
-        <span className="mono-value live-number caption--accent">{copy.xp}</span>
+        <span className="game-toast__title">{copy.title}</span>
+        <span className="game-toast__line">{copy.line}</span>
       </button>
     </div>
   );
