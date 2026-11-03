@@ -32,7 +32,9 @@ export function LevelUpScreen({ model, game, open, onClose }: LevelUpScreenProps
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -47,19 +49,24 @@ export function LevelUpScreen({ model, game, open, onClose }: LevelUpScreenProps
       style={{ ...fadeStyle(shown), pointerEvents: shown ? "auto" : "none" }}
     >
       <LogoMark ratio={1} />
-      <div className="game-overlay__group">
-        <h2 className="game-overlay__display">{copy.display}</h2>
-        {copy.extra !== null ? <span className="mono-value live-number muted">{copy.extra}</span> : null}
-      </div>
+      <h2 className="game-overlay__title">{copy.display}</h2>
+      {copy.extra !== null ? <span className="game-overlay__mono game-overlay__extra">{copy.extra}</span> : null}
       {copy.newTitle !== null ? (
-        <div className="game-overlay__group">
-          <span className="caption">New title</span>
-          <span className="game-overlay__heading">{copy.newTitle}</span>
+        <>
+          <span className="game-overlay__caption">New title</span>
+          <span className="game-overlay__status">{copy.newTitle}</span>
+        </>
+      ) : null}
+      {copy.heading !== null ? <span className="game-overlay__status">{copy.heading}</span> : null}
+      {copy.detail !== null ? (
+        <span className="game-overlay__mono game-overlay__xp">{copy.detail}</span>
+      ) : null}
+      {copy.progress !== null ? (
+        <div className="game-overlay__bar" aria-hidden="true">
+          <div className="game-overlay__bar-fill" style={{ width: `${(copy.progress * 100).toFixed(1)}%` }} />
         </div>
       ) : null}
-      {copy.heading !== null ? <span className="game-overlay__heading">{copy.heading}</span> : null}
-      {copy.detail !== null ? <span className="mono-value live-number muted">{copy.detail}</span> : null}
-      <button ref={button} type="button" className="game-button" onClick={onClose}>
+      <button ref={button} type="button" className="game-link" onClick={onClose}>
         {copy.button}
       </button>
     </div>

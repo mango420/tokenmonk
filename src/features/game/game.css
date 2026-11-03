@@ -1,8 +1,7 @@
 /*
  * Achievement toast and level-up overlay. Design values come from
  * tokens.css variables only; the fade is an inline style driven by FADE_MS.
- * Shared classes (.badge, .achievement__text, .caption, .mono-value, ...)
- * come from popup.css.
+ * Self-contained: no class from popup.css is used.
  */
 
 /* Anchored to the bottom edge; slides up from below the popup edge. */
@@ -56,7 +55,7 @@
 
 .game-toast__line {
   font-size: var(--text-mono-sm-size);
-  line-height: var(--text-caption-line);
+  line-height: var(--text-body-line);
   opacity: var(--toast-line-opacity);
 }
 
@@ -74,48 +73,98 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-4);
-  padding: var(--space-8);
-  background: var(--scrim);
+  padding: var(--popup-padding-top) var(--popup-padding-x) var(--popup-padding-bottom);
+  background: var(--pop);
+  color: var(--ink);
   text-align: center;
 }
 
+/* The brand mark at the onboarding size. */
 .game-overlay .logo-mark {
-  width: var(--logo-size-lg);
-  height: var(--logo-size-lg);
+  width: var(--onboard-mark-size);
+  height: var(--onboard-mark-size);
+  margin-bottom: var(--space-5);
 }
 
-.game-overlay__group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.game-overlay__display {
+.game-overlay__title {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--text-display-size);
-  line-height: var(--text-display-line);
-  font-weight: var(--text-display-weight);
+  font-size: var(--text-onboard-title-size);
+  line-height: var(--text-onboard-title-line);
+  letter-spacing: var(--text-onboard-title-tracking);
+  font-weight: var(--weight-medium);
+}
+
+.game-overlay__mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-mono-sm-size);
+  line-height: var(--text-body-line);
+  font-weight: var(--weight-regular);
+}
+
+.game-overlay__extra {
+  margin-top: var(--space-1);
+  color: var(--ink-2);
+}
+
+.game-overlay__status {
+  margin-top: var(--space-3);
+  font-size: var(--text-status-size);
+  line-height: var(--text-body-line);
+  letter-spacing: var(--text-status-tracking);
+  font-weight: var(--weight-medium);
+}
+
+.game-overlay__caption {
+  margin-top: var(--space-3);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-body-line);
+  color: var(--ink-2);
+}
+
+.game-overlay__caption + .game-overlay__status {
+  margin-top: 0;
+}
+
+.game-overlay__xp {
+  margin-top: var(--space-2);
+}
+
+/* Level bar, 4 px. */
+.game-overlay__bar {
+  width: 100%;
+  height: var(--bar-height-lg);
+  margin-top: var(--space-3);
+  border-radius: var(--radius-bar);
+  background: var(--line);
+  overflow: hidden;
+}
+
+.game-overlay__bar-fill {
+  height: 100%;
+  border-radius: var(--radius-bar);
+  background: var(--accent);
+}
+
+/* Text link: ink-2, ink on hover, 6 px vertical padding (--gap-6, popup.css). */
+.game-link {
+  margin-top: var(--space-6);
+  padding: var(--gap-6) var(--space-4);
+  border: 0;
+  border-radius: var(--radius-focus);
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--text-caption-size);
+  line-height: var(--text-body-line);
+  cursor: pointer;
+}
+
+.game-link:hover {
   color: var(--ink);
 }
 
-.game-overlay__heading {
-  font-size: var(--text-heading-size);
-  line-height: var(--text-heading-line);
-  font-weight: var(--text-heading-weight);
-  color: var(--accent-text);
-}
-
-.game-button {
-  min-height: var(--hit-target);
-  padding: 0 var(--space-6);
-  border: 0;
-  border-radius: var(--radius-md);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-size: var(--text-body-size);
-  line-height: var(--text-body-line);
-  font-weight: var(--text-heading-weight);
-  cursor: pointer;
+.game-link:focus-visible {
+  outline: var(--focus-ring) solid var(--accent);
+  outline-offset: var(--focus-ring);
 }
