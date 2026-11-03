@@ -40,9 +40,24 @@ pub fn weekly_budget(w_now: f64, w0: f64, days_left: u32, resets_at: EpochMs) ->
         used_percent: percent(used_today, allowance),
         days_left,
         resets_at: Some(resets_at),
-        // Computed in TKM-81; unavailable until then.
+        // Needs the token history; filled in by `weekly_from_db`.
         tokens_left_per_day: None,
     }
+}
+
+/// Headline tokens that may still be used per day until the weekly reset
+/// (estimate: the weekly limit also counts claude.ai chats).
+///
+/// The ratio is tokens per weekly percent point: `window_tokens` (headline
+/// tokens since the weekly window start) divided by `w_now`. `None` at 0 %
+/// utilisation or without tokens in the window.
+pub fn tokens_left_per_day(w_now: f64, days_left: u32, window_tokens: u64) -> Option<f64> {
+    if w_now <= 0.0 || window_tokens == 0 {
+        return None;
+    }
+    let per_point = window_tokens as f64 / w_now;
+    let left = (100.0 - w_now) / f64::from(days_left.max(1)) * per_point;
+    Some(left.max(0.0))
 }
 
 /// Budget in headline tokens from the average active day of the previous
@@ -87,7 +102,12 @@ pub fn weekly_from_db<Tz: TimeZone>(
             .unwrap_or(weekly.utilization)
     };
     let left = days_left(today, local_date(tz, resets_at));
-    Ok(Some(weekly_budget(weekly.utilization, w0, left, resets_at)))
+    let mut budget = weekly_budget(weekly.utilization, w0, left, resets_at);
+    let window_tokens = db
+        .tokens_between(window_start, now.saturating_add(1))?
+        .headline();
+    budget.tokens_left_per_day = tokens_left_per_day(weekly.utilization, left, window_tokens);
+    Ok(Some(budget))
 }
 
 /// Token-history budget from the database (previous days, today excluded).
@@ -144,6 +164,27 @@ mod tests {
         assert_eq!(b.allowance, 0.0);
         assert_eq!(b.used_percent, 100.0);
         assert!(b.used_percent.is_finite());
+    }
+
+    #[test]
+    fn tokens_left_per_day_scales_by_tokens_per_point() {
+        // 40 % used with 4 000 tokens: 100 tokens per point; 60 points over
+        // 3 days is 20 points per day, so 2 000 tokens per day.
+        let v = tokens_left_per_day(40.0, 3, 4000).unwrap();
+        assert!((v - 2000.0).abs() < 1e-9);
+        // Over the limit never goes negative.
+        assert_eq!(tokens_left_per_day(120.0, 2, 500), Some(0.0));
+        // No utilisation or no tokens: unavailable.
+        assert_eq!(tokens_left_per_day(0.0, 3, 4000), None);
+        assert_eq!(tokens_left_per_day(40.0, 3, 0), None);
+    }
+
+    #[test]
+    fn history_budget_has_no_tokens_left_per_day() {
+        assert_eq!(
+            history_budget(&[1000], 1).unwrap().tokens_left_per_day,
+            None
+        );
     }
 
     #[test]
