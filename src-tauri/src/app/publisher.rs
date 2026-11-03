@@ -322,7 +322,6 @@ mod tests {
         s.limits.five_hour = Some(LimitWindow {
             utilization: 130.0,
             resets_at: None,
-            tokens_left_per_day: None,
         });
         assert_eq!(halo_percent(&s), Some(0.0), "overage is clamped");
         s.limits.five_hour = None;
