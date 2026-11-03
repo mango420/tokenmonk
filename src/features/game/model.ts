@@ -3,7 +3,7 @@
  * final per docs/DESIGN.md (Achievement toast, Level-up screen, First-start
  * import); numbers in it are live.
  */
-import type { AchievementId, AchievementUnlocked, GameState, LevelUp } from "../../lib/contracts";
+import type { AchievementUnlocked, GameState, LevelUp } from "../../lib/contracts";
 import { formatInt } from "../../lib/format";
 import { TOAST_COLLAPSE_AT } from "./constants";
 
@@ -49,29 +49,30 @@ export function nextToast(queue: readonly AchievementUnlocked[]): {
 }
 
 export interface ToastCopy {
-  glyph: AchievementId;
+  /** Toast title: the achievement name. */
   title: string;
-  detail: string | null;
-  xp: string;
+  /** The line under it: text, then the XP ("Coding after midnight. +50 XP"). */
+  line: string;
+}
+
+/** One sentence: the text with a closing full stop, then the XP. */
+function withXp(text: string | null, xp: number): string {
+  const amount = `+${formatInt(xp)} XP`;
+  const trimmed = text?.trim() ?? "";
+  if (trimmed === "") return amount;
+  return `${/[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`} ${amount}`;
 }
 
 /** `description` is the achievement's description, used when the unlock has no detail. */
 export function toastCopy(item: ToastItem, description: string | null): ToastCopy {
   if (item.kind === "summary") {
     return {
-      glyph: item.newest.id,
       title: `${item.count} achievements unlocked`,
-      detail: `Newest: ${item.newest.name}`,
-      xp: `+${formatInt(item.xp)} XP`,
+      line: withXp(`Newest: ${item.newest.name}`, item.xp),
     };
   }
   const { unlock } = item;
-  return {
-    glyph: unlock.id,
-    title: `${unlock.name} unlocked`,
-    detail: unlock.detail ?? description,
-    xp: `+${formatInt(unlock.xp)} XP`,
-  };
+  return { title: unlock.name, line: withXp(unlock.detail ?? description, unlock.xp) };
 }
 
 // -------------------------------------------------------- level-up screen

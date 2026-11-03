@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from "react";
-import { FADE_MS } from "./constants";
+import { FADE_MS, TOAST_SLIDE_MS } from "./constants";
 
 /** `prefers-reduced-motion: reduce`: overlays then appear and disappear without a fade. */
 export function prefersReducedMotion(): boolean {
@@ -40,6 +40,11 @@ export function fadeStyle(shown: boolean): CSSProperties {
     opacity: shown ? 1 : 0,
     transition: prefersReducedMotion() ? "none" : `opacity ${FADE_MS}ms linear`,
   };
+}
+
+/** Delay before the toast is removed after its slide-out started. */
+export function slideOutDelay(): number {
+  return prefersReducedMotion() ? 0 : TOAST_SLIDE_MS;
 }
 
 /** Delay before an item is removed after its fade-out started. */
