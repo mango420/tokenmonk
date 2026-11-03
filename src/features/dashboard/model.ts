@@ -193,8 +193,6 @@ export type NoteModel =
   | { kind: "text"; segments: NoteSegment[] }
   | { kind: "limitSetup"; text: string };
 
-const NO_NOTE: NoteModel = { kind: "text", segments: [] };
-
 /** One line, first match wins (docs/DESIGN.md, "Note line"). */
 export function buildNote(snap: DashboardSnapshot): NoteModel {
   const { data, limits } = snap;
@@ -219,11 +217,8 @@ export function buildNote(snap: DashboardSnapshot): NoteModel {
   if (limits.reason === "noSource") {
     return { kind: "limitSetup", text: "No limit data yet. Setup is in Settings." };
   }
-  if (!hasNoLimitData(limits)) {
-    return {
-      kind: "text",
-      segments: [{ text: "Limit % includes claude.ai chats. Token stats are Claude Code only." }],
-    };
-  }
-  return NO_NOTE;
+  return {
+    kind: "text",
+    segments: [{ text: "Limit % includes claude.ai chats. Token stats are Claude Code only." }],
+  };
 }
