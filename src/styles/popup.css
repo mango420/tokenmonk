@@ -45,7 +45,6 @@ button {
 :root {
   --hair: calc(var(--space-1) / 4);
   --half: calc(var(--space-1) / 2);
-  --gap-6: calc(var(--space-1) + var(--half));
   --gap-10: calc(var(--space-2) + var(--half));
   --gap-14: calc(var(--space-3) + var(--half));
   --gap-18: calc(var(--space-4) + var(--half));
