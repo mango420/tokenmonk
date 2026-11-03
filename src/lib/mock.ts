@@ -98,6 +98,7 @@ function budget(usedPercent: number): NonNullable<DashboardSnapshot["dailyBudget
     usedPercent,
     daysLeft: 7,
     resetsAt: WEEKLY_RESET,
+    tokensLeftPerDay: null,
   };
 }
 

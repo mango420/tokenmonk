@@ -82,6 +82,15 @@ pub struct DailyBudget {
     pub days_left: u32,
     /// Weekly reset, if known.
     pub resets_at: Option<EpochMs>,
+    /// Headline tokens that may still be used per day, today included, until
+    /// the weekly reset. An estimate: the weekly limit also counts claude.ai
+    /// chats. Only with the `weeklyLimit` basis: headline tokens since the
+    /// weekly window start (`resets_at` minus 7 days) divided by the current
+    /// weekly utilization give tokens per percent point; the value is
+    /// `(100 - utilization) / days_left` times that, at least 0. `None` with
+    /// the `tokenHistory` basis, at 0 % weekly utilization or without tokens
+    /// in the window. Serialized as `tokensLeftPerDay`, `null` never omitted.
+    pub tokens_left_per_day: Option<f64>,
 }
 
 /// State of the log import.

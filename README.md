@@ -11,8 +11,8 @@ Status: version 0.1.0 is in development. No release has been published yet.
 ## What it does
 
 - Lives in the tray (Windows) or the menu bar (macOS). The icon carries a
-  halo that fills up: with the 5-hour limit in Max it out, with the daily
-  budget in Do it yourself.
+  ring that drains with the percent left of the 5-hour limit, in both
+  modes.
 - Click it for a small popup: tokens today, current session, burn rate,
   the 5-hour and weekly limit, and a daily budget.
 - Two modes, picked on first start and switchable in Settings:
