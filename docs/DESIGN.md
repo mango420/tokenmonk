@@ -139,10 +139,12 @@ overflow hidden. Each screen is a column with padding 20 (top), 24 (sides),
 ### Shared parts
 
 - **Top row**: min height 32, items centred, space-between. Brand on the
-  left: the brand mark at 26 px, gap 10, "Tokenmonk" (brand style). On
+  left: the monk mark (`assets/brand/tokenmonk-mark.svg`, unchanged
+  file, its own colours) at 26 px, gap 10, "Tokenmonk" (brand style). On
   sub-screens the top row holds only the text link "Back" (Esc does the
   same).
-- **Brand mark** (static, not a gauge): viewBox 32 x 32; an arc on a
+- **Brand mark** (static, not a gauge; onboarding and level-up only,
+  not the top row): viewBox 32 x 32; an arc on a
   circle r 12, stroke 3.2, `--accent`, round caps, `stroke-dasharray 58
   100`, rotated -70°; a centre dot r 3.4 in `ink`.
 - **Level bar**: track `line`, fill `--accent`, radius 2, height 3
@@ -457,9 +459,10 @@ viewBox 24 x 24:
 
 Value: 5-hour percent left in both modes. Before onboarding the accent is
 saffron. The monk files in `assets/brand/` (`tokenmonk-mark*.svg`) remain
-the app icon source; the popup uses the brand mark described above, kept
-as a file in `assets/brand/tokenmonk-ring-mark.svg` (saffron arc, light
-theme `ink` dot).
+the app icon source, and `tokenmonk-mark.svg` is also the popup top row
+mark at 26 px. The brand mark described above (onboarding and level-up
+screens) is kept as a file in `assets/brand/tokenmonk-ring-mark.svg`
+(saffron arc, light theme `ink` dot).
 
 ## Not covered by the design / out of scope
 

@@ -165,3 +165,8 @@ The popup follows the refreshed prototype; DESIGN.md and `tokens.css` describe i
 - Expected assets per release while `UPDATER_ARTIFACTS` is `'false'`: four installers, `Tokenmonk_<version>_universal.dmg`, `Tokenmonk_<version>_universal.app.tar.gz`, `Tokenmonk_<version>_x64-setup.exe` and `Tokenmonk_<version>_x64_en-US.msi`. GitHub adds the two source archives, so the release page lists six. No `.sig` files, no `latest.json`.
 - The guard allows exactly one co-author trailer in commit messages, `github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>`. GitHub appends it when a maintainer squash-merges a PR whose commits the Actions bot authored (the release PR, the register refresh PR). It names the GitHub Actions bot, not an assistant. Every other co-author trailer stays blocked. Cause: the v0.3.0 tag commit carried it, the release guard failed and no installers were built (TKM-104).
 - Rebuilding an existing tag: start `release.yml` from `main` with the input `tag` (for example `v0.3.0`). The run checks out and builds the tag, checks that it is a tag matching the app version, and runs the guard script from `main` over the tag's tree and history. A plain re-run would use the tag's own, older guard. The tag is never moved, deleted or recreated.
+
+## Popup header mark (2026-11-03)
+
+- The popup top row shows the monk mark (`assets/brand/tokenmonk-mark.svg`) at 26 px instead of the ring brand mark (TKM-121). It stays static. The file is used as is, with its own fixed colours, in both themes and both modes.
+- The ring brand mark (`tokenmonk-ring-mark.svg`, arc and dot in the mode accent) stays for the onboarding and level-up screens at 52 px. The header line of "Design refresh" above is superseded for the top row only.
