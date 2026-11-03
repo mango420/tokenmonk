@@ -70,7 +70,7 @@ pub struct AchievementProgress {
     pub current: Option<u32>,
     /// The counted goal, for example 7 (days). `None` for one-shot achievements.
     pub target: Option<u32>,
-    /// Ready-made progress line, for example "4 of 7 days under 20 %".
+    /// Ready-made progress line, for example "4 of 7".
     pub progress_label: Option<String>,
 }
 
@@ -81,7 +81,7 @@ pub struct AchievementProgress {
 pub struct AchievementUnlocked {
     pub id: AchievementId,
     pub name: String,
-    /// Context line, for example "Tokens burned at 02:47".
+    /// Context line, for example "Tokens burned at 00:47".
     pub detail: Option<String>,
     pub xp: u32,
     pub unlocked_at: EpochMs,
@@ -109,7 +109,7 @@ pub struct LevelUp {
 pub struct GameState {
     pub mode: Mode,
     pub level: u32,
-    /// For example "Token Squire".
+    /// For example "Limit Chaser".
     pub title: String,
     /// All XP ever earned (one pool for both modes).
     pub xp_total: u64,

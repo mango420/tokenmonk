@@ -19,10 +19,10 @@ Related documents: [DESIGN.md](DESIGN.md) (look and feel),
 | aggregate | `src-tauri/src/aggregate/` | Build `DashboardSnapshot` from the database and the latest limit reading. |
 | limits | `src-tauri/src/limits/` | `LimitSource` implementations and the polling worker. |
 | game | `src-tauri/src/game/` | XP, levels, titles, achievements, retroactive replay. |
-| app | `src-tauri/src/app/` | App layer: shared state (`AppState`: cached snapshot, game state, settings, app info, command connection), the ingest publisher (`AppPublisher`: caches each snapshot, emits events, drives the tray halo and the game), startup wiring (`setup`), the game store adapter (`DbGameStore`) and the game facts builder. SQL stays in `db`. |
+| app | `src-tauri/src/app/` | App layer: shared state (`AppState`: cached snapshot, game state, settings, app info, command connection), the ingest publisher (`AppPublisher`: caches each snapshot, emits events, drives the tray ring and the game), startup wiring (`setup`), the game store adapter (`DbGameStore`) and the game facts builder. SQL stays in `db`. |
 | commands | `src-tauri/src/commands/` | `#[tauri::command]` handlers; thin, read cached state or delegate. |
-| tray, window | `src-tauri/src/{tray,window}/` | Tray icon with live halo, popup window placement and show/hide. |
-| UI | `src/` | React views: onboarding, dashboard, settings, toasts, level-up screen. |
+| tray, window | `src-tauri/src/{tray,window}/` | Tray icon with live ring (5-hour percent left), popup window placement and show/hide. |
+| UI | `src/` | React views: onboarding, dashboard, settings, achievements, toasts, level-up screen. |
 
 The UI never touches files, the database or the network.
 
@@ -42,7 +42,7 @@ minute tick ----------------------------------------------------> aggregate
                                                      |                               |
                                                      v                               v
                                      emit dashboard-updated          emit game-updated,
-                                     update tray halo                achievement-unlocked, level-up
+                                     update tray ring                achievement-unlocked, level-up
                                                      |
                                                      v
                                           UI (React) renders; commands for reads and settings
@@ -334,13 +334,25 @@ For backend-platform (and the orchestrator where marked):
 
 - XP is a ledger (`xp_events`); level, progress and title derive from the
   sum. One XP pool for both modes; each event records the mode it was
-  earned in; titles depend on the current mode and the level.
+  earned in; the title depends on the current mode only: "Limit Chaser"
+  (Max it out, also before onboarding) and "Quiet Spender" (Do it
+  yourself), at every level.
 - The game module defines XP rules, the level curve, titles and achievement
   thresholds. Contracts only carry ids and numbers.
-- Achievements (v0.1 minimum): First Blood, Night Owl, Rate-Limit Rambo,
-  So Close, Token Monk. Plus Boo (shown as "Halloween 2026"): a retired,
-  secret legacy badge that can no longer be earned; existing unlocks stay
-  valid and keep their XP.
+- Achievements (v0.1), name, description, rule and XP:
+
+  | Achievement | Description | Unlocks when | XP |
+  |---|---|---|---|
+  | First Blood | "Your first token, spent." | first counted message | 10 |
+  | Night Owl | "Coding after midnight." | a message between 00:00 and 04:00 local time | 50 |
+  | Rate-Limit Rambo | "Hit the limit. On purpose, we assume." | a 5-hour reading at or above 100 % | 100 |
+  | So Close | "Stopped at 99 percent. Restraint or luck." | a finished 5-hour window peaking at 99 % or more, below 100 % | 60 |
+  | Token Monk | "A full day under budget." | one finished local day with a daily budget and `usedPercent` below 100 | 150 |
+
+  Mode restrictions and the level curve are unchanged. Plus Boo (shown as
+  "Halloween 2026"): a retired, secret legacy badge that can no longer be
+  earned; existing unlocks stay valid and keep their XP. Already stored
+  unlocks and XP events are not rewritten when these rules change.
 - **Retroactive levelling**: after onboarding is completed for the first
   time, the game replays the stored history in time order, writing
   `xp_events` and unlocks with `retroactive = 1`. During the replay no
@@ -375,7 +387,7 @@ Defined in the contracts (names as constants on both sides):
 | `achievement-unlocked` | `AchievementUnlocked` |
 | `level-up` | `LevelUp` |
 | `app-info-changed` | `AppInfo` |
-| `navigate` | `NavigateTo` (tray menu opens settings etc.) |
+| `navigate` | `NavigateTo` (tray menu opens settings etc.; views: dashboard, settings, onboarding, achievements) |
 
 Payloads are full state, never diffs. On start the UI calls the `get_*`
 commands once, then follows the events. Every command returns
