@@ -93,16 +93,26 @@ see it, please open an issue.
 ## Set up limit data
 
 Token usage works right away. The limit numbers (5-hour and weekly) need
-one line in Claude Code's settings, because Claude Code hands them only to
+one entry in Claude Code's settings, because Claude Code hands them only to
 its status-line command.
 
 1. Open Tokenmonk, then **Settings > Limit data**. It shows the exact
    snippet for your installation, with the path to the Tokenmonk
    executable filled in, and a copy button.
-2. Paste it into `~/.claude/settings.json`. It has this shape:
+2. Open Claude Code's user settings file. Create it if it does not exist.
+
+   | System | File |
+   |---|---|
+   | macOS, Linux | `~/.claude/settings.json` |
+   | Windows | `%USERPROFILE%\.claude\settings.json`, for example `C:\Users\<you>\.claude\settings.json` |
+
+3. Add `statusLine` as a top-level key, next to the keys already in the
+   file, not inside another block. A file with other settings then looks
+   like this:
 
    ```json
    {
+     "model": "opus",
      "statusLine": {
        "type": "command",
        "command": "<path to the Tokenmonk executable> --statusline"
@@ -110,7 +120,24 @@ its status-line command.
    }
    ```
 
-3. Send Claude Code one message. The numbers show up after the first reply.
+   Every key except the last one ends with a comma. A new or empty file
+   holds just the snippet from Settings. If the file already has a
+   `statusLine` entry, replace it, or keep your script (see the notes
+   below).
+4. Send Claude Code one message. The numbers show up after the first reply.
+
+Default values for `command` (the snippet in Settings has the exact one):
+
+| System | `command` |
+|---|---|
+| Windows (installer default) | `C:/Users/<you>/AppData/Local/Tokenmonk/tokenmonk.exe --statusline` |
+| macOS | `/Applications/Tokenmonk.app/Contents/MacOS/tokenmonk --statusline` |
+| Linux, `.deb` built from source | `/usr/bin/tokenmonk --statusline` |
+| Linux, AppImage built from source | `/path/to/Tokenmonk.AppImage --statusline` |
+
+On Windows, write the path with forward slashes. Claude Code runs the
+command through Git Bash, and a backslash in JSON needs escaping anyway.
+There are no Linux release builds yet.
 
 Notes:
 
