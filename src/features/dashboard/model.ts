@@ -138,17 +138,26 @@ export interface StatModel {
 }
 
 export function buildStats(snap: DashboardSnapshot): StatModel[] {
-  const left = snap.dailyBudget?.tokensLeftPerDay ?? null;
   return [
     {
       label: "Burn rate",
       value: formatCompact(snap.burnRate.tokensPerMinute),
       unit: "tokens per minute",
     },
-    left === null
-      ? { label: "Daily budget", value: "n/a", unit: "needs limit data" }
-      : { label: "Daily budget", value: formatCompact(left), unit: "tokens left per day" },
+    budgetStat(snap.dailyBudget),
   ];
+}
+
+function budgetStat(budget: DashboardSnapshot["dailyBudget"]): StatModel {
+  const label = "Daily budget";
+  if (budget === null) return { label, value: "n/a", unit: "needs limit data" };
+  if (budget.basis === "tokenHistory") {
+    // Allowance is in tokens: the average active day of the past week.
+    const left = Math.max(budget.allowance - budget.usedToday, 0);
+    return { label, value: formatCompact(left), unit: "tokens left today" };
+  }
+  if (budget.tokensLeftPerDay === null) return { label, value: "n/a", unit: "no pace yet" };
+  return { label, value: formatCompact(budget.tokensLeftPerDay), unit: "tokens left per day" };
 }
 
 // ------------------------------------------------------------- level block
