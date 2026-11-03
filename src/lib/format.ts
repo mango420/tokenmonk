@@ -1,22 +1,33 @@
-/** Display formatting. House style: `72 %`, `184,230`, 24 h clock, no em dashes. */
+/** Display formatting (docs/DESIGN.md, "Number formats"). No em dashes, 24 h clock. */
 
 const intFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
-const weekdayFormat = new Intl.DateTimeFormat("en-US", { weekday: "long" });
+
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
 
 /** Thousands with a comma: `184,230`. */
 export function formatInt(n: number): string {
   return intFormat.format(Math.round(n));
 }
 
-/** Percent with a space: `72 %`. */
-export function formatPercent(n: number): string {
-  return `${formatInt(n)} %`;
+/** One decimal, a trailing `.0` dropped: `1.1`, `120`. */
+function oneDecimal(n: number): string {
+  return n.toFixed(1).replace(/\.0$/, "");
 }
 
-/** Full number below 10,000, otherwise one decimal with `k` (`12.4k`). Used inside the gauge. */
-export function formatShort(n: number): string {
-  const rounded = Math.round(n);
-  return rounded >= 10_000 ? `${(rounded / 1000).toFixed(1)}k` : formatInt(rounded);
+/** Compact token value: `842`, `4.2k`, `120k`, `1.2M`. */
+export function formatCompact(n: number): string {
+  const rounded = Math.round(Math.max(0, n));
+  if (rounded < 1_000) return String(rounded);
+  const thousands = Math.round(rounded / 100) / 10;
+  if (thousands < 1_000) return `${oneDecimal(thousands)}k`;
+  return `${oneDecimal(rounded / 1_000_000)}M`;
+}
+
+/** Percent left of a window: `max(0, round(100 - utilization))`. */
+export function percentLeft(utilization: number): number {
+  return Math.max(0, Math.round(100 - utilization));
 }
 
 function pad2(n: number): string {
@@ -29,21 +40,20 @@ export function formatClock(epochMs: number): string {
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
-/** Local weekday and time: `Thursday, 09:00`. */
-export function formatWeekdayClock(epochMs: number): string {
-  return `${weekdayFormat.format(new Date(epochMs))}, ${formatClock(epochMs)}`;
+/** Reset duration: `2h 14m`, `0h 41m`; from 24 h `3d 4h`. Never negative. */
+export function formatResetIn(ms: number): string {
+  const clamped = Math.max(0, ms);
+  if (clamped >= DAY_MS) {
+    const days = Math.floor(clamped / DAY_MS);
+    const hours = Math.floor((clamped % DAY_MS) / HOUR_MS);
+    return `${days}d ${hours}h`;
+  }
+  const hours = Math.floor(clamped / HOUR_MS);
+  const minutes = Math.floor((clamped % HOUR_MS) / MINUTE_MS);
+  return `${hours}h ${minutes}m`;
 }
 
-/** Remaining time as `2 h 14 min` or `38 min`; never below `1 min`. */
-export function formatDuration(ms: number): string {
-  const totalMin = Math.max(1, Math.round(ms / 60_000));
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  if (h === 0) return `${m} min`;
-  return `${h} h ${m} min`;
-}
-
-/** Clamp to 0..1 for rings and bars. */
+/** Clamp to 0..1 for bars. */
 export function clamp01(n: number): number {
   return Math.min(1, Math.max(0, n));
 }

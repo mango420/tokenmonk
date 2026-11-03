@@ -2,22 +2,6 @@ import type { ReactNode } from "react";
 
 /** Line icons on a 24 x 24 grid; stroke, caps and joins come from CSS (`.icon`). */
 const PATHS = {
-  flame: <path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5.3 1.8 1.3 2.8 2.5 3C11 9 11 6 12 3z" />,
-  wrench: (
-    <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z" />
-  ),
-  gear: (
-    <>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" />
-    </>
-  ),
-  copy: (
-    <>
-      <rect x="9" y="9" width="11" height="11" rx="2" />
-      <path d="M5 15V6a2 2 0 0 1 2-2h8" />
-    </>
-  ),
   windowMaximize: <rect x="5" y="5" width="14" height="14" rx="1" />,
   windowRestore: (
     <>
@@ -26,8 +10,6 @@ const PATHS = {
     </>
   ),
   windowClose: <path d="M6 6l12 12M18 6L6 18" />,
-  chevronLeft: <path d="M15 5l-7 7 7 7" />,
-  check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
   moon: <path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" />,
   drop: <path d="M12 3s6 6.2 6 10.5a6 6 0 0 1-12 0C6 9.2 12 3 12 3z" />,
   bolt: <path d="M13 2 4 14h7l-1 8 9-12h-7z" />,

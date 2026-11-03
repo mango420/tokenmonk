@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { ChoiceTile } from "../../components/ChoiceTile";
-import { Icon } from "../../components/Icon";
-import { ToggleRow } from "../../components/ToggleRow";
+import { Switch } from "../../components/Switch";
+import { TextLink } from "../../components/TextLink";
+import { TopRow } from "../../components/TopRow";
 import type { AppActions, AppData } from "../../lib/appData";
 import type { SettingsPatch } from "../../lib/contracts";
-import { formatInt } from "../../lib/format";
-import { MODE_LABEL, modeFill } from "../dashboard/model";
+import { useEscape } from "../../lib/useEscape";
+import { MODE_DESCRIPTION, MODE_LABEL, type PopupMode } from "../dashboard/model";
 import { LimitData } from "./LimitData";
 
 interface SettingsViewProps {
@@ -15,6 +15,8 @@ interface SettingsViewProps {
   /** Scroll to "Limit data" on open (the dashboard's setup hint asks for it). */
   scrollToLimits?: boolean;
 }
+
+const MODES: readonly PopupMode[] = ["max", "diy"];
 
 /**
  * Settings: every change applies at once through `update_settings`. While the
@@ -31,13 +33,7 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false }: 
   /** Latest call number per key; only the newest call may clear its pending value. */
   const sequence = useRef<Partial<Record<keyof SettingsPatch, number>>>({});
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onBack();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onBack]);
+  useEscape(onBack);
 
   const shown = { ...data.settings, ...pending };
 
@@ -59,65 +55,57 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false }: 
     if (!ok) setFailed(true);
   };
 
+  const version = data.appInfo.version;
+
   return (
-    <>
-      <header className="header" data-tauri-drag-region="deep">
-        <button type="button" className="icon-button" aria-label="Back to dashboard" onClick={onBack}>
-          <Icon name="chevronLeft" />
-        </button>
-        <h1 className="screen__title">Settings</h1>
-      </header>
-      <div className="screen screen--settings">
-        <div className="number-block">
-          <span className="counter live-number">{formatInt(data.game.xpTotal)}</span>
-          <span className="caption">XP total. Kept when you switch modes.</span>
+    <div className="screen">
+      <TopRow>
+        <TextLink onClick={onBack}>Back</TextLink>
+      </TopRow>
+      <div className="scroll">
+        <h1 className="title">Settings</h1>
+
+        <span id="settings-mode" className="label">
+          Mode
+        </span>
+        <div role="radiogroup" aria-labelledby="settings-mode">
+          {MODES.map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              role="radio"
+              aria-checked={shown.mode === mode}
+              className="mode-row"
+              onClick={() => {
+                if (shown.mode !== mode) void change({ mode });
+              }}
+            >
+              <span className="mode-row__name">{MODE_LABEL[mode]}</span>
+              <span className="mode-row__description">{MODE_DESCRIPTION[mode]}</span>
+            </button>
+          ))}
         </div>
 
-        <section className="settings-section" aria-labelledby="settings-mode">
-          <span id="settings-mode" className="caption">
-            Mode
-          </span>
-          <div className="choice-row" role="radiogroup" aria-label="Mode">
-            {(["max", "diy"] as const).map((mode) => (
-              <ChoiceTile
-                key={mode}
-                compact
-                icon={mode === "max" ? "flame" : "wrench"}
-                name={MODE_LABEL[mode]}
-                fill={modeFill(mode)}
-                selected={shown.mode === mode}
-                onSelect={() => {
-                  if (shown.mode !== mode) void change({ mode });
-                }}
-              />
-            ))}
+        <div className="switch-list">
+          <div className="switch-row">
+            <span>Sound</span>
+            <Switch label="Sound" checked={shown.sound} onChange={(sound) => void change({ sound })} />
           </div>
-          <span className="caption">Titles follow the mode. XP stays.</span>
-          {failed ? (
-            <span className="caption caption--error" role="alert">
-              Couldn’t save that. Try again.
-            </span>
-          ) : null}
-        </section>
-
-        <hr className="hairline" />
-
-        <div className="toggle-list">
-          <ToggleRow
-            label="Sound"
-            caption="On unlocks and level-ups"
-            checked={shown.sound}
-            onChange={(sound) => void change({ sound })}
-          />
-          <ToggleRow
-            label="Start at login"
-            caption="Lives in the tray, not in your way"
-            checked={shown.autostart}
-            onChange={(autostart) => void change({ autostart })}
-          />
+          <div className="switch-row">
+            <span>Start at login</span>
+            <Switch
+              label="Start at login"
+              checked={shown.autostart}
+              onChange={(autostart) => void change({ autostart })}
+            />
+          </div>
+          <div className="switch-end" />
         </div>
-
-        <hr className="hairline" />
+        {failed ? (
+          <p className="note note--error" role="alert">
+            Couldn’t save that. Try again.
+          </p>
+        ) : null}
 
         <LimitData
           ref={limitsRef}
@@ -126,10 +114,11 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false }: 
           loadLimitSetup={actions.loadLimitSetup}
         />
 
-        {data.appInfo.version === "" ? null : (
-          <p className="footer-note">Tokenmonk {data.appInfo.version}</p>
-        )}
+        <p className="note note--bottom">
+          {version === "" ? "Tokenmonk, MIT." : `Tokenmonk ${version}, MIT.`} Ideas and bugs go to GitHub
+          issues.
+        </p>
       </div>
-    </>
+    </div>
   );
 }

@@ -1,46 +1,29 @@
 import { useState } from "react";
-import { ChoiceTile } from "../../components/ChoiceTile";
-import { PrimaryButton } from "../../components/PrimaryButton";
-import type { AppActions, AppData } from "../../lib/appData";
-import type { Mode } from "../../lib/contracts";
-import { formatInt } from "../../lib/format";
+import { BrandMark } from "../../components/BrandMark";
+import type { AppActions } from "../../lib/appData";
 import { Header } from "../dashboard/Header";
-import { importRatio, MODE_LABEL, modeFill, type PopupMode } from "../dashboard/model";
+import { MODE_DESCRIPTION, MODE_LABEL, type PopupMode } from "../dashboard/model";
 
 interface OnboardingProps {
-  data: AppData;
   onChoose: AppActions["completeOnboarding"];
 }
 
-const DESCRIPTION: Record<PopupMode, string> = {
-  max: "Use every token you pay for. XP for burning the limit.",
-  diy: "Give the AI as little as possible. XP for staying under budget.",
+const MODES: readonly PopupMode[] = ["max", "diy"];
+
+const MARK_COLOR: Record<PopupMode, string> = {
+  max: "var(--saffron)",
+  diy: "var(--jade)",
 };
 
-function importLine(data: AppData["dashboard"]): string {
-  switch (data.data.state) {
-    case "importing":
-      return `Reading logs · ${formatInt(data.data.filesDone)} / ${formatInt(data.data.filesTotal)} files`;
-    case "ready":
-      return `${formatInt(data.today.total)} tokens found today`;
-    case "noLogs":
-      return "No Claude Code logs yet";
-    case "error":
-      return "Can’t read the logs.";
-  }
-}
-
-/** First start: "How do you want to vibe?" Two tiles, one button. */
-export function Onboarding({ data, onChoose }: OnboardingProps) {
-  const [selected, setSelected] = useState<PopupMode | null>(null);
+/** First start: "How do you want to vibe?" A click on a mode chooses it at once. */
+export function Onboarding({ onChoose }: OnboardingProps) {
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  const choose = async () => {
-    if (selected === null || saving) return;
+  const choose = async (mode: PopupMode) => {
+    if (saving) return;
     setSaving(true);
     setFailed(false);
-    const mode: Mode = selected;
     const ok = await onChoose(mode);
     // On success `settings-changed` switches the view away; only a failure stays here.
     setSaving(false);
@@ -48,42 +31,28 @@ export function Onboarding({ data, onChoose }: OnboardingProps) {
   };
 
   return (
-    <>
-      <Header mode={null} haloRatio={importRatio(data.dashboard.data)} />
-      <div className="screen screen--onboarding">
-        <h1 className="screen__title">How do you want to vibe?</h1>
-        <div className="choice-group" role="radiogroup" aria-label="Mode">
-          {(["max", "diy"] as const).map((mode) => (
-            <ChoiceTile
-              key={mode}
-              icon={mode === "max" ? "flame" : "wrench"}
-              name={MODE_LABEL[mode]}
-              description={DESCRIPTION[mode]}
-              fill={modeFill(mode)}
-              selected={selected === mode}
-              disabled={saving}
-              onSelect={() => setSelected(mode)}
-            />
-          ))}
-        </div>
-        <p className="caption">Both paths level up. Switch any time in settings.</p>
-        <div className="screen__bottom">
-          {failed ? (
-            <p className="caption caption--error" role="alert">
-              Couldn’t save that. Try again.
-            </p>
-          ) : null}
-          <PrimaryButton
-            fullWidth
-            disabled={selected === null || saving}
-            fill={selected === null ? undefined : modeFill(selected)}
-            onClick={() => void choose()}
-          >
-            {selected === null ? "Pick one" : `Start with ${MODE_LABEL[selected]}`}
-          </PrimaryButton>
-          <p className="import-line live-number">{importLine(data.dashboard)}</p>
-        </div>
-      </div>
-    </>
+    <div className="screen">
+      <Header />
+      <h1 className="onboard-title">How do you want to vibe?</h1>
+      <p className="onboard-lead">Pick one. You can switch later.</p>
+      {MODES.map((mode) => (
+        <button
+          key={mode}
+          type="button"
+          className="onboard-choice"
+          disabled={saving}
+          onClick={() => void choose(mode)}
+        >
+          <BrandMark size={52} color={MARK_COLOR[mode]} />
+          <span>
+            <span className="onboard-choice__name">{MODE_LABEL[mode]}</span>
+            <span className="onboard-choice__description">{MODE_DESCRIPTION[mode]}</span>
+          </span>
+        </button>
+      ))}
+      <p className="note note--onboard" role={failed ? "alert" : undefined}>
+        {failed ? "Couldn’t save that. Try again." : "Mindful about your tokens. Or not."}
+      </p>
+    </div>
   );
 }

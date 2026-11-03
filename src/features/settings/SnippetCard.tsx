@@ -1,22 +1,22 @@
 import { useEffect, useRef, useState } from "react";
-import { Icon } from "../../components/Icon";
+import { TextLink } from "../../components/TextLink";
 
 type Feedback = "copied" | "failed" | null;
 
 const COPIED_MS = 2_000;
 
 interface SnippetCardProps {
-  /** Selectable text; what the copy button puts on the clipboard. */
+  /** Selectable text; what the copy link puts on the clipboard. */
   text: string;
-  /** Accessible name of the copy button, for example "Copy snippet". */
+  /** Accessible name of the copy link, for example "Copy snippet". */
   copyLabel: string;
 }
 
 const COPIED_CAPTION = "Copied. Paste it, then send Claude Code one message.";
 
 /**
- * Snippet card (`surface-200`, mono) with a copy button in the top right. A
- * failed copy selects the text and says so calmly.
+ * Snippet block (1 px `line` border, mono) with a "Copy" link in the top right.
+ * A failed copy selects the text and says so calmly.
  */
 export function SnippetCard({ text, copyLabel }: SnippetCardProps) {
   const [feedback, setFeedback] = useState<Feedback>(null);
@@ -58,14 +58,16 @@ export function SnippetCard({ text, copyLabel }: SnippetCardProps) {
         <pre ref={textRef} className="snippet__text">
           {text}
         </pre>
-        <button type="button" className="icon-button snippet__copy" aria-label={copyLabel} onClick={() => void copy()}>
-          <Icon name="copy" />
-        </button>
+        <span className="snippet__copy">
+          <TextLink small label={copyLabel} onClick={() => void copy()}>
+            Copy
+          </TextLink>
+        </span>
       </div>
       {feedback === null ? null : (
-        <span className="caption" role="status">
+        <p className="caption" role="status">
           {feedback === "copied" ? COPIED_CAPTION : "Couldn’t copy. Select it and copy by hand."}
-        </span>
+        </p>
       )}
     </>
   );

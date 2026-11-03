@@ -1,18 +1,19 @@
-import { Card } from "../../components/Card";
-import type { StatTile } from "./model";
+import type { StatModel } from "./model";
 
 interface StatTilesProps {
-  tiles: StatTile[];
+  stats: StatModel[];
 }
 
-export function StatTiles({ tiles }: StatTilesProps) {
+/** Two equal columns: label, compact value, unit. No cards. */
+export function StatTiles({ stats }: StatTilesProps) {
   return (
-    <div className="stat-tiles">
-      {tiles.map((tile) => (
-        <Card key={tile.label} className="stat-tile">
-          <span className="caption">{tile.label}</span>
-          <span className={`stat-tile__value live-number${tile.muted ? " muted" : ""}`}>{tile.value}</span>
-        </Card>
+    <div className="stats">
+      {stats.map((stat) => (
+        <div key={stat.label} className="stat">
+          <span className="stat__label">{stat.label}</span>
+          <span className="stat__value live-number">{stat.value}</span>
+          <span className="stat__unit">{stat.unit}</span>
+        </div>
       ))}
     </div>
   );

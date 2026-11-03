@@ -22,7 +22,7 @@ export function useOsNotifications(data: AppData, enabled: boolean): void {
       void isPopupHidden().then((hidden) => {
         if (!hidden) return;
         const description = latest.current.game.achievements.find((a) => a.id === unlock.id)?.description;
-        void notify(`${unlock.name} unlocked · +${unlock.xp} XP`, unlock.detail ?? description ?? null);
+        void notify(`${unlock.name} unlocked, +${unlock.xp} XP`, unlock.detail ?? description ?? null);
       });
     },
     enabled,

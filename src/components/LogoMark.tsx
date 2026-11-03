@@ -28,13 +28,13 @@ function buildMark(ratio: number | null): string {
   const arc =
     ratio === null || ratio <= 0
       ? 'style="stroke:none"'
-      : `style="stroke:var(--halo)" stroke-width="8" stroke-linecap="round" stroke-dasharray="${(
+      : `style="stroke:var(--accent)" stroke-width="8" stroke-linecap="round" stroke-dasharray="${(
           HALO_LENGTH * ratio
         ).toFixed(1)} ${HALO_LENGTH.toFixed(1)}"`;
   svg = swap(svg, ARC, arc);
-  svg = swap(svg, 'stroke="#2A2631"', 'style="stroke:var(--gauge-track)"');
-  svg = swap(svg, 'fill="#1F1C25"', 'style="fill:var(--surface-200)"');
-  svg = swap(svg, 'stroke="#1A1206"', 'style="stroke:var(--on-accent)"');
+  svg = swap(svg, 'stroke="#2A2631"', 'style="stroke:var(--line)"');
+  svg = swap(svg, 'fill="#1F1C25"', 'style="fill:var(--pop)"');
+  svg = swap(svg, 'stroke="#1A1206"', 'style="stroke:var(--pop)"');
   return svg;
 }
 
