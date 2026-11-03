@@ -146,19 +146,22 @@
   background: var(--accent);
 }
 
-/* Text link: accent, underlined, padded to a comfortable target. */
+/* Text link: ink-2, ink on hover, 6 px vertical padding (--gap-6, popup.css). */
 .game-link {
   margin-top: var(--space-6);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--gap-6) var(--space-4);
   border: 0;
   border-radius: var(--radius-focus);
   background: none;
-  color: var(--accent);
+  color: var(--ink-2);
   font: inherit;
   font-size: var(--text-caption-size);
   line-height: var(--text-body-line);
-  text-decoration: underline;
   cursor: pointer;
+}
+
+.game-link:hover {
+  color: var(--ink);
 }
 
 .game-link:focus-visible {
