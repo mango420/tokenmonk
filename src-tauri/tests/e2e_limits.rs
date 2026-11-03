@@ -200,14 +200,14 @@ fn a_window_that_resets_is_dropped_and_the_next_one_takes_over() {
     rig.snap(hit + MIN, SnapshotCause::Limits);
     rig.snap(hit + 2 * MIN, SnapshotCause::Tick);
     assert_eq!(rig.rec.achievements(), ["soClose", "rateLimitRambo"]);
-    // 100 XP each, no token usage at all.
-    assert_eq!(rig.xp_total(), 200);
+    // So Close 60 XP and Rate-Limit Rambo 100 XP, no token usage at all.
+    assert_eq!(rig.xp_total(), 160);
 
     // The game survives a restart with the same readings and says nothing.
     rig.restart();
     rig.snap(hit + 3 * MIN, SnapshotCause::ImportDone);
     assert!(rig.rec.achievements().is_empty());
-    assert_eq!(rig.xp_total(), 200);
+    assert_eq!(rig.xp_total(), 160);
 }
 
 #[test]
