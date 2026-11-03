@@ -141,7 +141,7 @@ Superseded: releases are cut through the release PR, see "Automatic versioning w
 1. Merge feature and fix PRs as usual; release-please updates the release PR after every push to `main`.
 2. When ready, merge the release PR through the merge queue (green checks, squash with the PR title as subject). Exceptions: its subject `chore(main): release x.y.z` has no TKM key, and there is no manual rebase or force-push, because release-please rebuilds its branch from `main` on every push (manual changes would be overwritten). Without `RELEASE_PLEASE_TOKEN` the PR has no CI checks; the gate is then a reviewer check of the version and changelog diff.
 3. Wait until both `release.yml` builds (macOS universal and Windows) have finished and uploaded to the draft release `v<version>`.
-4. Review the draft (assets for both platforms, notes), then publish it.
+4. Review the draft (assets for both platforms, notes), install its assets and run [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) on macOS and Windows, then publish it. Gate, fix-forward policy and hotfix path: [RELEASE-FLOW.md](RELEASE-FLOW.md) (TKM-111).
 
 ## Design refresh (2026-11-03)
 
