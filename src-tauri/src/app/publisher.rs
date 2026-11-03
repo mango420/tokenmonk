@@ -30,23 +30,20 @@ pub trait Sink: Send {
     fn achievement(&self, unlocked: &AchievementUnlocked);
     fn level_up(&self, level_up: &LevelUp);
     fn app_info(&self, info: &AppInfo);
-    fn halo(&self, percent: Option<f64>);
+    fn halo(&self, percent: Option<f64>, mode: Mode);
 }
 
-/// Tray halo value for a snapshot: the 5-hour percentage in Max it out, the
-/// daily budget used in Do it yourself (capped at 100), import progress while
-/// importing. `None` shows the track only.
-pub fn halo_percent(mode: Mode, snapshot: &DashboardSnapshot) -> Option<f64> {
-    let raw = if snapshot.data.state == DataState::Importing && snapshot.data.files_total > 0 {
-        Some(f64::from(snapshot.data.files_done) / f64::from(snapshot.data.files_total) * 100.0)
-    } else {
-        match mode {
-            Mode::NoneYet => None,
-            Mode::Max => snapshot.limits.five_hour.as_ref().map(|w| w.utilization),
-            Mode::Diy => snapshot.daily_budget.as_ref().map(|b| b.used_percent),
-        }
-    };
-    raw.filter(|p| p.is_finite()).map(|p| p.clamp(0.0, 100.0))
+/// Tray halo value for a snapshot: the 5-hour percent LEFT, in every mode
+/// (docs/DESIGN.md, "Tray icon"). The arc drains as the window is used.
+/// `None` (no limit data) shows the dotted track only.
+pub fn halo_percent(snapshot: &DashboardSnapshot) -> Option<f64> {
+    snapshot
+        .limits
+        .five_hour
+        .as_ref()
+        .map(|w| w.utilization)
+        .filter(|u| u.is_finite())
+        .map(|u| (100.0 - u).clamp(0.0, 100.0))
 }
 
 pub struct AppPublisher<S: Sink> {
@@ -178,7 +175,7 @@ impl<S: Sink> IngestPublisher for AppPublisher<S> {
         self.refresh_info(snapshot);
 
         let mode = self.state.settings().mode;
-        self.sink.halo(halo_percent(mode, snapshot));
+        self.sink.halo(halo_percent(snapshot), mode);
 
         match cause {
             SnapshotCause::Import => {}
@@ -201,9 +198,8 @@ mod tests {
         NaiveDate::from_ymd_opt(y, m, d).unwrap()
     }
     use crate::aggregate::{snapshot, LimitState};
-    use crate::contracts::dashboard::BudgetBasis;
     use crate::contracts::{
-        AchievementId, DailyBudget, DataStatus, LimitReading, LimitWindow, Platform, Settings,
+        AchievementId, DataStatus, LimitReading, LimitWindow, Platform, Settings,
     };
     use crate::limits::LimitPoll;
     use chrono::FixedOffset;
@@ -240,8 +236,8 @@ mod tests {
         fn app_info(&self, i: &AppInfo) {
             self.push(format!("info logs={}", i.logs_found));
         }
-        fn halo(&self, p: Option<f64>) {
-            self.push(format!("halo {p:?}"));
+        fn halo(&self, p: Option<f64>, m: Mode) {
+            self.push(format!("halo {p:?} {m:?}"));
         }
     }
 
@@ -306,7 +302,7 @@ mod tests {
     }
 
     #[test]
-    fn halo_follows_the_mode() {
+    fn halo_is_five_hour_percent_left() {
         let db = Db::open_in_memory().unwrap();
         let now = ms(28, 12);
         let mut limits = LimitState::default();
@@ -322,29 +318,18 @@ mod tests {
             }),
         });
         let mut s = snap(&db, Mode::Max, now, &limits);
-        assert_eq!(halo_percent(Mode::Max, &s), Some(64.5));
-        assert_eq!(halo_percent(Mode::NoneYet, &s), None);
-        assert_eq!(halo_percent(Mode::Diy, &s), None, "no budget yet");
-        s.daily_budget = Some(DailyBudget {
-            basis: BudgetBasis::TokenHistory,
-            allowance: 10.0,
-            used_today: 15.0,
-            used_percent: 150.0,
-            days_left: 1,
+        assert_eq!(halo_percent(&s), Some(35.5), "percent left, not used");
+        s.limits.five_hour = Some(LimitWindow {
+            utilization: 130.0,
             resets_at: None,
-            tokens_left_per_day: None,
         });
-        assert_eq!(halo_percent(Mode::Diy, &s), Some(100.0), "capped");
+        assert_eq!(halo_percent(&s), Some(0.0), "overage is clamped");
         s.limits.five_hour = None;
-        assert_eq!(
-            halo_percent(Mode::Max, &s),
-            None,
-            "no limit data: track only"
-        );
+        assert_eq!(halo_percent(&s), None, "no limit data: dotted track only");
         s.data.state = DataState::Importing;
         s.data.files_total = 4;
         s.data.files_done = 1;
-        assert_eq!(halo_percent(Mode::Max, &s), Some(25.0));
+        assert_eq!(halo_percent(&s), None, "import progress is not a value");
     }
 
     #[test]
@@ -354,7 +339,7 @@ mod tests {
         let s = snap(&db, Mode::Max, now, &LimitState::default());
         p.on_snapshot(&mut db, &s, SnapshotCause::Import);
         assert_eq!(state.dashboard().unwrap(), s);
-        assert_eq!(rec.log(), ["dashboard", "halo None"]);
+        assert_eq!(rec.log(), ["dashboard", "halo None Max"]);
         assert!(state.game().is_none(), "no evaluation while importing");
     }
 

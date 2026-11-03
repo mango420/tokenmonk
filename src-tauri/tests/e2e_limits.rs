@@ -118,7 +118,7 @@ fn a_payload_becomes_a_limit_reading_in_the_snapshot() {
     assert_eq!(s.limits.source.as_deref(), Some("statusline"));
     assert_eq!(s.limits.five_hour.as_ref().unwrap().utilization, 23.5);
     assert_eq!(s.limits.weekly.as_ref().unwrap().utilization, 41.2);
-    assert_eq!(halo_percent(Mode::Max, &s), Some(23.5));
+    assert_eq!(halo_percent(&s), Some(76.5));
 
     // The file only changes while Claude Code runs: 16 minutes on, the same
     // values are shown, marked as old.
@@ -164,7 +164,7 @@ fn a_window_that_resets_is_dropped_and_the_next_one_takes_over() {
         LimitStatus::Stale,
         "last status line was 2 hours ago"
     );
-    assert_eq!(halo_percent(Mode::Max, &s), None, "nothing to gauge");
+    assert_eq!(halo_percent(&s), None, "nothing to gauge");
     assert_eq!(s.burn_rate.limit_eta_minutes, None);
 
     // Peak 99.4 % in a finished window: So Close, announced once.
@@ -182,7 +182,7 @@ fn a_window_that_resets_is_dropped_and_the_next_one_takes_over() {
     assert_eq!(s.limits.status, LimitStatus::Ok);
     let five = s.limits.five_hour.clone().unwrap();
     assert_eq!((five.utilization, five.resets_at), (3.0, Some(new_reset)));
-    assert_eq!(halo_percent(Mode::Max, &s), Some(3.0));
+    assert_eq!(halo_percent(&s), Some(97.0));
     rig.snap(later + MIN, SnapshotCause::Tick);
     assert_eq!(rig.rec.achievements(), ["soClose"], "never again");
 
@@ -244,7 +244,7 @@ fn with_every_window_over_there_is_no_limit_data() {
     assert_eq!(s.limits.status, LimitStatus::Unavailable);
     assert_eq!(s.limits.reason, Some(LimitReason::NoSource));
     assert!(s.limits.five_hour.is_none() && s.limits.weekly.is_none());
-    assert_eq!(halo_percent(Mode::Max, &s), None);
+    assert_eq!(halo_percent(&s), None);
 }
 
 #[test]
@@ -330,7 +330,7 @@ fn the_limit_worker_delivers_what_the_bridge_wrote() {
     rig.limit(poll.result);
     let s = rig.snap(now_ms(), SnapshotCause::Limits);
     assert_eq!(s.limits.status, LimitStatus::Ok);
-    assert_eq!(halo_percent(Mode::Max, &s), Some(64.5));
+    assert_eq!(halo_percent(&s), Some(35.5));
 
     // Both windows are over (reset times in the past): the worker reports
     // that no window is current.
@@ -360,5 +360,5 @@ fn the_aggregate_drops_a_window_that_reset_between_polls() {
         s.limits.five_hour
     );
     assert!(s.limits.weekly.is_some());
-    assert_eq!(halo_percent(Mode::Max, &s), None);
+    assert_eq!(halo_percent(&s), None);
 }
