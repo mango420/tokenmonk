@@ -76,7 +76,7 @@ function placeholders(): AppData {
       generatedAt: Date.now(),
       today: EMPTY_TOKENS,
       session: null,
-      burnRate: { tokensPerMinute: 0, windowMinutes: 10, limitEtaMinutes: null },
+      burnRate: { tokensPerMinute: 0, windowMinutes: 15, limitEtaMinutes: null },
       limits: {
         status: "unavailable",
         reason: "noSource",
