@@ -123,11 +123,17 @@ storage.
     `allowance = (100 - W0) / daysLeft`; `usedToday = Wnow - W0`;
     `usedPercent = usedToday / allowance x 100`. If the weekly window resets
     during the day, `W0` restarts at the reset.
+    `tokensLeftPerDay` (estimate, the weekly limit also counts claude.ai
+    chats): tokens per weekly percent point = headline tokens since the
+    weekly window start (`resetsAt` minus 7 days) / `Wnow`; value =
+    `(100 - Wnow) / daysLeft` x that ratio, at least 0; `null` at
+    `Wnow = 0` or without tokens in the window. Reported as `null` until
+    TKM-81.
   - `tokenHistory` basis (no weekly reading; decided fallback, used by Do
     it yourself when there is no limit data): `allowance` = average
     headline tokens per active day over the previous 7 local days (today
     excluded); `usedToday` = headline tokens today; `daysLeft = 1`,
-    `resetsAt = null`. `dailyBudget` is `null` if there is no active day
+    `resetsAt = null`, `tokensLeftPerDay = null`. `dailyBudget` is `null` if there is no active day
     in that range.
 - **Limit status**: on every snapshot build (including the minute tick)
   the aggregate first drops each window of the last good reading whose

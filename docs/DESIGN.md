@@ -458,8 +458,10 @@ viewBox 24 x 24:
 - Centre dot: r 2.2, filled in `--accent` of the current mode.
 
 Value: 5-hour percent left in both modes. Before onboarding the accent is
-saffron. The brand files in `assets/brand/` (the monk mark) remain the
-app icon source; the popup uses the brand mark described above.
+saffron. The monk files in `assets/brand/` (`tokenmonk-mark*.svg`) remain
+the app icon source; the popup uses the brand mark described above, kept
+as a file in `assets/brand/tokenmonk-ring-mark.svg` (saffron arc, light
+theme `ink` dot).
 
 ## Not covered by the design / out of scope
 
@@ -473,5 +475,3 @@ Open points:
   and the snippet stays selectable.
 - The prototype lists all achievements regardless of mode; whether
   mode-only achievements need a hint for the other mode is open.
-- The new brand mark (arc and dot) exists only as the inline drawing
-  above, not yet as a file in `assets/brand/`.
