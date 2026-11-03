@@ -193,9 +193,7 @@ Top to bottom:
      minute".
    - "Daily budget": `DailyBudget.tokensLeftPerDay`, compact; unit "tokens
      left per day". If it is `null` (or `dailyBudget` is `null`): value
-     "n/a", unit "needs limit data". The field is a pending contract
-     change (DECISIONS.md, "Design refresh"); until it lands the stat shows
-     this `null` state.
+     "n/a", unit "needs limit data".
 7. **Level block**, pushed to the bottom (margin top auto): a full-width
    button, 1 px `line` on top, padding 14 0 6. Row (space-between,
    baseline): `GameState.title` (row style) and "340 / 500 XP" (small,

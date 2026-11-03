@@ -127,8 +127,7 @@ storage.
     chats): tokens per weekly percent point = headline tokens since the
     weekly window start (`resetsAt` minus 7 days) / `Wnow`; value =
     `(100 - Wnow) / daysLeft` x that ratio, at least 0; `null` at
-    `Wnow = 0` or without tokens in the window. Reported as `null` until
-    TKM-81.
+    `Wnow = 0` or without tokens in the window.
   - `tokenHistory` basis (no weekly reading; decided fallback, used by Do
     it yourself when there is no limit data): `allowance` = average
     headline tokens per active day over the previous 7 local days (today
@@ -353,7 +352,7 @@ For backend-platform (and the orchestrator where marked):
   | Night Owl | "Coding after midnight." | a message between 00:00 and 04:00 local time | 50 |
   | Rate-Limit Rambo | "Hit the limit. On purpose, we assume." | a 5-hour reading at or above 100 % | 100 |
   | So Close | "Stopped at 99 percent. Restraint or luck." | a finished 5-hour window peaking at 99 % or more, below 100 % | 60 |
-  | Token Monk | "A full day under budget." | one finished local day with a daily budget and `usedPercent` below 100 | 150 |
+  | Token Monk | "A full day under budget." | one finished active local day (headline tokens > 0) with a daily budget and `usedPercent` below 100, one-shot | 150 |
 
   Mode restrictions and the level curve are unchanged. Plus Boo (shown as
   "Halloween 2026"): a retired, secret legacy badge that can no longer be
