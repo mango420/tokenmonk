@@ -41,7 +41,7 @@ pub enum Event {
         retroactive: bool,
     },
     AppInfo,
-    Halo(Option<f64>),
+    Halo(Option<f64>, Mode),
 }
 
 #[derive(Clone, Default)]
@@ -108,8 +108,8 @@ impl Sink for Recorder {
     fn app_info(&self, _: &AppInfo) {
         self.push(Event::AppInfo);
     }
-    fn halo(&self, percent: Option<f64>) {
-        self.push(Event::Halo(percent));
+    fn halo(&self, percent: Option<f64>, mode: Mode) {
+        self.push(Event::Halo(percent, mode));
     }
 }
 

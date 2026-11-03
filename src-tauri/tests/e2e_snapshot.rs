@@ -108,39 +108,75 @@ fn the_previous_day_is_complete_across_all_files_and_both_ends_of_the_day() {
 }
 
 #[test]
-fn halo_percent_per_mode() {
-    // No mode yet: the halo shows the track only, whatever the data says.
-    let (_, s) = loaded(Mode::NoneYet, now());
-    assert_eq!(halo_percent(Mode::NoneYet, &s), None);
+fn halo_is_the_five_hour_percent_left_in_every_mode() {
+    // Without a 5-hour reading the halo shows the dotted track only, in
+    // every mode, whatever the token history says.
+    for mode in [Mode::NoneYet, Mode::Max, Mode::Diy] {
+        let (rig, s) = loaded(mode, now());
+        assert_eq!(halo_percent(&s), None, "{mode:?}");
+        assert!(rig.rec.events().contains(&Event::Halo(None, mode)));
+    }
 
-    // Max it out without limit data: track only.
-    let (mut rig, s) = loaded(Mode::Max, now());
-    assert_eq!(halo_percent(Mode::Max, &s), None);
+    // With a 5-hour reading of 20 % used, 80 % is left, in every mode, and
+    // the sink is told the mode so it can pick the accent.
+    for mode in [Mode::NoneYet, Mode::Max, Mode::Diy] {
+        let (mut rig, _) = loaded(mode, now());
+        rig.limit(Ok(LimitReading {
+            five_hour: window(20.0, utc_ms(2026, 10, 28, 13, 40, 0)),
+            weekly: None,
+            fetched_at: now() - 60_000,
+        }));
+        let s = rig.snap(now(), SnapshotCause::Limits);
+        assert_eq!(s.limits.status, LimitStatus::Ok);
+        assert_eq!(halo_percent(&s), Some(80.0), "{mode:?}");
+        assert!(rig.rec.events().contains(&Event::Halo(Some(80.0), mode)));
+    }
 
-    // Max it out with a 5-hour reading: that percentage, and an ETA.
+    // Max keeps its ETA: 20 % over the 304 tokens since 08:40 at 304/15
+    // tokens a minute is 1.33 %/min, so 60 minutes to go; float rounding may
+    // land on 59.
+    let (mut rig, _) = loaded(Mode::Max, now());
     rig.limit(Ok(LimitReading {
         five_hour: window(20.0, utc_ms(2026, 10, 28, 13, 40, 0)),
         weekly: None,
         fetched_at: now() - 60_000,
     }));
     let s = rig.snap(now(), SnapshotCause::Limits);
-    assert_eq!(s.limits.status, LimitStatus::Ok);
-    assert_eq!(halo_percent(Mode::Max, &s), Some(20.0));
-    // 20 % over the 304 tokens since 08:40 at 304/15 tokens a minute is
-    // 1.33 %/min, so 60 minutes to go; float rounding may land on 59.
     let eta = s.burn_rate.limit_eta_minutes.expect("eta with a reading");
     assert!((59..=60).contains(&eta), "eta {eta}");
-    assert!(rig.rec.events().contains(&Event::Halo(Some(20.0))));
 
-    // Do it yourself without limit data: today against the average day of
-    // the last seven (2008 of 10628 tokens).
-    let (_, s) = loaded(Mode::Diy, utc_ms(2026, 10, 28, 12, 0, 0));
-    let used = halo_percent(Mode::Diy, &s).expect("history budget");
-    assert!((used - 2_008.0 / 10_628.0 * 100.0).abs() < 1e-9, "{used}");
+    // The gauge drains: a fuller window leaves less, and a window used up
+    // (or over) clamps to empty, never negative.
+    for (used, left) in [
+        (0.0, 100.0),
+        (99.4, 100.0 - 99.4),
+        (100.0, 0.0),
+        (130.0, 0.0),
+    ] {
+        let (mut rig, _) = loaded(Mode::Max, now());
+        rig.limit(Ok(LimitReading {
+            five_hour: window(used, utc_ms(2026, 10, 28, 13, 40, 0)),
+            weekly: None,
+            fetched_at: now() - 60_000,
+        }));
+        let s = rig.snap(now(), SnapshotCause::Limits);
+        let got = halo_percent(&s).expect("five-hour reading");
+        assert!((got - left).abs() < 1e-9, "used {used}: {got}");
+    }
+}
 
-    // Do it yourself with a weekly reading: percentage points of the week.
-    // Weekly 30 % at the first reading of the day, 40 % now, reset on the
-    // 30th: allowance (100 - 30) / 3 days, used 10 points.
+#[test]
+fn the_do_it_yourself_budget_does_not_drive_the_halo() {
+    // History budget: today against the average day of the last seven
+    // (2008 of 10628 tokens). Without a limit reading the halo stays empty.
+    let (rig, s) = loaded(Mode::Diy, utc_ms(2026, 10, 28, 12, 0, 0));
+    assert!(s.daily_budget.is_some());
+    assert_eq!(halo_percent(&s), None);
+    assert!(rig.rec.events().contains(&Event::Halo(None, Mode::Diy)));
+
+    // Weekly budget: weekly 30 % at the first reading of the day, 40 % now,
+    // reset on the 30th: allowance (100 - 30) / 3 days, used 10 points. The
+    // halo still follows the 5-hour window only (20 % used, 80 % left).
     let (mut rig, _) = loaded(Mode::Diy, now());
     let reset = utc_ms(2026, 10, 30, 18, 0, 0);
     rig.limit(Ok(LimitReading {
@@ -148,6 +184,13 @@ fn halo_percent_per_mode() {
         weekly: window(30.0, reset),
         fetched_at: utc_ms(2026, 10, 28, 0, 30, 0),
     }));
+    let s = rig.snap(now(), SnapshotCause::Limits);
+    assert_eq!(
+        s.daily_budget.as_ref().unwrap().basis,
+        BudgetBasis::WeeklyLimit
+    );
+    assert_eq!(halo_percent(&s), None, "weekly data alone gives no halo");
+
     rig.limit(Ok(LimitReading {
         five_hour: window(20.0, utc_ms(2026, 10, 28, 13, 40, 0)),
         weekly: window(40.0, reset),
@@ -159,8 +202,11 @@ fn halo_percent_per_mode() {
     assert_eq!(budget.days_left, 3);
     assert!((budget.allowance - 70.0 / 3.0).abs() < 1e-9);
     assert!((budget.used_today - 10.0).abs() < 1e-9);
-    let used = halo_percent(Mode::Diy, &s).unwrap();
-    assert!((used - 10.0 / (70.0 / 3.0) * 100.0).abs() < 1e-9, "{used}");
+    assert_eq!(halo_percent(&s), Some(80.0));
+    assert!(rig
+        .rec
+        .events()
+        .contains(&Event::Halo(Some(80.0), Mode::Diy)));
 }
 
 #[test]
