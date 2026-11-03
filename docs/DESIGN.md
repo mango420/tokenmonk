@@ -318,8 +318,9 @@ Code settings; this section only shows what to paste.
    | `unavailable`, other reasons | "Can’t read the limit file. Next reply fixes it." |
 
 3. Setup copy (caption): "Limits come from Claude Code’s status line.
-   Local only, no login. Add this to ~/.claude/settings.json:" (the path in
-   mono).
+   Local only, no login. Open <path>, create it if missing, and add this:"
+   (the path in mono). `<path>` is `%USERPROFILE%\.claude\settings.json`
+   if `AppInfo.platform = windows`, otherwise `~/.claude/settings.json`.
 4. Snippet block: 1 px `line` border, radius 8, padding 12, mono 12,
    `ink`, selectable, wraps anywhere (`white-space: pre-wrap`,
    `overflow-wrap: anywhere`). Content is
@@ -334,6 +335,11 @@ Code settings; this section only shows what to paste.
      }
    }
    ```
+
+   Merge hint (caption, directly below the block): "File already has
+   settings? Put "statusLine" at the top level next to them and end the key
+   before it with a comma. Already has a "statusLine"? Replace it, or keep
+   your script (below)." The key names in mono.
 
    Text link "Copy" at the block's top right. After a successful copy the
    caption under the block reads "Copied. Paste it, then send Claude Code
