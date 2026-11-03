@@ -280,9 +280,10 @@ html[data-maximized] .popup {
   display: block;
 }
 
-/* The monk mark in the top row: track only, static. */
-.brand .logo-mark {
+/* The monk mark in the top row: the file as is, its own colours. */
+.brand-logo {
   flex: none;
+  display: block;
   width: var(--brand-mark-size);
   height: var(--brand-mark-size);
 }
