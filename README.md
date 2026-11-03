@@ -123,6 +123,18 @@ Notes:
 - On Windows, if the path contains a space and Claude Code runs without Git
   Bash, Settings also shows a PowerShell variant of the snippet.
 
+## Development
+
+Enable the repository git hooks once per clone:
+
+```sh
+git config core.hooksPath .githooks
+```
+
+The `commit-msg` hook checks the staged files and the commit message, and
+the `pre-push` hook checks the pushed commits. Both run
+`node scripts/guard.mjs`, the same guard CI runs.
+
 ## Contact
 
 Questions, ideas and bug reports: please open a GitHub issue in this
