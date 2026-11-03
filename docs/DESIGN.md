@@ -193,9 +193,15 @@ Top to bottom:
    (caption), value (stat style, margin top 2), unit (small).
    - "Burn rate": `burnRate.tokensPerMinute`, compact; unit "tokens per
      minute".
-   - "Daily budget": `DailyBudget.tokensLeftPerDay`, compact; unit "tokens
-     left per day". If it is `null` (or `dailyBudget` is `null`): value
-     "n/a", unit "needs limit data".
+   - "Daily budget", by `DailyBudget.basis`:
+     - `weeklyLimit`: `tokensLeftPerDay`, compact; unit "tokens left per
+       day". If it is `null` (no pace yet): value "n/a", unit "no pace yet".
+     - `tokenHistory` (Do it yourself mode without limit data; `allowance`
+       is the average active day of the past week in tokens): value
+       `allowance - usedToday` floored at 0, compact; unit "tokens left
+       today".
+     - `dailyBudget` is `null` (no budget at all): value "n/a", unit "needs
+       limit data".
 7. **Level block**, pushed to the bottom (margin top auto): a full-width
    button, 1 px `line` on top, padding 14 0 6. Row (space-between,
    baseline): `GameState.title` (row style) and "340 / 500 XP" (small,
@@ -205,7 +211,9 @@ Top to bottom:
 
 ### Note line
 
-One line, first match wins:
+One line, first match wins. Status notes take precedence; the limit note
+is the fallback and shows with and without limit data, so the line is
+never empty:
 
 | Condition | Text |
 |---|---|
@@ -213,15 +221,15 @@ One line, first match wins:
 | `data.state = noLogs` | "No Claude Code logs yet. Start a session." (derived) |
 | `data.state = error` | "Can’t read the logs. Retrying in the background." (derived) |
 | `limits.reason = noSource` | "No limit data yet. Setup is in Settings." as a text link to Settings, scrolled to "Limit data" (derived, see DECISIONS.md) |
-| limits shown | "Limit % includes claude.ai chats. Token stats are Claude Code only." |
-| otherwise | empty |
+| otherwise (limit note) | "Limit % includes claude.ai chats. Token stats are Claude Code only." |
 
 ### Dashboard states
 
 - **No limit data** (`limits.status = unavailable`): segment hidden; ring
   track only; centre hero-sm with `today.total` (compact) and caption
   "tokens today"; status line "No limit data. Showing tokens only."; reset
-  line empty; daily budget stat in its `null` state.
+  line empty; daily budget stat on its `tokenHistory` basis in Do it
+  yourself mode, or "n/a" / "needs limit data" when there is no budget.
 - **Selected window missing** (`limits` usable but the selected window is
   `null`, for example a fresh 5-hour window before the next reply): ring
   track only; centre as in "No limit data"; status line "Fresh window.
