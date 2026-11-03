@@ -194,18 +194,6 @@ html[data-maximized] .popup {
   font-weight: var(--weight-regular);
 }
 
-.badge {
-  flex: none;
-  width: var(--badge-size);
-  height: var(--badge-size);
-  border: var(--accent-rule) solid var(--accent);
-  border-radius: 50%;
-  color: var(--ink);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .achievement__text {
   display: flex;
   flex-direction: column;
@@ -222,30 +210,6 @@ html[data-maximized] .popup {
 .logo-mark__svg {
   width: 100%;
   height: 100%;
-}
-
-.icon {
-  flex: none;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: var(--icon-stroke);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.icon--md {
-  width: var(--icon-size);
-  height: var(--icon-size);
-}
-
-.icon--sm {
-  width: var(--icon-size-sm);
-  height: var(--icon-size-sm);
-}
-
-.icon--xs {
-  width: var(--icon-size-xs);
-  height: var(--icon-size-xs);
 }
 
 /* ---------------------------------------------------------------- title bar */
@@ -278,19 +242,17 @@ html[data-maximized] .popup {
 }
 
 .titlebar__button {
-  width: var(--top-row-height);
   height: 100%;
-  padding: 0;
+  padding: 0 var(--space-3);
   border: none;
   background: none;
   color: var(--ink-2);
+  font-size: var(--text-caption-size);
   display: flex;
   align-items: center;
-  justify-content: center;
 }
 
 .titlebar__button:hover {
-  background: var(--line);
   color: var(--ink);
 }
 
