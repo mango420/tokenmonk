@@ -68,8 +68,8 @@ impl Sink for TauriSink {
     fn app_info(&self, info: &AppInfo) {
         self.emit(APP_INFO_CHANGED, info);
     }
-    fn halo(&self, percent: Option<f64>) {
-        tray::set_halo(&self.app, percent);
+    fn halo(&self, percent: Option<f64>, mode: Mode) {
+        tray::set_halo(&self.app, percent, mode);
     }
 }
 

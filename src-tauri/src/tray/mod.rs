@@ -13,6 +13,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, Tray
 use tauri::{AppHandle, Emitter};
 
 use crate::contracts::events::{NavigateTo, View, NAVIGATE};
+use crate::contracts::Mode;
 use crate::window;
 
 use icon::{render_icon, IconStyle, ICON_SIZE};
@@ -43,7 +44,7 @@ impl MenuAction {
     }
 }
 
-/// Creates the tray icon (track only, until the first [`set_halo`]) and its
+/// Creates the tray icon (dotted track only, until the first [`set_halo`]) and its
 /// menu. Call once from the setup hook, after the positioner plugin is
 /// registered.
 pub fn init(app: &AppHandle) -> tauri::Result<()> {
@@ -55,7 +56,8 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
     let quit = MenuItem::with_id(app, MENU_QUIT, "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&open, &settings, &separator, &quit])?;
 
-    let image = build_image(style, None).map_err(|e| tauri::Error::Io(std::io::Error::other(e)))?;
+    let image = build_image(style, None, Mode::NoneYet)
+        .map_err(|e| tauri::Error::Io(std::io::Error::other(e)))?;
 
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(image)
@@ -98,30 +100,34 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Re-renders the tray icon with the halo filled to `percent` (0 to 100,
-/// clockwise from 12 o'clock). `None` shows the track only, for the
-/// "no limit data" state.
+/// Re-renders the tray icon with the arc at `percent` left (0 to 100,
+/// clockwise from 12 o'clock) in the accent of `mode`. `None` shows the
+/// dotted track only, for the "no limit data" state.
 ///
 /// Failures are logged and leave the previous icon in place.
-pub fn set_halo(app: &AppHandle, percent: Option<f64>) {
+pub fn set_halo(app: &AppHandle, percent: Option<f64>, mode: Mode) {
     let Some(tray) = app.tray_by_id(TRAY_ID) else {
         return;
     };
-    if let Err(e) = apply(&tray, percent) {
+    if let Err(e) = apply(&tray, percent, mode) {
         log::warn!("could not update the tray icon: {e}");
     }
 }
 
-fn apply(tray: &TrayIcon, percent: Option<f64>) -> Result<(), String> {
+fn apply(tray: &TrayIcon, percent: Option<f64>, mode: Mode) -> Result<(), String> {
     let style = IconStyle::for_current_platform();
-    let image = build_image(style, percent)?;
+    let image = build_image(style, percent, mode)?;
     // One call so macOS does not flicker between icon and template flag.
     tray.set_icon_with_as_template(Some(image), style.template)
         .map_err(|e| e.to_string())
 }
 
-fn build_image(style: IconStyle, percent: Option<f64>) -> Result<Image<'static>, String> {
-    let rgba = render_icon(style, percent)?;
+fn build_image(
+    style: IconStyle,
+    percent: Option<f64>,
+    mode: Mode,
+) -> Result<Image<'static>, String> {
+    let rgba = render_icon(style, percent, mode)?;
     Ok(Image::new_owned(rgba, ICON_SIZE, ICON_SIZE))
 }
 
