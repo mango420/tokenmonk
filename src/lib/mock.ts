@@ -385,7 +385,7 @@ const buildScenarios = () => ({
     appInfo,
     dashboard: snapshot({
       limits: noLimits,
-      burnRate: { tokensPerMinute: 12_400, windowMinutes: 10, limitEtaMinutes: null },
+      burnRate: { tokensPerMinute: 12_400, windowMinutes: 15, limitEtaMinutes: null },
     }),
     game: maxGame,
   },
@@ -394,7 +394,7 @@ const buildScenarios = () => ({
     settings: maxSettings,
     appInfo,
     dashboard: snapshot({
-      burnRate: { tokensPerMinute: 1_240, windowMinutes: 10, limitEtaMinutes: null },
+      burnRate: { tokensPerMinute: 1_240, windowMinutes: 15, limitEtaMinutes: null },
       limits: {
         status: "ok",
         reason: null,
@@ -413,7 +413,7 @@ const buildScenarios = () => ({
     appInfo,
     dashboard: snapshot({
       limits: noLimits,
-      burnRate: { tokensPerMinute: 640, windowMinutes: 10, limitEtaMinutes: null },
+      burnRate: { tokensPerMinute: 640, windowMinutes: 15, limitEtaMinutes: null },
     }),
     game: maxGame,
     limitSetup: setupQuoted,
