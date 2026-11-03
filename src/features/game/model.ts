@@ -91,10 +91,12 @@ export interface LevelScreenCopy {
   heading: string | null;
   /** Mono line. */
   detail: string | null;
+  /** Level bar fill 0..1; `null` hides the bar. */
+  progress: number | null;
   button: string;
 }
 
-const MODE_LINE = { max: "Keep burning \u{1F525}", diy: "Well earned. Breathe." } as const;
+const MODE_LINE = { max: "Keep burning.", diy: "Well earned. Breathe." } as const;
 
 export function levelScreenCopy(model: LevelScreenModel, game: GameState): LevelScreenCopy {
   if (model.kind === "retro") {
@@ -104,7 +106,8 @@ export function levelScreenCopy(model: LevelScreenModel, game: GameState): Level
       extra: null,
       newTitle: null,
       heading: "Straight from your history.",
-      detail: `${model.unlockedCount} ${noun} · ${formatInt(model.xpTotal)} XP`,
+      detail: `${model.unlockedCount} ${noun}, ${formatInt(model.xpTotal)} XP`,
+      progress: null,
       button: "Back to work",
     };
   }
@@ -114,7 +117,7 @@ export function levelScreenCopy(model: LevelScreenModel, game: GameState): Level
   // state has moved on (several level-ups queued).
   const detail =
     game.level === levelUp.level
-      ? `${formatInt(game.xpIntoLevel)} / ${formatInt(game.xpForLevel)} XP to level ${levelUp.level + 1}`
+      ? `Level ${levelUp.level}, ${formatInt(game.xpIntoLevel)} of ${formatInt(game.xpForLevel)} XP`
       : null;
   return {
     display: `Level ${levelUp.level}`,
@@ -122,6 +125,7 @@ export function levelScreenCopy(model: LevelScreenModel, game: GameState): Level
     newTitle: levelUp.titleChanged ? levelUp.title : null,
     heading: levelUp.titleChanged ? null : game.mode === "diy" ? MODE_LINE.diy : MODE_LINE.max,
     detail,
+    progress: detail === null ? null : Math.min(1, Math.max(0, game.progress)),
     button: "Back to work",
   };
 }
