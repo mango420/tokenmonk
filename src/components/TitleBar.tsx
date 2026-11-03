@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { describeError, insideTauri } from "../lib/backend";
-import { Icon } from "./Icon";
 
 /**
  * Fade duration. Same value as the toast fade in features/game (`FADE_MS`), kept
@@ -73,18 +72,16 @@ export function TitleBar() {
         <button
           type="button"
           className="titlebar__button"
-          aria-label={maximized ? "Restore" : "Maximize"}
           onClick={() => void toggleMaximize()}
         >
-          <Icon name={maximized ? "windowRestore" : "windowMaximize"} size="sm" />
+          {maximized ? "Restore" : "Maximize"}
         </button>
         <button
           type="button"
-          className="titlebar__button titlebar__button--close"
-          aria-label="Close"
+          className="titlebar__button"
           onClick={() => void close()}
         >
-          <Icon name="windowClose" size="sm" />
+          Close
         </button>
       </div>
     </div>
