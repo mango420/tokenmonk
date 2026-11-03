@@ -40,6 +40,8 @@ pub fn weekly_budget(w_now: f64, w0: f64, days_left: u32, resets_at: EpochMs) ->
         used_percent: percent(used_today, allowance),
         days_left,
         resets_at: Some(resets_at),
+        // Computed in TKM-81; unavailable until then.
+        tokens_left_per_day: None,
     }
 }
 
@@ -59,6 +61,7 @@ pub fn history_budget(previous_days: &[u64], today_tokens: u64) -> Option<DailyB
         used_percent: percent(used_today, allowance),
         days_left: 1,
         resets_at: None,
+        tokens_left_per_day: None,
     })
 }
 

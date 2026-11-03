@@ -332,6 +332,7 @@ mod tests {
             used_percent: 150.0,
             days_left: 1,
             resets_at: None,
+            tokens_left_per_day: None,
         });
         assert_eq!(halo_percent(Mode::Diy, &s), Some(100.0), "capped");
         s.limits.five_hour = None;

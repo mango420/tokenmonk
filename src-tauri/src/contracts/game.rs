@@ -66,11 +66,11 @@ pub struct AchievementProgress {
     /// XP granted on unlock.
     pub xp: u32,
     pub unlocked_at: Option<EpochMs>,
-    /// Progress towards a counted goal, for example 4 (days).
+    /// Progress towards a counted goal, for example 2.
     pub current: Option<u32>,
-    /// The counted goal, for example 7 (days). `None` for one-shot achievements.
+    /// The counted goal, for example 5. `None` for one-shot achievements.
     pub target: Option<u32>,
-    /// Ready-made progress line, for example "4 of 7".
+    /// Ready-made progress line, for example "2 of 5".
     pub progress_label: Option<String>,
 }
 

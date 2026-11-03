@@ -80,6 +80,7 @@ fn dashboard_snapshot_shape() {
             used_percent: 23.0,
             days_left: 6,
             resets_at: None,
+            tokens_left_per_day: None,
         }),
         data: DataStatus {
             state: DataState::NoLogs,
@@ -98,6 +99,7 @@ fn dashboard_snapshot_shape() {
     );
     assert_eq!(v["limits"]["weekly"], Value::Null);
     assert_eq!(v["dailyBudget"]["basis"], json!("weeklyLimit"));
+    assert_eq!(v["dailyBudget"]["tokensLeftPerDay"], Value::Null);
     assert_eq!(v["data"]["state"], json!("noLogs"));
     assert_eq!(v["session"], Value::Null);
     let back: DashboardSnapshot = serde_json::from_value(v).unwrap();

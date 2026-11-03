@@ -123,6 +123,14 @@ export interface DailyBudget {
   /** Days until the weekly reset, today included (at least 1). */
   daysLeft: number;
   resetsAt: EpochMs | null;
+  /**
+   * Headline tokens that may still be used per day, today included, until the
+   * weekly reset; an estimate (the weekly limit also counts claude.ai chats).
+   * weeklyLimit basis only: tokens since the weekly window start per weekly
+   * percent point, times (100 - utilization) / daysLeft, at least 0.
+   * null with tokenHistory, at 0 % weekly utilization or without tokens.
+   */
+  tokensLeftPerDay: number | null;
 }
 
 export type DataState = "importing" | "ready" | "noLogs" | "error";
