@@ -72,7 +72,8 @@ As documented in the README, "Install":
 - [ ] Dashboard numbers update live while Claude Code is in use; numbers
       are monospace and do not jitter.
 - [ ] "5 hours" / "Week" segment switches the ring.
-- [ ] Footer note says limit percentages include claude.ai chats.
+- [ ] With limit data: footer note says "Limit % includes claude.ai chats.
+      Token stats are Claude Code only."
 - [ ] Light and dark theme follow the OS.
 
 ## Limit fallback
