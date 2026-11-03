@@ -82,6 +82,7 @@
 
   /* Spacing */
   --space-1: 4px;
+  --gap-6: 6px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
@@ -127,13 +128,6 @@
   --ease-toast: cubic-bezier(0.2, 0.8, 0.2, 1);
   --motion-switch: 150ms;
   --toast-visible: 3400ms;
-
-  /* Icon and badge sizes (shared Icon component, popup.css) */
-  --badge-size: 36px;
-  --icon-stroke: 1.75;
-  --icon-size: 20px;
-  --icon-size-sm: 16px;
-  --icon-size-xs: 12px;
 }
 
 /* Dark theme: follows the OS unless data-theme="light" forces light */
