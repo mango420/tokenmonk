@@ -4,16 +4,29 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      tag:
+        description: >-
+          Existing release tag to build, for example v0.3.0. Start the run from
+          main: the tag's code is built, the guard script comes from main.
+          Leave empty to build the ref the run starts from.
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag || github.ref }}
   cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
+  # What the run builds: the `tag` input of a dispatch, otherwise the ref the
+  # run starts from (the pushed tag, or the tag release-please dispatches on).
+  BUILD_REF: ${{ inputs.tag || github.ref }}
+  BUILD_TAG: ${{ inputs.tag || github.ref_name }}
   # v0.1 ships without auto-update (docs/DECISIONS.md, "v0.1 without updater artifacts"): no signing
   # key, no latest.json, no .sig files. To switch updater artifacts back on,
   # set this to 'true' and apply the config changes listed in DECISIONS.md.
@@ -27,13 +40,23 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ env.BUILD_REF }}
           fetch-depth: 0
 
       - uses: actions/setup-node@v7
         with:
           node-version: 22
 
-      - run: node scripts/guard.mjs --all
+      # The guard script comes from the commit the run started from, the tree
+      # and history it scans from BUILD_REF. On a tag push both are the same
+      # commit; a dispatch from main with `tag` rebuilds an older tag with the
+      # current guard rules (docs/DECISIONS.md, "Release ownership").
+      - name: Guard
+        run: |
+          git cat-file -e "${GITHUB_SHA}^{commit}" 2>/dev/null \
+            || git fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git show "${GITHUB_SHA}:scripts/guard.mjs" > "$RUNNER_TEMP/guard.mjs"
+          node "$RUNNER_TEMP/guard.mjs" --all
 
       - name: Check updater signing secrets are set
         if: env.UPDATER_ARTIFACTS == 'true'
@@ -69,8 +92,12 @@ jobs:
           "
 
       - name: Check tag matches the app version
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
         run: |
+          if ! git rev-parse -q --verify "refs/tags/${BUILD_TAG}" >/dev/null; then
+            echo "::error::${BUILD_TAG} is not a tag"
+            exit 1
+          fi
           conf="$(node -p "require('./src-tauri/tauri.conf.json').version")"
           pkg="$(node -p "require('./package.json').version")"
           cargo="$(sed -n 's/^version = "\(.*\)"$/\1/p' src-tauri/Cargo.toml | head -n 1)"
@@ -78,8 +105,8 @@ jobs:
           for pair in "tauri.conf.json:${conf}" "package.json:${pkg}" "Cargo.toml:${cargo}"; do
             file="${pair%%:*}"
             ver="${pair#*:}"
-            if [ "${GITHUB_REF_NAME}" != "v${ver}" ]; then
-              echo "::error::Tag ${GITHUB_REF_NAME} does not match ${file} version v${ver}"
+            if [ "${BUILD_TAG}" != "v${ver}" ]; then
+              echo "::error::Tag ${BUILD_TAG} does not match ${file} version v${ver}"
               status=1
             fi
           done
@@ -106,6 +133,8 @@ jobs:
             rust-targets: ''
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.BUILD_REF }}
 
       - uses: actions/setup-node@v7
         with:
