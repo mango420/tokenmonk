@@ -134,6 +134,12 @@ in #41.
 After each stable release, `main` is merged back into `dev` so `dev` has
 the new version files and `CHANGELOG.md`.
 
+```bash
+gh pr create --base dev --head main --title "chore: back-merge main into dev" --body "Back-merge after the stable release. Merge with a merge commit."
+```
+
+Merge it with a merge commit (`gh pr merge <n> --merge`), never squash.
+
 - PR head `main`, base `dev`, title `chore: back-merge main into dev`.
 - Merged with a **merge commit**. A squash back-merge causes add/add
   conflicts on later promotions.
