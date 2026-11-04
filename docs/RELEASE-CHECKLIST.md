@@ -64,8 +64,10 @@ As documented in the README, "Install":
 
 ## Tray and halo
 
-- [ ] Tray icon: grey ring track, monk head and sleeve grey; arc and robe
-      in the mode accent.
+- [ ] Tray icon (Windows): grey ring track, monk head and sleeve grey; arc
+      and robe in the mode accent.
+- [ ] Tray icon (macOS): black template image tinted by the menu bar;
+      track at 60 %, arc and monk solid.
 - [ ] With limit data: the arc shows 5-hour percent left and drains as the
       window is used.
 - [ ] Without limit data: dotted track, no arc, the monk faded.
