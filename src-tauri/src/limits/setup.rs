@@ -61,6 +61,7 @@ pub fn statusline_file_info(path: &Path) -> StatuslineFileInfo {
         .then(|| std::fs::read(path).ok())
         .flatten()
         .and_then(|b| serde_json::from_slice::<BridgeFile>(&b).ok())
+        .filter(|f| f.version == bridge::FILE_VERSION)
         .map(|f| f.received_at);
     StatuslineFileInfo {
         exists: true,
@@ -151,5 +152,20 @@ mod tests {
             statusline_file_info(dir.path()),
             StatuslineFileInfo::default()
         );
+    }
+
+    #[test]
+    fn file_info_unknown_version_has_no_received_at() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("statusline.json");
+        std::fs::write(
+            &p,
+            r#"{"version":2,"receivedAt":1,"fiveHour":null,"sevenDay":null}"#,
+        )
+        .unwrap();
+        let info = statusline_file_info(&p);
+        assert!(info.exists);
+        assert_eq!(info.received_at, None);
+        assert!(info.modified_at.is_some());
     }
 }
