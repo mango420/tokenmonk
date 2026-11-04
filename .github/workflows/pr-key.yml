@@ -26,8 +26,10 @@ jobs:
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_BASE: ${{ github.event.pull_request.base.ref }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-        run: node scripts/check-pr-key.mjs --title "$PR_TITLE" --branch "$PR_BRANCH" --author "$PR_AUTHOR"
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: node scripts/check-pr-key.mjs --title "$PR_TITLE" --branch "$PR_BRANCH" --base "$PR_BASE" --default-branch "$DEFAULT_BRANCH" --author "$PR_AUTHOR"
 
       # A dispatch carries no pull_request payload: read the open PR of the dispatched branch.
       - name: Check issue key in title and branch (dispatched)
@@ -37,10 +39,12 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PR_BRANCH: ${{ github.ref_name }}
           REPO_OWNER: ${{ github.repository_owner }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           # --head matches the branch name only: keep PRs from this repository's owner, not forks.
-          pr="$(gh pr list --head "$PR_BRANCH" --base main --state open --json title,author,headRepositoryOwner \
+          pr="$(gh pr list --head "$PR_BRANCH" --state open --json title,author,baseRefName,headRepositoryOwner \
             | jq -c --arg owner "$REPO_OWNER" '[.[] | select(.headRepositoryOwner.login == $owner)] | .[0] // {}')"
           title="$(jq -r '.title // ""' <<<"$pr")"
           author="$(jq -r '.author.login // ""' <<<"$pr")"
-          node scripts/check-pr-key.mjs --title "$title" --branch "$PR_BRANCH" --author "$author"
+          base="$(jq -r '.baseRefName // "dev"' <<<"$pr")"
+          node scripts/check-pr-key.mjs --title "$title" --branch "$PR_BRANCH" --base "$base" --default-branch "$DEFAULT_BRANCH" --author "$author"

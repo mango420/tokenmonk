@@ -128,3 +128,83 @@ test('does not skip other authors', () => {
   const r = run('Bump foo', 'some-branch', 'someone');
   assert.equal(r.code, 1);
 });
+
+function runBase(title, branch, base, def = 'dev') {
+  const r = spawnSync(
+    process.execPath,
+    [SCRIPT, '--title', title, '--branch', branch, '--base', base, '--default-branch', def],
+    { encoding: 'utf8' },
+  );
+  return { code: r.status, out: r.stdout, err: r.stderr };
+}
+const okBase = (title, branch, base) => {
+  const r = runBase(title, branch, base);
+  assert.equal(r.code, 0, `expected pass for ${JSON.stringify([title, branch, base])}: ${r.err}`);
+  return r;
+};
+const badBase = (title, branch, base, pattern) => {
+  const r = runBase(title, branch, base);
+  assert.equal(r.code, 1, `expected fail for ${JSON.stringify([title, branch, base])}`);
+  if (pattern) assert.match(r.err, pattern);
+};
+
+test('promotion PR dev -> main needs the exact title and no key', () => {
+  okBase('chore(release): promote dev to main', 'dev', 'main');
+  badBase('chore(release): promote dev to main (TKM-1)', 'dev', 'main', /promotion PR title/);
+  badBase('promote dev', 'dev', 'main', /promotion PR title/);
+});
+
+test('back-merge PR main -> dev needs the exact title and no key', () => {
+  okBase('chore: back-merge main into dev', 'main', 'dev');
+  badBase('chore: back-merge main into dev (TKM-1)', 'main', 'dev', /back-merge PR title/);
+  badBase('merge main', 'main', 'dev', /back-merge PR title/);
+});
+
+test('into main only dev, hotfix and release-please branches pass', () => {
+  okBase('fix(app): patch it (TKM-9)', 'hotfix/TKM-9-patch-it', 'main');
+  okBase('revert: undo it (TKM-9)', 'hotfix/TKM-9-undo-it', 'main');
+  okBase('chore(main): release 0.4.0', 'release-please--branches--main', 'main');
+  badBase('feat: add widget (TKM-12)', 'feature/TKM-12-add-widget', 'main', /into main must come from dev/);
+  badBase('chore: x (TKM-12)', 'chore/TKM-12-x', 'main', /into main must come from dev/);
+});
+
+test('hotfix into main keeps the key rules', () => {
+  badBase('fix: patch it', 'hotfix/TKM-9-patch-it', 'main', /title must be/);
+  badBase('fix: patch it (TKM-8)', 'hotfix/TKM-9-patch-it', 'main', /differs from branch key/);
+});
+
+test('dev or main as head is only special for the matching base', () => {
+  badBase('chore(release): promote dev to main', 'dev', 'dev', /branch must match/);
+  badBase('chore: back-merge main into dev', 'main', 'main', /into main must come from dev/);
+});
+
+test('into dev keeps the key rules and bot skips', () => {
+  okBase('feat(ui): add widget (TKM-12)', 'feature/TKM-12-add-widget', 'dev');
+  badBase('feat: add widget', 'feature/TKM-12-add-widget', 'dev', /title must be/);
+  badBase('feat: add widget (TKM-12)', 'wip/x', 'dev', /branch must match/);
+  okBase('anything', 'register/refresh', 'dev');
+  // Into main the bot skips only count while main is the default branch.
+  assert.equal(runBase('anything', 'register/refresh', 'main', 'main').code, 0);
+  assert.equal(runBase('anything', 'release/v1', 'main', 'main').code, 0);
+  badBase('anything', 'register/refresh', 'main', /into main must come from dev/);
+  badBase('anything', 'release/v1', 'main', /into main must come from dev/);
+});
+
+test('source rule for main is off while main is the default branch', () => {
+  const t = 'feat: add widget (TKM-12)';
+  const b = 'feature/TKM-12-add-widget';
+  assert.equal(runBase(t, b, 'main', 'main').code, 0);
+  // Without the flag the default is main as well.
+  const r = spawnSync(process.execPath, [SCRIPT, '--title', t, '--branch', b, '--base', 'main'], {
+    encoding: 'utf8',
+  });
+  assert.equal(r.status, 0, r.stderr);
+  // Key rules still apply.
+  assert.equal(runBase('feat: add widget', b, 'main', 'main').code, 1);
+});
+
+test('source rule for main is on once dev is the default branch', () => {
+  const r = runBase('feat: add widget (TKM-12)', 'feature/TKM-12-add-widget', 'main', 'dev');
+  assert.equal(r.code, 1);
+  assert.match(r.err, /into main must come from dev/);
+});
