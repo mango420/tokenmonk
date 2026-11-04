@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, dev]
   # Started by feature-register.yml for the refresh branch: PRs made with
   # GITHUB_TOKEN start no pull_request runs, workflow_dispatch does.
   workflow_dispatch:
@@ -89,4 +89,10 @@ jobs:
 
       - name: Guard the dispatched branch range
         if: github.event_name == 'workflow_dispatch'
-        run: node scripts/guard.mjs --range origin/main..HEAD
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The dispatched branch is a PR head: use its open PR's base, dev by default.
+          base="$(gh pr list --head "${{ github.ref_name }}" --state open --json baseRefName --jq '.[0].baseRefName // "dev"')"
+          git fetch --quiet origin "$base"
+          node scripts/guard.mjs --range "origin/${base}..HEAD"

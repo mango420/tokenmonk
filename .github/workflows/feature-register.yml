@@ -67,17 +67,17 @@ jobs:
       - name: Open the refresh PR
         if: steps.diff.outputs.changed == 'true'
         run: |
-          existing="$(gh pr list --head "$REFRESH_BRANCH" --base main --state open --json number --jq '.[0].number // empty')"
+          existing="$(gh pr list --head "$REFRESH_BRANCH" --base dev --state open --json number --jq '.[0].number // empty')"
           if [ -n "$existing" ]; then
             echo "Refresh branch updated; PR #${existing} is already open." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          if ! gh pr create --base main --head "$REFRESH_BRANCH" \
+          if ! gh pr create --base dev --head "$REFRESH_BRANCH" \
               --title 'docs: refresh feature register' \
               --body "Regenerated docs/FEATURES.md with scripts/features.mjs from the issue tracker."; then
             {
               echo "The branch \`${REFRESH_BRANCH}\` was updated, but the pull request could not be created."
-              echo "Open it by hand: base \`main\`, head \`${REFRESH_BRANCH}\`, title \`docs: refresh feature register\`."
+              echo "Open it by hand: base \`dev\`, head \`${REFRESH_BRANCH}\`, title \`docs: refresh feature register\`."
               echo "Creating it automatically needs Settings > Actions > General > Workflow permissions > Allow GitHub Actions to create and approve pull requests."
             } >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -95,8 +95,8 @@ jobs:
       - name: Close stale refresh PR
         if: steps.diff.outputs.changed == 'false'
         run: |
-          existing="$(gh pr list --head "$REFRESH_BRANCH" --base main --state open --json number --jq '.[0].number // empty')"
+          existing="$(gh pr list --head "$REFRESH_BRANCH" --base dev --state open --json number --jq '.[0].number // empty')"
           [ -z "$existing" ] && exit 0
-          if ! gh pr close "$existing" --delete-branch --comment 'The register on main is current again.'; then
+          if ! gh pr close "$existing" --delete-branch --comment 'The register on dev is current again.'; then
             echo "Could not close stale refresh PR #${existing}; close it by hand." >> "$GITHUB_STEP_SUMMARY"
           fi
