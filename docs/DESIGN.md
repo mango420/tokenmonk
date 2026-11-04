@@ -341,6 +341,11 @@ vertically when taller than the popup; the top row stays.
    - "Check for updates automatically" (`Settings.updateCheck`, default
      on). Off: no check at start; "Check now" still works. Turning it on
      does not check at once.
+   - "Keep popup open" (`Settings.keepOpen`, default off), with the
+     caption "Stays put until the tray icon or Close." under the label.
+     Off: the popup hides when it loses focus. On: it stays visible next
+     to other windows and hides only via the tray icon or the title bar
+     "Close". Applies at once.
    - Switch: 42 x 24, radius 12, track `line`; knob 18, round, `pop`,
      inset 3. On: track `--accent`, knob moved 18 px.
    A final empty hairline row closes the list.

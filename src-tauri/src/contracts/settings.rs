@@ -31,6 +31,11 @@ pub struct Settings {
     /// "Check for updates automatically": check once at app start. Manual
     /// checks ("Check now") work either way. Default on.
     pub update_check: bool,
+    /// "Keep popup open": the popup no longer hides on blur and closes only
+    /// via the tray icon or its Close button. Default off (hide on blur). Missing in older
+    /// stored settings, so it defaults on deserialize.
+    #[serde(default)]
+    pub keep_open: bool,
 }
 
 impl Default for Settings {
@@ -40,6 +45,7 @@ impl Default for Settings {
             sound: true,
             autostart: false,
             update_check: true,
+            keep_open: false,
         }
     }
 }
@@ -57,4 +63,6 @@ pub struct SettingsPatch {
     pub autostart: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub update_check: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keep_open: Option<bool>,
 }

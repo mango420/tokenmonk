@@ -339,8 +339,8 @@ const booGame: GameState = {
   achievements: achievements.map((a) => (a.id === "boo" ? { ...a, unlockedAt: NOW - 3 * HOUR } : a)),
 };
 
-const maxSettings: Settings = { mode: "max", sound: true, autostart: false, updateCheck: true };
-const diySettings: Settings = { mode: "diy", sound: true, autostart: false, updateCheck: true };
+const maxSettings: Settings = { mode: "max", sound: true, autostart: false, updateCheck: true, keepOpen: false };
+const diySettings: Settings = { mode: "diy", sound: true, autostart: false, updateCheck: true, keepOpen: false };
 
 const buildScenarios = () => ({
   max: {
@@ -514,7 +514,7 @@ const buildScenarios = () => ({
   },
   onboarding: {
     label: "Onboarding, importing",
-    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true },
+    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true, keepOpen: false },
     appInfo,
     dashboard: snapshot({ data: importing(24), limits: noLimits }),
     game: { ...freshGame(), retroDone: false },
@@ -522,7 +522,7 @@ const buildScenarios = () => ({
   },
   onboardingReady: {
     label: "Onboarding, logs found",
-    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true },
+    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true, keepOpen: false },
     appInfo,
     dashboard: snapshot({ limits: noLimits }),
     game: { ...freshGame(), retroDone: false },
@@ -530,7 +530,7 @@ const buildScenarios = () => ({
   },
   onboardingNoLogs: {
     label: "Onboarding, no logs",
-    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true },
+    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true, keepOpen: false },
     appInfo: { ...appInfo, logsFound: false },
     dashboard: noLogsSnapshot(),
     game: freshGame(),

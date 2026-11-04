@@ -39,10 +39,28 @@ fn settings_use_camel_case_strings() {
             "mode": "noneYet",
             "sound": true,
             "autostart": false,
-            "updateCheck": true
+            "updateCheck": true,
+            "keepOpen": false
         })
     );
     assert_eq!(to_value(Mode::Diy).unwrap(), json!("diy"));
+}
+
+#[test]
+fn settings_without_keep_open_still_load() {
+    let parsed: Settings = serde_json::from_value(json!({
+        "mode": "max",
+        "sound": true,
+        "autostart": false,
+        "updateCheck": true
+    }))
+    .unwrap();
+    assert!(!parsed.keep_open);
+    let patch = SettingsPatch {
+        keep_open: Some(true),
+        ..Default::default()
+    };
+    assert_eq!(to_value(&patch).unwrap(), json!({ "keepOpen": true }));
 }
 
 #[test]
