@@ -7,8 +7,9 @@
 // back-merge; both have fixed titles and need no key. Into main only dev, hotfix/TKM-<n>-*
 // and release-please branches are accepted.
 //
-// Usage: node scripts/check-pr-key.mjs --title <t> --branch <b> [--base <b>] [--author <login>]
-// --base defaults to dev (the integration branch).
+// Usage: node scripts/check-pr-key.mjs --title <t> --branch <b> [--base <b>] [--default-branch <b>] [--author <login>]
+// --base defaults to dev. The source rule for PRs into main applies only when --default-branch
+// is not main (missing: main, rule off), so it activates once dev is the default branch.
 
 const PREFIXES = ['feature', 'bugfix', 'hotfix', 'refactor', 'chore', 'docs', 'test', 'ci'];
 const BRANCH_RE = new RegExp(`^(?:${PREFIXES.join('|')})/TKM-(\\d+)-[a-z0-9]+(?:-[a-z0-9]+)*$`);
@@ -34,6 +35,7 @@ const title = (arg('--title') ?? '').trim();
 const branch = (arg('--branch') ?? '').trim();
 const author = arg('--author') ?? '';
 const base = (arg('--base') ?? 'dev').trim();
+const defaultBranch = (arg('--default-branch') ?? 'main').trim() || 'main';
 
 const fail = (...problems) => {
   console.error('pr-key: failed');
@@ -60,7 +62,7 @@ if (branch === 'main' && base === 'dev') {
   console.log('pr-key: ok (back-merge)');
   process.exit(0);
 }
-if (base === 'main' && !/^hotfix\/TKM-\d+-/.test(branch)) {
+if (defaultBranch !== 'main' && base === 'main' && !/^hotfix\/TKM-\d+-/.test(branch)) {
   fail(
     `PRs into main must come from dev (title "${PROMOTE_TITLE}"), a hotfix/TKM-<n>-<kebab> branch or a release-please branch; got ${JSON.stringify(branch)}`,
   );

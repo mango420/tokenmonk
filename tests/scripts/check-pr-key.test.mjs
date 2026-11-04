@@ -129,10 +129,10 @@ test('does not skip other authors', () => {
   assert.equal(r.code, 1);
 });
 
-function runBase(title, branch, base) {
+function runBase(title, branch, base, def = 'dev') {
   const r = spawnSync(
     process.execPath,
-    [SCRIPT, '--title', title, '--branch', branch, '--base', base],
+    [SCRIPT, '--title', title, '--branch', branch, '--base', base, '--default-branch', def],
     { encoding: 'utf8' },
   );
   return { code: r.status, out: r.stdout, err: r.stderr };
@@ -184,4 +184,23 @@ test('into dev keeps the key rules and bot skips', () => {
   badBase('feat: add widget (TKM-12)', 'wip/x', 'dev', /branch must match/);
   okBase('anything', 'register/refresh', 'dev');
   okBase('anything', 'register/refresh', 'main');
+});
+
+test('source rule for main is off while main is the default branch', () => {
+  const t = 'feat: add widget (TKM-12)';
+  const b = 'feature/TKM-12-add-widget';
+  assert.equal(runBase(t, b, 'main', 'main').code, 0);
+  // Without the flag the default is main as well.
+  const r = spawnSync(process.execPath, [SCRIPT, '--title', t, '--branch', b, '--base', 'main'], {
+    encoding: 'utf8',
+  });
+  assert.equal(r.status, 0, r.stderr);
+  // Key rules still apply.
+  assert.equal(runBase('feat: add widget', b, 'main', 'main').code, 1);
+});
+
+test('source rule for main is on once dev is the default branch', () => {
+  const r = runBase('feat: add widget (TKM-12)', 'feature/TKM-12-add-widget', 'main', 'dev');
+  assert.equal(r.code, 1);
+  assert.match(r.err, /into main must come from dev/);
 });
