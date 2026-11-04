@@ -5,7 +5,7 @@ live as CSS variables in [`src/styles/tokens.css`](../src/styles/tokens.css);
 components use the variables, never literal values. Brand files are in
 [`assets/brand/`](../assets/brand/). The app icon is the monk without a
 ring on an ink rounded-square body (see "App icon"). It is the only brand
-mark; the ring appears only in the tray gauge.
+mark; the ring appears only in the tray gauge, around the mono monk.
 
 Source: the refreshed popup prototype (onboarding, dashboard, settings,
 achievements, toast, tray icon). Where an older rule and the prototype
@@ -522,16 +522,23 @@ Fed by: `LevelUp`, `GameState`, `Settings.sound`.
 Rendered in Rust (resvg) at runtime; `tokens.css` mirrors its values.
 viewBox 24 x 24:
 
-- Track: circle r 8.5, stroke `--tray-track` #8A8D8B at 60 %, width 2.
+- Track: circle r 10, stroke `--tray-track` #8A8D8B at 60 %, width 2.
   Without limit data (no 5-hour value) the track is dotted
   (`stroke-dasharray 1.5 3`) and there is no arc.
-- Arc: r 8.5, stroke `--accent` of the current mode, width 2.6, round
+- Arc: r 10, stroke `--accent` of the current mode, width 2.4, round
   caps, from 12 o'clock clockwise, length = 5-hour percent left. It drains
   as the window is used.
-- Centre dot: r 2.2, filled in `--accent` of the current mode.
+- Monk: the paths of `assets/brand/tokenmonk-mark-mono.svg` inside the
+  ring, filled in `--accent` of the current mode (black on the macOS
+  template icon), placed with `transform="translate(0.992 -0.416)
+  scale(0.0215)"`: about 13 units tall (y 5.4 to 18.6), centred at (12, 12). There is no
+  centre dot any more.
 
 Value: 5-hour percent left in both modes. Before onboarding the accent is
-saffron. The tray gauge is not the app icon and does not change with it.
+saffron. The tray gauge is not the app icon: it carries the same monk as
+the app icon, in one colour and without the ink body, and is drawn from
+the mono mark, so it follows changes to that file, not to the app icon
+files.
 
 ## App icon
 
