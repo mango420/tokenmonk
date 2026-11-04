@@ -675,6 +675,11 @@ html[data-maximized] .popup {
   border-top: var(--hair) solid var(--line);
 }
 
+.switch-row__text {
+  display: flex;
+  flex-direction: column;
+}
+
 /* Closes the list. */
 .switch-end {
   border-top: var(--hair) solid var(--line);

@@ -109,6 +109,17 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false }: 
               onChange={(updateCheck) => void change({ updateCheck })}
             />
           </div>
+          <div className="switch-row">
+            <span className="switch-row__text">
+              <span>Keep popup open</span>
+              <span className="caption">Stays put until the tray icon or Close.</span>
+            </span>
+            <Switch
+              label="Keep popup open"
+              checked={shown.keepOpen}
+              onChange={(keepOpen) => void change({ keepOpen })}
+            />
+          </div>
           <div className="switch-end" />
         </div>
         {failed ? (
