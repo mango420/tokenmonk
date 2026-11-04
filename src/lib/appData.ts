@@ -18,6 +18,7 @@ import {
   type Mode,
   type Settings,
   type SettingsPatch,
+  type UpdateStatus,
 } from "./contracts";
 import {
   defaultScenario,
@@ -31,6 +32,7 @@ export interface AppData {
   appInfo: AppInfo;
   dashboard: DashboardSnapshot;
   game: GameState;
+  update: UpdateStatus;
 }
 
 /**
@@ -47,6 +49,10 @@ export interface AppActions {
   completeOnboarding: (mode: Mode) => Promise<boolean>;
   /** Reads the status-line setup values. Rejects when the core can't answer. */
   loadLimitSetup: () => Promise<LimitSetup>;
+  /** "Check now". A rejected call reads as `checkFailed`. */
+  checkForUpdates: () => Promise<void>;
+  /** "Update" / "Try again". Resolves when it failed; a stale status is re-read. */
+  installUpdate: () => Promise<void>;
 }
 
 export interface AppState {
@@ -102,6 +108,7 @@ function placeholders(): AppData {
       achievements: [],
       retroDone: true,
     },
+    update: { kind: "idle" },
   };
 }
 
@@ -124,6 +131,7 @@ function useLiveAppData(enabled: boolean): AppState {
   useBackendEvent(Events.settingsChanged, (v) => apply("settings", v), enabled);
   useBackendEvent(Events.gameUpdated, (v) => apply("game", v), enabled);
   useBackendEvent(Events.appInfoChanged, (v) => apply("appInfo", v), enabled);
+  useBackendEvent(Events.updateStatusChanged, (v) => apply("update", v), enabled);
 
   useEffect(() => {
     if (!enabled) return;
@@ -136,6 +144,7 @@ function useLiveAppData(enabled: boolean): AppState {
       ["appInfo", call(Commands.getAppInfo)],
       ["dashboard", call(Commands.getDashboard)],
       ["game", call(Commands.getGameState)],
+      ["update", call(Commands.getUpdateStatus)],
     ] as const;
 
     void Promise.allSettled(reads.map(([, promise]) => promise)).then((results) => {
@@ -187,12 +196,34 @@ function useLiveAppData(enabled: boolean): AppState {
 
   const loadLimitSetup = useCallback(() => call(Commands.getLimitSetup), []);
 
+  const checkForUpdates = useCallback(async () => {
+    try {
+      apply("update", await call(Commands.checkForUpdates));
+    } catch (error) {
+      console.warn(`check_for_updates failed: ${describeError(error)}`);
+      apply("update", { kind: "checkFailed", checkedAt: Date.now(), detail: null });
+    }
+  }, [apply]);
+
+  const installUpdate = useCallback(async () => {
+    try {
+      apply("update", await call(Commands.installUpdate));
+    } catch (error) {
+      console.warn(`install_update failed: ${describeError(error)}`);
+      try {
+        apply("update", await call(Commands.getUpdateStatus));
+      } catch (readError) {
+        console.warn(`get_update_status failed: ${describeError(readError)}`);
+      }
+    }
+  }, [apply]);
+
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
   return {
     phase,
     data,
-    actions: { updateSettings, completeOnboarding, loadLimitSetup },
+    actions: { updateSettings, completeOnboarding, loadLimitSetup, checkForUpdates, installUpdate },
     retry,
   };
 }
@@ -215,6 +246,19 @@ function useMockAppData(scenario: MockScenarioId): AppState {
     return true;
   }, []);
 
+  const [update, setUpdate] = useState<UpdateStatus>(source.update);
+  useEffect(() => {
+    setUpdate(getMockScenarios()[scenario].update);
+  }, [scenario]);
+  const checkForUpdates = useCallback(async () => {
+    setUpdate({ kind: "checking" });
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    setUpdate({ kind: "upToDate", checkedAt: Date.now() });
+  }, []);
+  const installUpdate = useCallback(async () => {
+    setUpdate((u) => (u.kind === "available" || u.kind === "installFailed" ? { kind: "installing", version: u.version } : u));
+  }, []);
+
   const loadLimitSetup = useCallback(
     async () => mockLimitSetup(getMockScenarios()[scenario]),
     [scenario],
@@ -227,8 +271,9 @@ function useMockAppData(scenario: MockScenarioId): AppState {
       appInfo: source.appInfo,
       dashboard: source.dashboard,
       game: source.game,
+      update,
     },
-    actions: { updateSettings, completeOnboarding, loadLimitSetup },
+    actions: { updateSettings, completeOnboarding, loadLimitSetup, checkForUpdates, installUpdate },
     retry: () => undefined,
   };
 }

@@ -158,6 +158,34 @@ html[data-maximized] .popup {
   padding-top: var(--gap-18);
 }
 
+.bottom-group {
+  margin-top: auto;
+  padding-top: var(--gap-18);
+}
+
+.bottom-group .note {
+  margin: 0;
+}
+
+.update-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-3);
+  min-height: var(--space-4);
+  margin-bottom: var(--space-1);
+  font-size: var(--text-note-size);
+  line-height: var(--text-body-line);
+  color: var(--ink-2);
+}
+
+.update-row .link {
+  padding: 0;
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: var(--space-1);
+}
+
 .note--onboard {
   margin-top: var(--gap-18);
 }
@@ -299,6 +327,12 @@ html[data-maximized] .popup {
 
 .link:hover {
   color: var(--ink);
+}
+
+.link:disabled {
+  cursor: default;
+  color: var(--ink-2);
+  opacity: 0.6;
 }
 
 .link--small {

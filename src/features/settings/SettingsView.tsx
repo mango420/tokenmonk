@@ -3,7 +3,9 @@ import { Switch } from "../../components/Switch";
 import { TextLink } from "../../components/TextLink";
 import { TopRow } from "../../components/TopRow";
 import type { AppActions, AppData } from "../../lib/appData";
-import type { SettingsPatch } from "../../lib/contracts";
+import { openExternal } from "../../lib/backend";
+import type { SettingsPatch, UpdateStatus } from "../../lib/contracts";
+import { formatClock } from "../../lib/format";
 import { useEscape } from "../../lib/useEscape";
 import { MODE_DESCRIPTION, MODE_LABEL, type PopupMode } from "../dashboard/model";
 import { LimitData } from "./LimitData";
@@ -99,6 +101,14 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false }: 
               onChange={(autostart) => void change({ autostart })}
             />
           </div>
+          <div className="switch-row">
+            <span>Check for updates automatically</span>
+            <Switch
+              label="Check for updates automatically"
+              checked={shown.updateCheck}
+              onChange={(updateCheck) => void change({ updateCheck })}
+            />
+          </div>
           <div className="switch-end" />
         </div>
         {failed ? (
@@ -114,11 +124,107 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false }: 
           loadLimitSetup={actions.loadLimitSetup}
         />
 
-        <p className="note note--bottom">
-          {version === "" ? "Tokenmonk, MIT." : `Tokenmonk ${version}, MIT.`} Ideas and bugs go to GitHub
-          issues.
-        </p>
+        <div className="bottom-group">
+          <UpdateRow
+            status={data.update}
+            onCheck={() => void actions.checkForUpdates()}
+            onInstall={() => void actions.installUpdate()}
+          />
+          <p className="note">
+            {version === "" ? "Tokenmonk, MIT." : `Tokenmonk ${version}, MIT.`} Ideas and bugs go to GitHub
+            issues.
+          </p>
+        </div>
       </div>
     </div>
   );
+}
+
+interface UpdateRowProps {
+  status: UpdateStatus;
+  onCheck: () => void;
+  onInstall: () => void;
+}
+
+/** Update status text with its text links (docs/DESIGN.md, Settings item 6). */
+function UpdateRow({ status, onCheck, onInstall }: UpdateRowProps) {
+  const [busy, setBusy] = useState(false);
+  const run = (action: () => void) => {
+    setBusy(true);
+    action();
+  };
+  useEffect(() => {
+    setBusy(false);
+  }, [status]);
+
+  const version = (v: string) => <span className="live-number">{v}</span>;
+  const check = (
+    <TextLink small onClick={() => run(onCheck)} disabled={busy}>
+      Check now
+    </TextLink>
+  );
+  const notes = (url: string) => (
+    <TextLink small onClick={() => void openExternal(url)}>
+      Release notes
+    </TextLink>
+  );
+
+  let content;
+  switch (status.kind) {
+    case "idle":
+      content = check;
+      break;
+    case "checking":
+      content = <span>Checking for updates.</span>;
+      break;
+    case "upToDate":
+      content = (
+        <>
+          <span>
+            Up to date, checked at <span className="live-number">{formatClock(status.checkedAt)}</span>.
+          </span>
+          {check}
+        </>
+      );
+      break;
+    case "available":
+      content = (
+        <>
+          <span>{version(status.version)} is out.</span>
+          <TextLink small onClick={() => run(onInstall)} disabled={busy}>
+            Update
+          </TextLink>
+          {notes(status.url)}
+        </>
+      );
+      break;
+    case "installing":
+      content = (
+        <span>Installing {version(status.version)}. Back in a moment.</span>
+      );
+      break;
+    case "installFailed":
+      content = (
+        <>
+          <span>{version(status.version)} didn’t install.</span>
+          <TextLink small onClick={() => run(onInstall)} disabled={busy}>
+            Try again
+          </TextLink>
+          {notes(status.url)}
+        </>
+      );
+      break;
+    case "checkFailed":
+      content = (
+        <>
+          <span>Couldn’t check.</span>
+          {check}
+        </>
+      );
+      break;
+    case "unavailable":
+      content = <span>Updates aren’t set up in this build.</span>;
+      break;
+  }
+  return <div className="update-row">{content}</div>;
 }

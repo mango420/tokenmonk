@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { TextLink } from "../../components/TextLink";
-import type { AppData } from "../../lib/appData";
+import type { AppActions, AppData } from "../../lib/appData";
 import { Header } from "./Header";
 import { HaloGauge } from "./HaloGauge";
 import { LevelBlock } from "./LevelBlock";
@@ -18,6 +18,7 @@ import {
 
 interface DashboardProps {
   data: AppData;
+  actions: AppActions;
   onOpenSettings: () => void;
   /** Opens Settings scrolled to "Limit data". */
   onOpenLimitSetup: () => void;
@@ -25,12 +26,17 @@ interface DashboardProps {
 }
 
 /** The popup's dashboard: one big number, two stats, the level block at the bottom. */
-export function Dashboard({ data, onOpenSettings, onOpenLimitSetup, onOpenAchievements }: DashboardProps) {
+export function Dashboard({ data, actions, onOpenSettings, onOpenLimitSetup, onOpenAchievements }: DashboardProps) {
   const { settings, dashboard, game } = data;
   // Local UI state: starts at "5 hours" and is not saved.
   const [choice, setChoice] = useState<WindowChoice>("fiveHour");
   const ring = buildRing(toPopupMode(settings.mode), dashboard, choice);
-  const note = buildNote(dashboard);
+  const note = buildNote(dashboard, data.update);
+  const [installing, setInstalling] = useState(false);
+  const install = () => {
+    setInstalling(true);
+    void actions.installUpdate().finally(() => setInstalling(false));
+  };
 
   return (
     <div className="screen">
@@ -47,15 +53,25 @@ export function Dashboard({ data, onOpenSettings, onOpenLimitSetup, onOpenAchiev
             {note.text}
           </TextLink>
         ) : (
-          note.segments.map((segment, index) =>
-            segment.mono ? (
-              <span key={index} className="live-number">
-                {segment.text}
-              </span>
-            ) : (
-              segment.text
-            ),
-          )
+          <>
+            {note.segments.map((segment, index) =>
+              segment.mono ? (
+                <span key={index} className="live-number">
+                  {segment.text}
+                </span>
+              ) : (
+                segment.text
+              ),
+            )}
+            {note.kind === "update" && note.action !== null ? (
+              <>
+                {" "}
+                <TextLink small onClick={installing ? undefined : install} disabled={installing}>
+                  {note.action}
+                </TextLink>
+              </>
+            ) : null}
+          </>
         )}
       </p>
     </div>

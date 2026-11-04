@@ -68,3 +68,17 @@ export function useBackendEvent<E extends EventName>(
     };
   }, [event, enabled]);
 }
+
+/** Opens a web page in the default browser (a new tab in the dev preview). */
+export async function openExternal(url: string): Promise<void> {
+  if (!insideTauri()) {
+    window.open(url, "_blank", "noopener");
+    return;
+  }
+  try {
+    const { openUrl } = await import("@tauri-apps/plugin-opener");
+    await openUrl(url);
+  } catch (error) {
+    console.warn(`could not open ${url}: ${describeError(error)}`);
+  }
+}
