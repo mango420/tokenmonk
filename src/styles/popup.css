@@ -742,6 +742,10 @@ html[data-maximized] .popup {
   margin: 0;
 }
 
+.limit-data__check {
+  margin-top: calc(var(--space-1) * -1);
+}
+
 .limit-data__path {
   font-family: var(--font-mono);
   font-size: var(--text-small-size);

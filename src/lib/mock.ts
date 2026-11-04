@@ -10,6 +10,7 @@ import type {
   GameState,
   LevelUp,
   LimitSetup,
+  StatuslineFileInfo,
   Settings,
   TokenBreakdown,
   UpdateStatus,
@@ -292,14 +293,16 @@ export interface MockScenario {
 }
 
 /** Synthetic `get_limit_setup` answers for the settings preview. */
-// Placeholder file state ("never arrived") until the mocks cover it.
-const statuslineFile = { exists: false, receivedAt: null, modifiedAt: null };
-const setupPlain: LimitSetup = { statuslineCommand: "C:/Tokenmonk/tokenmonk.exe --statusline", statuslineFile };
-const setupQuoted: LimitSetup = {
-  statuslineCommand: '"C:/Program Files/Tokenmonk/tokenmonk.exe" --statusline',
-  statuslineFile,
-};
-const setupMissing: LimitSetup = { statuslineCommand: null, statuslineFile };
+const fileNever: StatuslineFileInfo = { exists: false, receivedAt: null, modifiedAt: null };
+const fileArrived: StatuslineFileInfo = { exists: true, receivedAt: NOW - 12 * MIN, modifiedAt: NOW - 12 * MIN };
+const fileUnreadable: StatuslineFileInfo = { exists: true, receivedAt: null, modifiedAt: NOW - 3 * 24 * 60 * MIN };
+const commandPlain = "C:/Tokenmonk/tokenmonk.exe --statusline";
+const commandQuoted = '"C:/Program Files/Tokenmonk/tokenmonk.exe" --statusline';
+const setupPlain: LimitSetup = { statuslineCommand: commandPlain, statuslineFile: fileNever };
+const setupQuoted: LimitSetup = { statuslineCommand: commandQuoted, statuslineFile: fileNever };
+const setupArrived: LimitSetup = { statuslineCommand: commandPlain, statuslineFile: fileArrived };
+const setupUnreadable: LimitSetup = { statuslineCommand: commandPlain, statuslineFile: fileUnreadable };
+const setupMissing: LimitSetup = { statuslineCommand: null, statuslineFile: fileNever };
 
 export function mockLimitSetup(scenario: MockScenario): LimitSetup {
   return scenario.limitSetup ?? setupPlain;
@@ -433,6 +436,24 @@ const buildScenarios = () => ({
     }),
     game: maxGame,
     limitSetup: setupQuoted,
+    update: idle,
+  },
+  maxSetupArrived: {
+    label: "Max it out, status line ran, no current window",
+    settings: maxSettings,
+    appInfo,
+    dashboard: snapshot({ limits: noLimits }),
+    game: maxGame,
+    limitSetup: setupArrived,
+    update: idle,
+  },
+  maxSetupUnreadable: {
+    label: "Max it out, status line file unreadable",
+    settings: maxSettings,
+    appInfo,
+    dashboard: snapshot({ limits: noLimits }),
+    game: maxGame,
+    limitSetup: setupUnreadable,
     update: idle,
   },
   maxSetupMissing: {
