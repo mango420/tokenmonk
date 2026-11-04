@@ -240,18 +240,37 @@ fn app_info_and_errors_shape() {
 fn limit_setup_shape() {
     let setup = LimitSetup {
         statusline_command: Some("/opt/example/tokenmonk --statusline".into()),
+        statusline_file: StatuslineFileInfo {
+            exists: true,
+            received_at: Some(1_767_225_600_000),
+            modified_at: Some(1_767_225_600_120),
+        },
     };
     assert_eq!(
         to_value(setup).unwrap(),
-        json!({ "statuslineCommand": "/opt/example/tokenmonk --statusline" })
+        json!({
+            "statuslineCommand": "/opt/example/tokenmonk --statusline",
+            "statuslineFile": {
+                "exists": true,
+                "receivedAt": 1_767_225_600_000_i64,
+                "modifiedAt": 1_767_225_600_120_i64
+            }
+        })
     );
     let none = LimitSetup {
         statusline_command: None,
+        statusline_file: StatuslineFileInfo::default(),
     };
     assert_eq!(
         to_value(none).unwrap(),
-        json!({ "statuslineCommand": null })
+        json!({
+            "statuslineCommand": null,
+            "statuslineFile": { "exists": false, "receivedAt": null, "modifiedAt": null }
+        })
     );
+    // Additive: input without the block still parses, as "missing".
+    let old: LimitSetup = serde_json::from_value(json!({ "statuslineCommand": null })).unwrap();
+    assert_eq!(old.statusline_file, StatuslineFileInfo::default());
     assert_eq!(commands::GET_LIMIT_SETUP, "get_limit_setup");
 }
 

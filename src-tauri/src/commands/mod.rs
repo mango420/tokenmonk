@@ -187,6 +187,8 @@ pub fn get_app_info(state: State<'_, Arc<AppState>>) -> Result<AppInfo, CommandE
 pub fn get_limit_setup() -> Result<LimitSetup, CommandError> {
     Ok(LimitSetup {
         statusline_command: current_statusline_command(),
+        // Placeholder until the file check lands (backend-platform).
+        statusline_file: Default::default(),
     })
 }
 

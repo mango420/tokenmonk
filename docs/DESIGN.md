@@ -373,11 +373,35 @@ Code settings; this section only shows what to paste.
    | Limits | Text |
    |---|---|
    | `ok` or `stale` | "Connected. Last reading 14:05." (`fetchedAt`, local 24 h time, mono for the time); "Connected." if `fetchedAt` is `null` |
-   | `unavailable`, `noSource` or no `reason` | "Not set up yet." |
+   | `unavailable`, `noSource` or no `reason`, `statuslineFile.receivedAt` set | "Set up. No current limits." |
+   | `unavailable`, `noSource` or no `reason`, otherwise | "Not set up yet." |
    | `unavailable`, other reasons | "Can’t read the limit file. Next reply fixes it." |
 
+   `statuslineFile` comes from `LimitSetup`; while `get_limit_setup` runs
+   or if it failed, the "otherwise" row applies.
+
+   Setup check line (caption, directly below the status, margin top 4),
+   from `LimitSetup.statuslineFile`. Shown only if `limits.status` is
+   `unavailable` and `get_limit_setup` succeeded; for `ok` and `stale` the
+   status already carries the time. Time first, mono, `tabular-nums`;
+   `<time>` is local 24 h time ("14:05") on the same local day, otherwise
+   day, English short month and time ("3 Nov 14:05"). First match:
+
+   | `statuslineFile` | Text |
+   |---|---|
+   | `exists = false` | "Nothing from the status line yet. Paste the block below, then send Claude Code one message." |
+   | `receivedAt` set | "<receivedAt> · last status line. No current window in it: the next reply brings one on Pro or Max." |
+   | `modifiedAt` set | "<modifiedAt> · something arrived, but it can’t be read. Send another message; if it sticks, update Tokenmonk." |
+   | otherwise | "Something arrived, but it can’t be read. Send another message; if it sticks, update Tokenmonk." |
+
+   Text link "Check again" (note link style) at the end of the line: calls
+   `get_limit_setup` again and updates the check line and the status; the
+   line keeps its old text while the call runs; if it fails, the old text
+   stays.
+
 3. Setup copy (caption): "Limits come from Claude Code’s status line.
-   Local only, no login. Open <path>, create it if missing, and add this:"
+   Local only, no login. Open <path>, create it if missing, and add this
+   as your status line:"
    (the path in mono). `<path>` is `%USERPROFILE%\.claude\settings.json`
    if `AppInfo.platform = windows`, otherwise `~/.claude/settings.json`.
 4. Snippet block: 1 px `line` border, radius 8, padding 12, mono 12,
@@ -395,10 +419,13 @@ Code settings; this section only shows what to paste.
    }
    ```
 
-   Merge hint (caption, directly below the block): "File already has
-   settings? Put "statusLine" at the top level next to them and end the key
-   before it with a comma. Already has a "statusLine"? Replace it, or keep
-   your script (below)." The key names in mono.
+   The block is the whole status line setting: its `command` is the
+   entire status line command, not a line for a script. Merge hint
+   (caption, directly below the block): "File already has settings? Put
+   "statusLine" at the top level next to them and end the key before it
+   with a comma. Already has a "statusLine"? This replaces it." followed,
+   if `AppInfo.platform` is not `windows`, by " To keep your own script,
+   skip this block and use the line below." The key names in mono.
 
    Text link "Copy" at the block's top right. After a successful copy the
    caption under the block reads "Copied. Paste it, then send Claude Code
@@ -415,15 +442,23 @@ Code settings; this section only shows what to paste.
    Git Bash? Claude Code then uses PowerShell. Use this one instead:" and a
    second block (same style, own copy link and captions) with
    `command = "& " + statuslineCommand`. Otherwise not shown.
-5. Chain hint (caption): "Already have a status line? Keep it. Add this
-   line to your script after it reads the input:" and a block (own copy
-   link) with `printf '%s' "$input" | <command> >/dev/null`, where
-   `<command>` is `statuslineCommand`.
+5. Chain hint. The line is Bash, so it depends on the platform:
+   - `AppInfo.platform` is not `windows`: caption "Already have a status
+     line script? Leave settings.json as it is. Add this line inside the
+     script, after it reads the input:" (settings.json in mono) and a
+     block (own copy link) with
+     `printf '%s' "$input" | <command> >/dev/null`, where `<command>` is
+     `statuslineCommand`.
+   - `windows`: caption only, no block and no copy link: "Already have a
+     status line? Tokenmonk can’t share it on Windows yet. Swap yours for
+     the block above, or keep it and go without limits."
 6. Plan note (caption): "Needs a Pro or Max plan. Numbers show up after
    the first reply."
 
-Fed by: `LimitSetup` (`get_limit_setup`, called once when the view opens),
-`DashboardSnapshot.limits` (`status`, `reason`, `fetchedAt`).
+Fed by: `LimitSetup` (`get_limit_setup`, called once when the view opens
+and again on "Check again"; `statuslineCommand`, `statuslineFile`),
+`DashboardSnapshot.limits` (`status`, `reason`, `fetchedAt`),
+`AppInfo.platform`.
 
 ### Achievements
 
