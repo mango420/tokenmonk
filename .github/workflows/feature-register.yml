@@ -101,9 +101,12 @@ jobs:
             done
             echo "::warning::Could not start $1 on ${REFRESH_BRANCH} after retries."
             echo "Could not start \`$1\` on \`${REFRESH_BRANCH}\`; re-run this workflow." >> "$GITHUB_STEP_SUMMARY"
+            failed=1
           }
+          failed=
           dispatch ci.yml
           dispatch pr-key.yml
+          [ -z "$failed" ] || exit 1
 
       # The register on main already matches the tracker: retire a stale refresh PR.
       - name: Close stale refresh PR

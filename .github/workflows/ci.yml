@@ -3,6 +3,8 @@ name: CI
 on:
   pull_request:
     # Refresh PRs of feature-register.yml would end action_required; see there.
+    # A human PR changing only docs/FEATURES.md gets no run: start both by hand with
+    # `gh workflow run ci.yml --ref <branch>` and `gh workflow run pr-key.yml --ref <branch>`.
     paths-ignore: [docs/FEATURES.md]
   push:
     branches: [main, dev]
