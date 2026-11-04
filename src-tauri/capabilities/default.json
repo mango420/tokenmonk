@@ -10,8 +10,6 @@
     "core:window:allow-toggle-maximize",
     "opener:default",
     "notification:default",
-    "process:allow-restart",
-    "updater:default",
     "autostart:allow-enable",
     "autostart:allow-disable",
     "autostart:allow-is-enabled",

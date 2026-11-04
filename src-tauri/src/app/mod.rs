@@ -11,6 +11,7 @@ mod facts;
 mod game_store;
 mod publisher;
 mod state;
+mod updates;
 
 use std::sync::Arc;
 
@@ -19,6 +20,7 @@ use tauri::{App, AppHandle, Emitter, Manager};
 pub use game_store::DbGameStore;
 pub use publisher::{halo_percent, AppPublisher, Sink};
 pub use state::AppState;
+pub use updates::{check as check_update, install as install_update, UpdateState};
 
 use crate::contracts::events::{
     ACHIEVEMENT_UNLOCKED, APP_INFO_CHANGED, DASHBOARD_UPDATED, GAME_UPDATED, LEVEL_UP,
@@ -105,6 +107,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         logs_found: config.as_ref().is_some_and(|c| c.logs_root.is_dir()),
     };
     let first_run = settings.mode == Mode::NoneYet;
+    let update_check = settings.update_check;
     let state = Arc::new(AppState::new(command_db, settings, info));
     app.manage(Arc::clone(&state));
 
@@ -128,6 +131,8 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         }
         None => log::warn!("home directory unknown: log ingestion is off"),
     }
+
+    updates::init(&handle, update_check);
 
     // Onboarding waits in the popup; a tray icon alone would hide it.
     if first_run {

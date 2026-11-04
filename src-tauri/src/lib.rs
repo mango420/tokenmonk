@@ -47,6 +47,9 @@ pub fn run() {
             commands::get_game_state,
             commands::get_app_info,
             commands::get_limit_setup,
+            commands::get_update_status,
+            commands::check_for_updates,
+            commands::install_update,
         ])
         .setup(|app| {
             #[cfg(desktop)]
