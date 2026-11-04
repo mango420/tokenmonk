@@ -27,10 +27,10 @@ env:
   # run starts from (the pushed tag, or the tag release-please dispatches on).
   BUILD_REF: ${{ inputs.tag || github.ref }}
   BUILD_TAG: ${{ inputs.tag || github.ref_name }}
-  # v0.1 ships without auto-update (docs/DECISIONS.md, "v0.1 without updater artifacts"): no signing
-  # key, no latest.json, no .sig files. To switch updater artifacts back on,
-  # set this to 'true' and apply the config changes listed in DECISIONS.md.
-  UPDATER_ARTIFACTS: 'false'
+  # Updater artifacts are on (docs/DECISIONS.md, "v0.1 without updater artifacts", update 2026-11-04):
+  # builds are signed with the TAURI_SIGNING_PRIVATE_KEY secrets and publish .sig files and latest.json.
+  # Setting this to 'false' requires createUpdaterArtifacts to be unset or false in tauri.conf.json.
+  UPDATER_ARTIFACTS: 'true'
 
 jobs:
   guard:
@@ -157,9 +157,8 @@ jobs:
       #
       # Binaries are unsigned (no Apple or Windows code-signing secrets);
       # macOS gets an ad-hoc signature from tauri.conf.json. While
-      # UPDATER_ARTIFACTS is 'false' no updater artifacts are built or
-      # uploaded. The signing env below is only read when
-      # bundle.createUpdaterArtifacts is true in tauri.conf.json.
+      # UPDATER_ARTIFACTS is 'true' the updater bundles, .sig files and
+      # latest.json are built and uploaded; the signing env below signs them.
       - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -168,7 +167,7 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: Tokenmonk v__VERSION__
-          releaseBody: Unsigned build, no auto-update. See the assets to download and install.
+          releaseBody: Unsigned build. See the assets to download and install.
           releaseDraft: true
           prerelease: false
           uploadUpdaterJson: ${{ env.UPDATER_ARTIFACTS == 'true' }}

@@ -30,6 +30,7 @@
     }
   },
   "bundle": {
+    "createUpdaterArtifacts": true,
     "active": true,
     "targets": "all",
     "icon": [
@@ -45,7 +46,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDA2MTM1Rjc4QjExRDc3QkIKUldTN2R4MnhlRjhUQnJldVh3MjMvTk5MRFlWaUM0OVFOaUt3Wkg5UE05aXJCR2ZYeE0zc251YlcK",
       "endpoints": [
         "https://github.com/mango420/tokenmonk/releases/latest/download/latest.json"
       ]

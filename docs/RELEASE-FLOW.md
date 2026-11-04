@@ -46,7 +46,7 @@ The feature register refresh PR targets `dev` as well.
   macOS universal and Windows and uploads the installers as workflow
   artifacts. No release, no version bump, no tag, no prerelease version.
 - Unsigned, like the releases (they only ever carried updater signatures,
-  and updater artifacts are off). It needs no secrets.
+  and test builds switch updater artifacts off). It needs no secrets.
 - Artifacts are kept for 1 day (`retention-days: 1`, the platform
   minimum). Standard GitHub-hosted runners are free for public
   repositories.
@@ -124,10 +124,10 @@ Only when every item passes on both platforms does the maintainer publish
 the draft by hand. It then becomes "latest", which is where the README
 download link points.
 
-Auto-update is off: releases carry no `.sig` files and no `latest.json`
-(`UPDATER_ARTIFACTS` is `'false'` in `release.yml`). Users update by
-installing the newer release by hand; the in-app update check is tracked
-in #41.
+Auto-update is on: releases carry `.sig` files and `latest.json`
+(`UPDATER_ARTIFACTS` is `'true'` in `release.yml`). Check `latest.json` on
+the draft before publishing; the in-app update check reads it from the
+latest published release.
 
 ## Back-merge
 
