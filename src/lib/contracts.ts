@@ -6,7 +6,10 @@
  *
  * Wire rules (set by serde on the Rust side):
  * - Fields are camelCase (`rename_all = "camelCase"`).
- * - Enums are unit enums serialized as camelCase string literals.
+ * - Unit enums are camelCase string literals.
+ * - Data-carrying enums (only `UpdateStatus`) are internally tagged
+ *   (`tag = "kind"`): a discriminated union on `kind`, variant names and
+ *   their fields camelCase.
  * - `Option<T>` is `T | null` (never omitted), except in patch types where
  *   an absent field means "unchanged" (`field?: T`).
  * - Timestamps are `EpochMs`: Unix epoch milliseconds, UTC.
@@ -28,6 +31,9 @@ export interface Settings {
   sound: boolean;
   /** Start Tokenmonk at login. */
   autostart: boolean;
+  /** "Check for updates automatically": check once at app start. Manual
+   * checks ("Check now") work either way. Default true. */
+  updateCheck: boolean;
 }
 
 /** Partial update for `update_settings`. `mode: "noneYet"` is rejected. */
@@ -35,6 +41,7 @@ export interface SettingsPatch {
   mode?: Mode;
   sound?: boolean;
   autostart?: boolean;
+  updateCheck?: boolean;
 }
 
 // ------------------------------------------------------------------ limits
@@ -241,6 +248,39 @@ export interface AppInfo {
 /** Database schema version the app expects (Rust `schema::SCHEMA_VERSION`). */
 export const SCHEMA_VERSION = 1;
 
+// ------------------------------------------------------------------ update
+
+/** Base of a version's GitHub release page (Rust `update::RELEASE_PAGE_BASE`);
+ * the page of 0.4.1 is this plus "v0.4.1". */
+export const RELEASE_PAGE_BASE = "https://github.com/mango420/tokenmonk/releases/tag/";
+
+/**
+ * State of the update check (Rust `UpdateStatus`, tagged by `kind`).
+ * `idle`: no check since start. `unavailable`: this build cannot update
+ * itself (empty updater key, as in development); no request is made.
+ * `checkFailed`: offline, network error, timeout, 404 or invalid
+ * `latest.json`. `installing`: on success the app exits or restarts, no
+ * further status follows. `detail` is technical text for logs only.
+ */
+export type UpdateStatus =
+  | { kind: "idle" }
+  | { kind: "checking" }
+  | { kind: "upToDate"; checkedAt: EpochMs }
+  | {
+      kind: "available";
+      /** New version without a leading "v", for example "0.4.1". */
+      version: string;
+      /** GitHub release page of that version. */
+      url: string;
+      checkedAt: EpochMs;
+    }
+  | { kind: "unavailable" }
+  | { kind: "checkFailed"; checkedAt: EpochMs; detail: string | null }
+  | { kind: "installing"; version: string }
+  | { kind: "installFailed"; version: string; url: string; detail: string | null };
+
+export type UpdateStatusKind = UpdateStatus["kind"];
+
 // ---------------------------------------------------------------- commands
 
 export const Commands = {
@@ -251,6 +291,12 @@ export const Commands = {
   getGameState: "get_game_state",
   getAppInfo: "get_app_info",
   getLimitSetup: "get_limit_setup",
+  getUpdateStatus: "get_update_status",
+  /** Resolves when the check is done (at once while one is running). */
+  checkForUpdates: "check_for_updates",
+  /** Resolves only on failure (`installFailed`); on success the app exits
+   * or restarts. Rejects with `invalidArgument` if nothing is installable. */
+  installUpdate: "install_update",
 } as const;
 
 export type CommandName = (typeof Commands)[keyof typeof Commands];
@@ -273,6 +319,9 @@ export interface CommandArgs {
   get_game_state: undefined;
   get_app_info: undefined;
   get_limit_setup: undefined;
+  get_update_status: undefined;
+  check_for_updates: undefined;
+  install_update: undefined;
 }
 
 /** Resolved value per command. */
@@ -284,6 +333,9 @@ export interface CommandResults {
   get_game_state: GameState;
   get_app_info: AppInfo;
   get_limit_setup: LimitSetup;
+  get_update_status: UpdateStatus;
+  check_for_updates: UpdateStatus;
+  install_update: UpdateStatus;
 }
 
 export type CommandErrorCode =
@@ -308,6 +360,7 @@ export const Events = {
   levelUp: "level-up",
   appInfoChanged: "app-info-changed",
   navigate: "navigate",
+  updateStatusChanged: "update-status-changed",
 } as const;
 
 export type EventName = (typeof Events)[keyof typeof Events];
@@ -327,4 +380,5 @@ export interface EventPayloads {
   "level-up": LevelUp;
   "app-info-changed": AppInfo;
   navigate: NavigateTo;
+  "update-status-changed": UpdateStatus;
 }

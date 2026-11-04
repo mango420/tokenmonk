@@ -20,11 +20,13 @@ Related documents: [DESIGN.md](DESIGN.md) (look and feel),
 | limits | `src-tauri/src/limits/` | `LimitSource` implementations and the polling worker. |
 | game | `src-tauri/src/game/` | XP, levels, titles, achievements, retroactive replay. |
 | app | `src-tauri/src/app/` | App layer: shared state (`AppState`: cached snapshot, game state, settings, app info, command connection), the ingest publisher (`AppPublisher`: caches each snapshot, emits events, drives the tray ring and the game), startup wiring (`setup`), the game store adapter (`DbGameStore`) and the game facts builder. SQL stays in `db`. |
+| update | `src-tauri/src/app/update.rs` | Update check and install through `tauri-plugin-updater`; holds `UpdateStatus` and the last `Update` (see "Updates"). Part of the app layer. |
 | commands | `src-tauri/src/commands/` | `#[tauri::command]` handlers; thin, read cached state or delegate. |
 | tray, window | `src-tauri/src/{tray,window}/` | Tray icon with live ring (5-hour percent left), popup window placement and show/hide. |
 | UI | `src/` | React views: onboarding, dashboard, settings, achievements, toasts, level-up screen. |
 
-The UI never touches files, the database or the network.
+The UI never touches files, the database or the network. The only network
+request of the app is the update check (see "Updates"), made by Rust.
 
 ## Data flow
 
@@ -59,6 +61,11 @@ minute tick ----------------------------------------------------> aggregate
 - **Limits worker** (one thread): calls `LimitSource::fetch` on a fixed
   interval, hands readings to the ingest worker over a channel. A slow or
   failing source never delays log ingestion.
+- **Update task** (async, on Tauri's async runtime, not a thread of its
+  own): one check at start if `Settings.updateCheck` is on, then only on
+  `check_for_updates`; an install only on `install_update`. Never blocks
+  the main thread or the workers; at most one check or install runs at a
+  time.
 - **Command handlers** read the cached snapshot, game state and settings
   from shared state (`app::AppState`, held in an `Arc`, cache behind an
   `RwLock`). Commands that write (settings) use a second connection owned
@@ -370,6 +377,101 @@ For backend-platform (and the orchestrator where marked):
   then `game-updated`.
 - `(kind, ref)` uniqueness in `xp_events` makes every award idempotent.
 
+## Updates
+
+Spec for TKM-41; implementation in #161 (core) and #162 (UI). Verified
+against the plugin docs and source (sources in DECISIONS.md, "Updater").
+
+**Who.** Rust only, through `tauri-plugin-updater` (already registered
+under `#[cfg(desktop)]`) and `AppHandle::restart` (core Tauri). The webview
+never calls the updater or process plugin; it reads `UpdateStatus` and
+calls three commands. No new dependency.
+
+**When.**
+
+- At start: if `Settings.updateCheck` is `true`, `app::setup` spawns one
+  check on `tauri::async_runtime` once the settings are loaded. No delay,
+  no retry, no periodic timer. With the setting off the status stays
+  `idle`.
+- By hand: `check_for_updates` ("Check now" in Settings), whatever the
+  setting says. Turning the setting on does not start a check by itself.
+- Install: only on `install_update` (the user clicked "Update"). Nothing
+  installs silently.
+
+**State.** The status lives in a separately managed `UpdateState`
+(`src-tauri/src/app/updates.rs`), not in `AppState`. It holds the current
+`UpdateStatus` (start: `idle`) and, after an `available` result, the plugin's
+`Update` value (it is `Clone + Send + Sync`) for the install. Every transition is stored, then
+emitted as `update-status-changed` with the full status.
+
+**Check** (`check_for_updates` and the start check):
+
+1. Busy (`UpdateStatus::is_busy`: `checking` or `installing`): return the
+   current status, start nothing.
+2. Read `plugins.updater.pubkey` from `app.config().plugins` (a map of
+   plugin name to JSON). Missing or blank: status `unavailable`, no
+   request. This is the dev case and every build without updater
+   artifacts; it must never panic. If building the updater
+   (`app.updater_builder()...build()`) fails: `unavailable` as well, error
+   logged.
+3. Status `checking` (emitted), then build the updater with
+   `.timeout(Duration::from_secs(20))` and `check().await`:
+   - `Ok(Some(update))`: `available { version, url, checkedAt }`.
+     `version` is `update.version` without a leading "v"; `url` is
+     `update::release_page_url(version)`, the GitHub release page (tags
+     are `v<version>`). `update.body` (release notes) is not used.
+   - `Ok(None)`: `upToDate { checkedAt }` (the plugin returns `None` when
+     the remote version is not newer than the running one).
+   - `Err(e)`: `checkFailed { checkedAt, detail: Some(e.to_string()) }`.
+     Offline and timeouts surface as `Error::Reqwest`; a 404 on
+     `latest.json` (no updater artifacts published) as
+     `Error::ReleaseNotFound`; invalid JSON as `Error::Serialization`; a
+     release without this platform as `Error::TargetNotFound`. All map to
+     `checkFailed`, logged, no popup, no notification.
+4. Resolve the command with the final status.
+
+**Install** (`install_update`):
+
+1. Busy: return the current status. No installable version
+   (`UpdateStatus::installable_version` is `None`): reject with
+   `CommandError { code: invalidArgument }`.
+2. Status `installing { version }` (emitted), then
+   `update.download_and_install(|_, _| {}, || {}).await`. Download
+   progress is not reported.
+3. On error: `installFailed { version, url, detail }`, resolve with it.
+   The stored `Update` stays, so "Try again" repeats step 2.
+4. On success:
+   - **Windows**: the plugin launches the installer and the process ends
+     inside the install call (`std::process::exit(0)`); the command never
+     resolves. The plugin's `on_before_exit` hook runs just before; no
+     cleanup is needed there (SQLite runs in WAL mode, ingest commits per
+     batch). The installer runs in the plugin's default `passive` mode
+     (progress window, no questions) and starts the app again afterwards
+     (`restart_after_install`, default `true`).
+   - **macOS**: the plugin replaces the `.app` bundle (atomic swap, or an
+     administrator prompt if the bundle is not writable), then Rust calls
+     `app.restart()` from the async task (not the main thread, so the exit
+     events are delivered). The new version starts; the command never
+     resolves.
+
+**Signature.** The plugin verifies every download against the configured
+public key; this cannot be turned off. With an empty key the app never
+gets that far (check step 2).
+
+**Request.** A GET to the endpoint in `tauri.conf.json`
+(`https://github.com/mango420/tokenmonk/releases/latest/download/latest.json`),
+no body, no query, headers `Accept: application/json` and
+`User-Agent: tauri-plugin-updater/<plugin version>`. GitHub answers with a
+redirect to the file of the latest release. The download is a GET of the
+platform `url` from `latest.json` (GitHub redirects it to its file host).
+README "Privacy" states this for users.
+
+**UI.** `get_update_status` on start, then `update-status-changed`.
+"Update" and "Try again" call `install_update`, "Check now" calls
+`check_for_updates`; the release link opens `url` with the opener plugin
+(`openUrl`; https URLs are allowed by `opener:default`). Copy and
+placement: DESIGN.md ("Update line", "Settings").
+
 ## Commands and events
 
 Defined in the contracts (names as constants on both sides):
@@ -383,6 +485,9 @@ Defined in the contracts (names as constants on both sides):
 | `get_game_state` | `GameState` |
 | `get_app_info` | `AppInfo` |
 | `get_limit_setup` | `LimitSetup` (status-line setup command, see Limits) |
+| `get_update_status` | `UpdateStatus` |
+| `check_for_updates` | `UpdateStatus` after the check (see Updates) |
+| `install_update` | `UpdateStatus`, only on failure; success exits or restarts the app |
 
 | Event | Payload |
 |---|---|
@@ -393,14 +498,17 @@ Defined in the contracts (names as constants on both sides):
 | `level-up` | `LevelUp` |
 | `app-info-changed` | `AppInfo` |
 | `navigate` | `NavigateTo` (tray menu opens settings etc.; views: dashboard, settings, onboarding, achievements) |
+| `update-status-changed` | `UpdateStatus` |
 
 Payloads are full state, never diffs. On start the UI calls the `get_*`
 commands once, then follows the events. Every command returns
 `Result<T, CommandError>`.
 
-Serialization: struct fields camelCase; enums are unit enums as camelCase
-strings (a future data-carrying enum would be internally tagged with
-`"kind"`); `Option` is `null`; timestamps are epoch milliseconds.
+Serialization: struct fields camelCase; unit enums as camelCase strings;
+the one data-carrying enum (`UpdateStatus`) is internally tagged with
+`"kind"`, variant and field names camelCase (`{ "kind": "upToDate",
+"checkedAt": 0 }`), a discriminated union in TypeScript; `Option` is
+`null`; timestamps are epoch milliseconds.
 
 ## Storage
 
@@ -412,6 +520,10 @@ strings (a future data-carrying enum would be internally tagged with
   with the architect first; `SCHEMA_VERSION` in the contracts follows.
 - Tables: `source_files` (read offsets), `messages` (deduplicated usage),
   `limit_snapshots`, `settings`, `xp_events`, `achievements`, `app_state`.
+- `settings` keys: `mode`, `sound`, `autostart`, `update_check` (JSON
+  boolean, since TKM-41). A missing key means the default
+  (`update_check`: `true`); new keys need no migration.
+- `UpdateStatus` is not stored; every start begins at `idle`.
 - If the database is corrupt or from a newer version, it is moved aside
   (renamed with a timestamp) and rebuilt from the logs; game progress is
   rebuilt by the retroactive replay.
@@ -432,6 +544,9 @@ strings (a future data-carrying enum would be internally tagged with
 | No budget basis | | `dailyBudget = null` |
 | Database error in a command | | `CommandError { code: storage }` |
 | Command before the core is ready | | `CommandError { code: notReady }`; the UI retries on the first event |
+| Empty updater public key (dev, builds without updater artifacts) | No request | `UpdateStatus = unavailable` |
+| Offline, timeout, 404 or invalid `latest.json` | Log, no retry | `UpdateStatus = checkFailed` |
+| Download, signature or install error | Log, keep the update | `UpdateStatus = installFailed` |
 
 The tone of every message follows DESIGN.md: calm, dry, number first.
 

@@ -35,7 +35,12 @@ fn sample_unlock() -> AchievementUnlocked {
 fn settings_use_camel_case_strings() {
     assert_eq!(
         to_value(Settings::default()).unwrap(),
-        json!({ "mode": "noneYet", "sound": true, "autostart": false })
+        json!({
+            "mode": "noneYet",
+            "sound": true,
+            "autostart": false,
+            "updateCheck": true
+        })
     );
     assert_eq!(to_value(Mode::Diy).unwrap(), json!("diy"));
 }
@@ -53,6 +58,74 @@ fn settings_patch_omits_absent_fields() {
     let args: UpdateSettingsArgs =
         serde_json::from_value(json!({ "patch": { "autostart": true } })).unwrap();
     assert_eq!(args.patch.autostart, Some(true));
+    let patch = SettingsPatch {
+        update_check: Some(false),
+        ..Default::default()
+    };
+    assert_eq!(to_value(&patch).unwrap(), json!({ "updateCheck": false }));
+}
+
+#[test]
+fn update_status_is_tagged_by_kind() {
+    assert_eq!(UpdateStatus::default(), UpdateStatus::Idle);
+    assert_eq!(
+        to_value(UpdateStatus::Idle).unwrap(),
+        json!({ "kind": "idle" })
+    );
+    assert_eq!(
+        to_value(UpdateStatus::UpToDate {
+            checked_at: 1_700_000_000_000
+        })
+        .unwrap(),
+        json!({ "kind": "upToDate", "checkedAt": 1_700_000_000_000_i64 })
+    );
+    let available = UpdateStatus::Available {
+        version: "0.4.1".into(),
+        url: update::release_page_url("v0.4.1"),
+        checked_at: 1,
+    };
+    assert_eq!(
+        to_value(&available).unwrap(),
+        json!({
+            "kind": "available",
+            "version": "0.4.1",
+            "url": "https://github.com/mango420/tokenmonk/releases/tag/v0.4.1",
+            "checkedAt": 1
+        })
+    );
+    assert_eq!(available.installable_version(), Some("0.4.1"));
+    assert_eq!(
+        to_value(UpdateStatus::CheckFailed {
+            checked_at: 2,
+            detail: None
+        })
+        .unwrap(),
+        json!({ "kind": "checkFailed", "checkedAt": 2, "detail": null })
+    );
+    assert_eq!(
+        to_value(UpdateStatus::Unavailable).unwrap(),
+        json!({ "kind": "unavailable" })
+    );
+    let installing = UpdateStatus::Installing {
+        version: "0.4.1".into(),
+    };
+    assert!(installing.is_busy() && UpdateStatus::Checking.is_busy());
+    assert_eq!(
+        to_value(&installing).unwrap(),
+        json!({ "kind": "installing", "version": "0.4.1" })
+    );
+    let failed: UpdateStatus = serde_json::from_value(json!({
+        "kind": "installFailed",
+        "version": "0.4.1",
+        "url": "https://github.com/mango420/tokenmonk/releases/tag/v0.4.1",
+        "detail": "signature mismatch"
+    }))
+    .unwrap();
+    assert_eq!(failed.installable_version(), Some("0.4.1"));
+    assert!(!failed.is_busy());
+    assert_eq!(UpdateStatus::Idle.installable_version(), None);
+    assert_eq!(commands::INSTALL_UPDATE, "install_update");
+    assert_eq!(events::UPDATE_STATUS_CHANGED, "update-status-changed");
 }
 
 #[test]

@@ -10,6 +10,7 @@ import type {
   LimitWindow,
   LimitsView,
   Mode,
+  UpdateStatus,
 } from "../../lib/contracts";
 import {
   clamp01,
@@ -191,10 +192,12 @@ export type NoteSegment = { text: string; mono?: boolean };
 
 export type NoteModel =
   | { kind: "text"; segments: NoteSegment[] }
-  | { kind: "limitSetup"; text: string };
+  | { kind: "limitSetup"; text: string }
+  /** Update line: `action` is the text link after the sentence, if any. */
+  | { kind: "update"; segments: NoteSegment[]; action: string | null };
 
 /** One line, first match wins (docs/DESIGN.md, "Note line"). */
-export function buildNote(snap: DashboardSnapshot): NoteModel {
+export function buildNote(snap: DashboardSnapshot, update: UpdateStatus): NoteModel {
   const { data, limits } = snap;
   if (data.state === "importing") {
     return {
@@ -213,6 +216,31 @@ export function buildNote(snap: DashboardSnapshot): NoteModel {
   }
   if (data.state === "error") {
     return { kind: "text", segments: [{ text: "Can’t read the logs. Retrying in the background." }] };
+  }
+  if (update.kind === "available") {
+    return {
+      kind: "update",
+      segments: [{ text: update.version, mono: true }, { text: " is out." }],
+      action: "Update",
+    };
+  }
+  if (update.kind === "installing") {
+    return {
+      kind: "update",
+      segments: [
+        { text: "Installing " },
+        { text: update.version, mono: true },
+        { text: ". Back in a moment." },
+      ],
+      action: null,
+    };
+  }
+  if (update.kind === "installFailed") {
+    return {
+      kind: "update",
+      segments: [{ text: update.version, mono: true }, { text: " didn’t install." }],
+      action: "Try again",
+    };
   }
   if (limits.reason === "noSource") {
     return { kind: "limitSetup", text: "No limit data yet. Setup is in Settings." };

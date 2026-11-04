@@ -3,7 +3,9 @@
 The design system for the Tokenmonk popup, tray icon and README. All values
 live as CSS variables in [`src/styles/tokens.css`](../src/styles/tokens.css);
 components use the variables, never literal values. Brand files are in
-[`assets/brand/`](../assets/brand/).
+[`assets/brand/`](../assets/brand/). The app icon is the monk without a
+ring on an ink rounded-square body (see "App icon"); the ring appears only
+in the tray gauge and in the inline onboarding brand mark.
 
 Source: the refreshed popup prototype (onboarding, dashboard, settings,
 achievements, toast, tray icon). Where an older rule and the prototype
@@ -139,14 +141,18 @@ overflow hidden. Each screen is a column with padding 20 (top), 24 (sides),
 ### Shared parts
 
 - **Top row**: min height 32, items centred, space-between. Brand on the
-  left: the monk mark (`assets/brand/tokenmonk-mark.svg`, unchanged
-  file, its own colours) at 26 px, gap 10, "Tokenmonk" (brand style). On
-  sub-screens the top row holds only the text link "Back" (Esc does the
-  same).
-- **Brand mark** (static, not a gauge; onboarding and level-up only,
-  not the top row): viewBox 32 x 32; an arc on a
-  circle r 12, stroke 3.2, `--accent`, round caps, `stroke-dasharray 58
-  100`, rotated -70°; a centre dot r 3.4 in `ink`.
+  left: the app icon (`assets/brand/tokenmonk-icon.svg`, unchanged file,
+  body included, its own colours in both themes and both modes) at 26 px,
+  gap 10, "Tokenmonk" (brand style). On sub-screens the top row holds only
+  the text link "Back" (Esc does the same).
+- **Brand mark** (static, not a gauge; onboarding mode choice only, not
+  the top row, not the level-up screen): drawn inline in
+  `src/components/BrandMark.tsx` at 52 px, no file in `assets/brand/`.
+  viewBox 32 x 32; an arc on a circle r 12, stroke 3.2, `--accent`, round
+  caps, `stroke-dasharray 58 100`, rotated -70°; a centre dot r 3.4 in
+  `ink`.
+- **Monk mark** (level-up screen): `assets/brand/tokenmonk-mark-mono.svg`
+  at 52 px, filled in `--accent` of the current mode, no body, no ring.
 - **Level bar**: track `line`, fill `--accent`, radius 2, height 3
   (dashboard) or 4 (achievements screen), width = `GameState.progress`.
 - **Hairline row**: full width, 1 px `line` on top, no fill.
@@ -211,17 +217,43 @@ Top to bottom:
 
 ### Note line
 
-One line, first match wins. Status notes take precedence; the limit note
-is the fallback and shows with and without limit data, so the line is
-never empty:
+One line, first match wins. Status notes take precedence, then the update
+line; the limit note is the fallback and shows with and without limit
+data, so the line is never empty:
 
 | Condition | Text |
 |---|---|
 | `data.state = importing` | "Reading logs, 24 of 38 files." (derived; numbers mono) |
 | `data.state = noLogs` | "No Claude Code logs yet. Start a session." (derived) |
 | `data.state = error` | "Can’t read the logs. Retrying in the background." (derived) |
+| `UpdateStatus.kind` is `available`, `installing` or `installFailed` | the update line, see "Update line" below |
 | `limits.reason = noSource` | "No limit data yet. Setup is in Settings." as a text link to Settings, scrolled to "Limit data" (derived, see DECISIONS.md) |
 | otherwise (limit note) | "Limit % includes claude.ai chats. Token stats are Claude Code only." |
+
+### Update line
+
+The dashboard's only trace of updates, shown in the note line (above).
+Derived from the maintainer decisions in TKM-41; the design prototype has
+no update UI. Note style; the version is mono (`tabular-nums`), version
+first; actions are text links in the same line, styled like the
+`noSource` note link (gap 8 before the link). No icon, no badge, no
+popup, no toast.
+
+| `UpdateStatus.kind` | Text | Action |
+|---|---|---|
+| `available` | "0.4.1 is out. Update" | "Update" calls `install_update` |
+| `installing` | "Installing 0.4.1. Back in a moment." | none |
+| `installFailed` | "0.4.1 didn’t install. Try again" | "Try again" calls `install_update` |
+
+All other kinds (`idle`, `checking`, `upToDate`, `unavailable`,
+`checkFailed`) show nothing here; the note line falls through to the next
+row. "Couldn’t check" lives in Settings only. While `install_update` runs
+the link is disabled. Windows: the installer's own small progress window
+appears and Tokenmonk quits, then starts again. macOS: the app restarts by
+itself. If `install_update` rejects (`CommandError`, for example a stale
+status), re-read `get_update_status`; no copy for it.
+
+Version numbers come from `UpdateStatus.version` ("0.4.1" is a sample).
 
 ### Dashboard states
 
@@ -286,13 +318,40 @@ vertically when taller than the popup; the top row stays.
    14 0): label left, switch right (`role="switch"`):
    - "Sound"
    - "Start at login"
+   - "Check for updates automatically" (`Settings.updateCheck`, default
+     on). Off: no check at start; "Check now" still works. Turning it on
+     does not check at once.
    - Switch: 42 x 24, radius 12, track `line`; knob 18, round, `pop`,
      inset 3. On: track `--accent`, knob moved 18 px.
    A final empty hairline row closes the list.
 5. **Limit data** (below; not in the prototype, kept because it is the
    only place to set limits up).
-6. Note, pushed to the bottom: "Tokenmonk 0.1.0, MIT. Ideas and bugs go to
-   GitHub issues." (version from `AppInfo.version`).
+6. **Update row** and note, pushed to the bottom together:
+   - Update row (note style, min height 16, margin bottom 4), directly
+     above the version note: status text, then text links styled like
+     the `noSource` note link (gap 12). Versions and times mono
+     (`tabular-nums`), times in local 24 h format. By
+     `UpdateStatus.kind`:
+
+     | Kind | Text | Links |
+     |---|---|---|
+     | `idle` | none | "Check now" |
+     | `checking` | "Checking for updates." | none |
+     | `upToDate` | "Up to date, checked at 14:05." (`checkedAt`) | "Check now" |
+     | `available` | "0.4.1 is out." | "Update", "Release notes" |
+     | `installing` | "Installing 0.4.1. Back in a moment." | none |
+     | `installFailed` | "0.4.1 didn’t install." | "Try again", "Release notes" |
+     | `checkFailed` | "Couldn’t check." | "Check now" |
+     | `unavailable` | "Updates aren’t set up in this build." | none |
+
+     "Check now" calls `check_for_updates`, "Update" and "Try again" call
+     `install_update`, "Release notes" opens `UpdateStatus.url` (the
+     version's GitHub release page) in the browser. No release notes in
+     the app. On a `CommandError` from `check_for_updates` the row reads
+     "Couldn’t check." (derived).
+   - Note: "Tokenmonk 0.3.1, MIT. Ideas and bugs go to GitHub issues."
+     The version is `AppInfo.version` ("0.3.1" is a sample); while it is
+     still empty: "Tokenmonk, MIT. Ideas and bugs go to GitHub issues."
 
 Every change applies at once through `update_settings { patch }`, no save
 button. While a call runs the control stays in its new position; on
@@ -301,7 +360,9 @@ again." appears under the section (derived). Switching mode changes the
 accent after `settings-changed`.
 
 Fed by: `Settings`, `update_settings`, `settings-changed`,
-`AppInfo.version`, `NavigateTo`, `LimitSetup`, `DashboardSnapshot.limits`.
+`AppInfo.version`, `NavigateTo`, `LimitSetup`, `DashboardSnapshot.limits`,
+`UpdateStatus` (`get_update_status`, `update-status-changed`),
+`check_for_updates`, `install_update`.
 
 #### Limit data
 
@@ -444,7 +505,7 @@ Not in the prototype; derived from the achievements screen. Shown for
 every `level-up` with `retroactive = false`, over the current screen
 (background `pop`, same padding), queued like toasts.
 
-Top to bottom: the brand mark at 52 px; "Level 8" (onboard-title); the
+Top to bottom: the monk mark at 52 px in the mode accent; "Level 8" (onboard-title); the
 mode line (status style): Max it out "Keep burning.", Do it yourself
 "Well earned. Breathe."; "Level 8, 0 of 2,100 XP" (mono-sm); the level bar
 (4 px); the text link "Back to work". Several levels at once (`level -
@@ -472,11 +533,35 @@ viewBox 24 x 24:
 - Centre dot: r 2.2, filled in `--accent` of the current mode.
 
 Value: 5-hour percent left in both modes. Before onboarding the accent is
-saffron. The monk files in `assets/brand/` (`tokenmonk-mark*.svg`) remain
-the app icon source, and `tokenmonk-mark.svg` is also the popup top row
-mark at 26 px. The brand mark described above (onboarding and level-up
-screens) is kept as a file in `assets/brand/tokenmonk-ring-mark.svg`
-(saffron arc, light theme `ink` dot).
+saffron. The tray gauge is not the app icon and does not change with it.
+
+## App icon
+
+The monk without a ring on an ink rounded-square body. It replaces the
+monk-in-ring brand mark as the app icon. Files in `assets/brand/`:
+
+- `tokenmonk-icon.svg`: the macOS grid and the main source. Canvas
+  1024 x 1024; body 824 x 824 at 100,100, rx 185. Also the popup top row
+  mark at 26 px.
+- `tokenmonk-icon-windows.svg`: the same artwork with viewBox
+  `84 84 856 856` (tighter crop, so the body fills more of the small
+  Windows sizes). Source of `icon.ico` only.
+- `tokenmonk-mark-mono.svg`: the monk alone, one colour on a transparent
+  background, eyes cut out by nonzero winding. Recolour it by `fill`; the
+  level-up screen fills it with `--accent`.
+
+Colours (fixed in the files, not tokens, same in both themes):
+
+| Part | Colour |
+|---|---|
+| Body | #181A1B |
+| Inner edge (16 px stroke) | #363E3A |
+| Skin | #E4E3DD |
+| Robe | #E39A0B |
+| Eyes | #181A1B |
+
+Platform icons are generated from these files by `node scripts/icons.mjs`
+(desktop sets only).
 
 ## Not covered by the design / out of scope
 
@@ -490,3 +575,6 @@ Open points:
   and the snippet stays selectable.
 - The prototype lists all achievements regardless of mode; whether
   mode-only achievements need a hint for the other mode is open.
+- Update UI (update line, Settings update row and switch) is not in the
+  prototype; it is derived from the TKM-41 decisions using existing
+  styles only. Download progress is not shown.

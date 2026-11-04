@@ -7,7 +7,7 @@ Short log of decisions that are not obvious from the code. Newest entries at the
 - Created with `create-tauri-app` (template `react-ts`, npm), then stripped of demo content. Tauri 2, React 19, TypeScript, Vite.
 - Product name and window title: `Tokenmonk`. Bundle identifier: `app.tokenmonk.desktop`.
 - The only window is the tray popup: label `main`, 360 x 680, not resizable, no decorations, hidden at start, skipped in the taskbar. Tray and positioning logic come with later issues.
-- Icons are generated with `tauri icon` from the brand mark SVG. Only the desktop sets are kept (no Android/iOS).
+- Icons are generated with `tauri icon` from the brand mark SVG. Only the desktop sets are kept (no Android/iOS). Superseded by "App icon" below: the platform icons now come from `node scripts/icons.mjs`.
 - Desktop only. No macOS build in PR CI; macOS is built only in the release workflow on tags.
 
 ## v0.1 dependencies
@@ -51,10 +51,19 @@ Dev: `typescript`, `vite`, `@vitejs/plugin-react`, `@types/react`, `@types/react
 - Endpoint: `https://github.com/mango420/tokenmonk/releases/latest/download/latest.json`.
 - `plugins.updater.pubkey` is an empty placeholder in `tauri.conf.json`. The release phase replaces it with the public key; the private key and its password live only in GitHub secrets and outside the repo.
 - With the empty placeholder the app starts normally (the plugin only parses the config at startup). Update checks cannot verify a signature, so no update can be installed until the real key is set. `bundle.createUpdaterArtifacts` is also left for the release phase.
+- In-app update check (TKM-41, 2026-11-04; spec in ARCHITECTURE.md "Updates", UI in DESIGN.md "Update line" and "Settings"):
+  - Rust runs check and install (`UpdaterExt::updater_builder`, `Updater::check`, `Update::download_and_install`, then `AppHandle::restart` on macOS); the webview only calls `get_update_status`, `check_for_updates`, `install_update` and listens to `update-status-changed`. One place for the pubkey guard and the error mapping, no updater or process calls from the UI. The capability grants no updater or process permission.
+  - When: once at start while `Settings.updateCheck` is on (default on), and on "Check now". No periodic timer (maintainer decision in #41). Install only on the user's click; no silent auto-install.
+  - Empty or missing `plugins.updater.pubkey` (dev, builds without updater artifacts): status `unavailable`, no request. Reason: `check()` itself does not use the key (only the download verification does), so without the guard a dev build would report updates it can never install.
+  - Offline, timeout, 404 on `latest.json`, invalid JSON, missing platform: status `checkFailed`, calm copy, no popup. Verified in the plugin source: a non-2xx response only logs and tries the next endpoint, so with one endpoint a 404 ends in `Error::ReleaseNotFound`; a transport error is kept and returned (`Error::Reqwest`). Check timeout 20 s via `UpdaterBuilder::timeout`.
+  - Release link: `https://github.com/mango420/tokenmonk/releases/tag/v<version>` (`contracts::update::RELEASE_PAGE_BASE`); no release notes in the app (`Update.body` unused).
+  - Platform behaviour (plugin docs and docs.rs `Update::install`): Windows exits the app when the installer starts (`std::process::exit(0)` after `on_before_exit`), installer mode `passive` by default, `restart_after_install` defaults to `true`; macOS and Linux replace the app in place and need a relaunch, so Rust calls `AppHandle::restart()` after `download_and_install` returns.
+  - Request (plugin source, `updater.rs`): GET to the configured endpoint, no body and no query beyond the URL; `Accept: application/json` and `User-Agent: tauri-plugin-updater/<version>`; endpoint placeholders (`{{current_version}}`, `{{target}}`, `{{arch}}`, `{{bundle_type}}`) are not used in our URL. The download is a GET with `Accept: application/octet-stream`. Checked 2026-11-04: the endpoint currently answers 302 to the latest release's `latest.json`, which is 404 (no updater artifacts yet); release assets redirect to `release-assets.githubusercontent.com`.
+  - Sources: https://v2.tauri.app/plugin/updater/, https://v2.tauri.app/plugin/process/, https://v2.tauri.app/plugin/opener/, https://docs.rs/tauri-plugin-updater/2.14.1/tauri_plugin_updater/struct.Update.html, https://docs.rs/tauri-plugin-updater/2.14.1/tauri_plugin_updater/struct.UpdaterBuilder.html, https://docs.rs/tauri-plugin-updater/2.14.1/tauri_plugin_updater/enum.Error.html, https://docs.rs/tauri-plugin-updater/2.14.1/tauri_plugin_updater/trait.UpdaterExt.html, https://docs.rs/tauri/2.12.0/tauri/struct.AppHandle.html (`restart`, `config`), https://docs.rs/tauri-utils/latest/tauri_utils/config/struct.PluginConfig.html, https://github.com/tauri-apps/plugins-workspace/blob/v2/plugins/updater/src/updater.rs.
 
 ## Capabilities
 
-`src-tauri/capabilities/default.json` grants the `main` window only what the registered plugins need: `core:default`, `opener:default`, `notification:default`, `process:allow-restart`, `updater:default`, `autostart:allow-enable|disable|is-enabled`, `positioner:default`.
+`src-tauri/capabilities/default.json` grants the `main` window only what the registered plugins need: `core:default`, `opener:default`, `notification:default`, `autostart:allow-enable|disable|is-enabled`, `positioner:default`.
 
 CSP is strict: `default-src 'self'`, images and fonts from `self` and `data:`, inline styles allowed, IPC via `ipc:` and `http://ipc.localhost` only, no remote hosts. `devCsp` additionally allows the Vite dev server and its HMR websocket on `localhost:1420`. Tauri adds script hashes and style nonces at build time.
 
@@ -110,6 +119,8 @@ Superseded: releases are cut through the release PR, see "Automatic versioning w
 - `release.yml` has one switch, the workflow-level `UPDATER_ARTIFACTS` (currently `'false'`). While off, the guard skips the signing-secret check and requires `bundle.createUpdaterArtifacts` to be unset or false; the build uploads no `latest.json` (`uploadUpdaterJson: false`) and no `.sig` files (`uploadUpdaterSignatures: false`). The tag and version consistency check and `guard.mjs --all` always run. The empty `plugins.updater.pubkey` stays and does no harm.
 - `bundle.macOS.signingIdentity` is `"-"` (ad-hoc signing, confirmed by the Tauri 2 macOS signing docs); users still approve the app once in Privacy & Security.
 - Switching updater artifacts back on: follow "Cutting a release" step 1 and "`tauri.conf.json` changes applied in the release phase" above (except the signing identity, already set), then set `UPDATER_ARTIFACTS: 'true'` in `release.yml`. The guard then requires both secrets, a non-empty pubkey and `createUpdaterArtifacts: true`.
+- Update (2026-11-04): the in-app update check is specified and its contracts exist (TKM-41, see "Updater"); implementation follows in #161 (core) and #162 (UI). Release-side state is unchanged: no signing key, `UPDATER_ARTIFACTS: 'false'`, empty pubkey. Until the release-side switch (#163, once the maintainer key exists) builds report `unavailable` and make no update request. The first build with a key can only update to later releases that publish `latest.json`; earlier installs (without a key) never update in-app and need one manual install.
+- Update (2026-11-04, TKM-163): updater artifacts are on. `plugins.updater.pubkey` holds the public key, `bundle.createUpdaterArtifacts` is `true`, `UPDATER_ARTIFACTS` is `'true'`; the private key and password are GitHub secrets. Releases now carry `.sig` files and `latest.json` (the expected-assets note further down predates this). Test builds on `dev` have no secrets and pass `--config '{"bundle":{"createUpdaterArtifacts":false}}'`.
 
 ## Issue keys and feature register (2026-11-01)
 
@@ -152,7 +163,7 @@ The popup follows the refreshed prototype; DESIGN.md and `tokens.css` describe i
 - Fonts: Schibsted Grotesk (UI text, weights 400, 500, 700) and Martian Mono (all data numbers, weights 300, 400, 500), bundled through `@fontsource/schibsted-grotesk` and `@fontsource/martian-mono` (owner decision). They replace Fraunces, Manrope and JetBrains Mono. The package swap and the imports land in TKM-80; no CDN, no runtime network.
 - Theme: light and dark both ship; the theme follows the OS, `data-theme` forces one. New palettes and accents (saffron #E39A0B, jade #1F8A64). No danger colour: the ring never turns red, the status copy carries the urgency. `tokens.css` keeps a block of legacy aliases so the current components render until the frontend refresh removes them (removed in TKM-98; the icon and badge sizes became regular tokens).
 - Ring direction: the popup ring and the tray icon show percent left and drain as a window is used (before: percent used, filling up). The popup ring shows the window picked in the "5 hours" / "Week" segment in both modes; the Do it yourself budget gauge is gone and the budget moves to the "Daily budget" stat. Tray: ring plus centre dot, both in the mode accent, 5-hour percent left in both modes, dotted track without limit data (owner decision; the prototype's light grey dot is replaced by the accent).
-- The header brand mark is static (arc and dot), no longer a live halo. The monk files in `assets/brand/` stay the app icon source for now.
+- The header brand mark is static (arc and dot), no longer a live halo. The monk files in `assets/brand/` stay the app icon source for now (superseded by "App icon").
 - Motion: only the ring draw (1.1 s, first dashboard render after start), the toast slide (280 ms) and the switch knob (150 ms); all off under `prefers-reduced-motion: reduce`.
 - Not in the prototype but kept, so nothing regresses: Settings keeps the "Limit data" section, and the dashboard note links to it while `limits.reason = noSource`. The level-up screen and the empty, import, stale and error states are derived from the prototype's parts; DESIGN.md marks their copy as derived.
 - Game (owner decision, prototype copy and rules): one title per mode at every level, "Limit Chaser" (Max it out, also before onboarding) and "Quiet Spender" (Do it yourself); the level ladders go. New descriptions for all five achievements. XP: First Blood 10 (was 25), So Close 60 (was 100), Rate-Limit Rambo 100, Night Owl 50 and Token Monk 150 unchanged. Night Owl: a message between 00:00 and 04:00 local time (was 02:00 to 04:00; only the start moved). Token Monk: one finished day under the daily budget, `usedPercent` below 100 (was 7 days in a row below 20 %), so it becomes a one-shot without `target`. Level curve and mode restrictions unchanged. Stored unlocks and XP events are not rewritten. Boo stays retired (see the carry-over under "Automatic versioning with release-please").
@@ -172,6 +183,7 @@ The popup follows the refreshed prototype; DESIGN.md and `tokens.css` describe i
 
 - The popup top row shows the monk mark (`assets/brand/tokenmonk-mark.svg`) at 26 px instead of the ring brand mark (TKM-121). It stays static. The file is used as is, with its own fixed colours, in both themes and both modes.
 - The ring brand mark (`tokenmonk-ring-mark.svg`, arc and dot in the mode accent) stays for the onboarding and level-up screens at 52 px. The header line of "Design refresh" above is superseded for the top row only.
+- Both points are superseded by "App icon" below: the top row shows `tokenmonk-icon.svg`, the level-up screen the mono monk mark, and `tokenmonk-ring-mark.svg` is gone.
 
 ## Dev and main branches (2026-11-04)
 
@@ -186,3 +198,10 @@ Reverses the "`main` only" rule of TKM-111 ([RELEASE-FLOW.md](RELEASE-FLOW.md), 
 - New rules that follow from dry-runs on scratch branches: the freeze between merging a promotion and merging its release PR, and no edits to version files, `CHANGELOG.md` or `.release-please-manifest.json` on `dev` (RELEASE-FLOW.md, "Promotion PR" and "Back-merge").
 - The labelled PR build of idea #115 is covered in large part by the `dev` test build.
 - Repository settings, rulesets and workflow changes land through the cutover plan in [RELEASE-FLOW.md](RELEASE-FLOW.md); until step 6 of that plan is done, the previous flow stays in force.
+
+## App icon (2026-11-04)
+
+- New app icon "N1": the monk without a ring on an ink rounded-square body replaces the monk-in-ring brand mark (TKM-153). Owner decision. Description, colours and grid: [DESIGN.md](DESIGN.md), "App icon".
+- Files in `assets/brand/`: `tokenmonk-icon.svg` (macOS grid, 824 px body at 100,100, rx 185 on a 1024 canvas; also the popup top row mark at 26 px), `tokenmonk-icon-windows.svg` (same artwork, viewBox `84 84 856 856`, source of `icon.ico` only) and `tokenmonk-mark-mono.svg` (one colour, transparent, recoloured by `fill`; the level-up screen at 52 px in the mode accent).
+- The ring stays only in the tray gauge (drawn in Rust, unchanged) and in the onboarding brand mark, drawn inline in `src/components/BrandMark.tsx`. `tokenmonk-ring-mark.svg` is removed; `tokenmonk-mark.svg` is removed too (TKM-153), as nothing imports it any more.
+- Platform icons are generated by `node scripts/icons.mjs` (TKM-154), desktop sets only (no Android/iOS). This replaces the `tauri icon` step of "Scaffold".

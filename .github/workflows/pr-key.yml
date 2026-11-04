@@ -3,12 +3,14 @@ name: PR key
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
+    paths-ignore: [docs/FEATURES.md]
   # Started by feature-register.yml for the refresh branch (see ci.yml).
   workflow_dispatch:
 
 permissions:
   contents: read
   pull-requests: read
+  statuses: write
 
 jobs:
   pr-key:
@@ -48,3 +50,16 @@ jobs:
           author="$(jq -r '.author.login // ""' <<<"$pr")"
           base="$(jq -r '.baseRefName // "dev"' <<<"$pr")"
           node scripts/check-pr-key.mjs --title "$title" --branch "$PR_BRANCH" --base "$base" --default-branch "$DEFAULT_BRANCH" --author "$author"
+
+      # Check runs of a dispatched run do not reach the PR's required checks (ruleset
+      # evaluation, statusCheckRollup); commit statuses with the same context do.
+      - name: Report commit status
+        if: always() && github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATE: ${{ job.status == 'success' && 'success' || 'failure' }}
+          CONTEXT: pr-key
+          TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}"             -f state="$STATE" -f context="$CONTEXT" -f target_url="$TARGET_URL"             -f description="Dispatched run: $STATE"

@@ -28,6 +28,9 @@ pub struct Settings {
     pub sound: bool,
     /// Start Tokenmonk at login.
     pub autostart: bool,
+    /// "Check for updates automatically": check once at app start. Manual
+    /// checks ("Check now") work either way. Default on.
+    pub update_check: bool,
 }
 
 impl Default for Settings {
@@ -36,6 +39,7 @@ impl Default for Settings {
             mode: Mode::NoneYet,
             sound: true,
             autostart: false,
+            update_check: true,
         }
     }
 }
@@ -51,4 +55,6 @@ pub struct SettingsPatch {
     pub sound: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub autostart: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub update_check: Option<bool>,
 }

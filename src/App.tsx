@@ -86,6 +86,7 @@ export default function App() {
     screen = (
       <Dashboard
         data={data}
+        actions={actions}
         onOpenSettings={() => open("settings")}
         onOpenLimitSetup={() => open("settings", true)}
         onOpenAchievements={() => open("achievements")}

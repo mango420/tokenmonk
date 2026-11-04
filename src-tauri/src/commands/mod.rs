@@ -13,11 +13,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use chrono::{Local, TimeZone};
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::app::{AppState, DbGameStore};
+use crate::app::{AppState, DbGameStore, UpdateState};
 use crate::contracts::events::SETTINGS_CHANGED;
 use crate::contracts::{
     AppInfo, CommandError, CommandErrorCode, DashboardSnapshot, EpochMs, GameState, LimitSetup,
-    Mode, Settings, SettingsPatch,
+    Mode, Settings, SettingsPatch, UpdateStatus,
 };
 use crate::db::DbError;
 use crate::game::{evaluate, Facts, GameStore};
@@ -190,6 +190,21 @@ pub fn get_limit_setup() -> Result<LimitSetup, CommandError> {
     })
 }
 
+#[tauri::command]
+pub fn get_update_status(state: State<'_, UpdateState>) -> Result<UpdateStatus, CommandError> {
+    Ok(state.status())
+}
+
+#[tauri::command]
+pub async fn check_for_updates(app: AppHandle) -> Result<UpdateStatus, CommandError> {
+    Ok(crate::app::check_update(&app).await)
+}
+
+#[tauri::command]
+pub async fn install_update(app: AppHandle) -> Result<UpdateStatus, CommandError> {
+    crate::app::install_update(&app).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -242,6 +257,7 @@ mod tests {
             mode: Some(Mode::Diy),
             sound: Some(false),
             autostart: None,
+            update_check: None,
         };
         let (before, after) = apply_update(&s, &patch, |_| Ok(())).unwrap();
         assert_eq!(before.mode, Mode::NoneYet);

@@ -9,6 +9,7 @@
 //! | `level-up`             | `LevelUp`             | once per live level change             |
 //! | `app-info-changed`     | `AppInfo`             | when `logsFound` changes               |
 //! | `navigate`             | `NavigateTo`          | tray menu asks the popup to show a view|
+//! | `update-status-changed`| `UpdateStatus`        | on every update check or install transition |
 //!
 //! All events are emitted to every window. Payloads are full state, never
 //! diffs, so a missed event is healed by the next one.
@@ -22,9 +23,10 @@ pub const ACHIEVEMENT_UNLOCKED: &str = "achievement-unlocked";
 pub const LEVEL_UP: &str = "level-up";
 pub const APP_INFO_CHANGED: &str = "app-info-changed";
 pub const NAVIGATE: &str = "navigate";
+pub const UPDATE_STATUS_CHANGED: &str = "update-status-changed";
 
 /// Every event name, for tests.
-pub const ALL: [&str; 7] = [
+pub const ALL: [&str; 8] = [
     DASHBOARD_UPDATED,
     SETTINGS_CHANGED,
     GAME_UPDATED,
@@ -32,6 +34,7 @@ pub const ALL: [&str; 7] = [
     LEVEL_UP,
     APP_INFO_CHANGED,
     NAVIGATE,
+    UPDATE_STATUS_CHANGED,
 ];
 
 /// Views of the popup window.

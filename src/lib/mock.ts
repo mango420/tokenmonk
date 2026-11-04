@@ -12,7 +12,9 @@ import type {
   LimitSetup,
   Settings,
   TokenBreakdown,
+  UpdateStatus,
 } from "./contracts";
+import { RELEASE_PAGE_BASE } from "./contracts";
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -34,6 +36,9 @@ function tokens(total: number): TokenBreakdown {
     total,
   };
 }
+
+const idle: UpdateStatus = { kind: "idle" };
+const releaseUrl = `${RELEASE_PAGE_BASE}v0.4.1`;
 
 const appInfo: AppInfo = {
   version: "0.1.0",
@@ -282,6 +287,8 @@ export interface MockScenario {
   game: GameState;
   /** What `get_limit_setup` answers; defaults to the unquoted Windows path. */
   limitSetup?: LimitSetup;
+  /** What `get_update_status` answers. */
+  update: UpdateStatus;
 }
 
 /** Synthetic `get_limit_setup` answers for the settings preview. */
@@ -326,8 +333,8 @@ const booGame: GameState = {
   achievements: achievements.map((a) => (a.id === "boo" ? { ...a, unlockedAt: NOW - 3 * HOUR } : a)),
 };
 
-const maxSettings: Settings = { mode: "max", sound: true, autostart: false };
-const diySettings: Settings = { mode: "diy", sound: true, autostart: false };
+const maxSettings: Settings = { mode: "max", sound: true, autostart: false, updateCheck: true };
+const diySettings: Settings = { mode: "diy", sound: true, autostart: false, updateCheck: true };
 
 const buildScenarios = () => ({
   max: {
@@ -336,6 +343,7 @@ const buildScenarios = () => ({
     appInfo,
     dashboard: snapshot({}),
     game: maxGame,
+    update: idle,
   },
   booUnlocked: {
     label: "Max it out, Halloween 2026 badge",
@@ -343,6 +351,7 @@ const buildScenarios = () => ({
     appInfo,
     dashboard: snapshot({}),
     game: booGame,
+    update: idle,
   },
   maxDanger: {
     label: "Max it out, 94 %",
@@ -361,6 +370,7 @@ const buildScenarios = () => ({
       },
     }),
     game: maxGame,
+    update: idle,
   },
   maxStale: {
     label: "Max it out, stale",
@@ -378,6 +388,7 @@ const buildScenarios = () => ({
       },
     }),
     game: maxGame,
+    update: idle,
   },
   maxUnavailable: {
     label: "Max it out, no limit data",
@@ -388,6 +399,7 @@ const buildScenarios = () => ({
       burnRate: { tokensPerMinute: 12_400, windowMinutes: 15, limitEtaMinutes: null },
     }),
     game: maxGame,
+    update: idle,
   },
   maxFreshWindow: {
     label: "Max it out, fresh window",
@@ -406,6 +418,7 @@ const buildScenarios = () => ({
       },
     }),
     game: maxGame,
+    update: idle,
   },
   maxSetupQuoted: {
     label: "Max it out, no limit data, path with space",
@@ -417,6 +430,7 @@ const buildScenarios = () => ({
     }),
     game: maxGame,
     limitSetup: setupQuoted,
+    update: idle,
   },
   maxSetupMissing: {
     label: "Max it out, executable path unknown",
@@ -425,6 +439,7 @@ const buildScenarios = () => ({
     dashboard: snapshot({ limits: noLimits }),
     game: maxGame,
     limitSetup: setupMissing,
+    update: idle,
   },
   diy: {
     label: "Do it yourself, 23 %",
@@ -445,6 +460,7 @@ const buildScenarios = () => ({
       },
     }),
     game: diyGame,
+    update: idle,
   },
   diyOver: {
     label: "Do it yourself, over budget",
@@ -457,6 +473,7 @@ const buildScenarios = () => ({
       limits: noLimits,
     }),
     game: { ...diyGame, dailyXpPreview: 0 },
+    update: idle,
   },
   diyLearning: {
     label: "Do it yourself, no history",
@@ -469,27 +486,31 @@ const buildScenarios = () => ({
       limits: noLimits,
     }),
     game: { ...diyGame, dailyXpPreview: null },
+    update: idle,
   },
   onboarding: {
     label: "Onboarding, importing",
-    settings: { mode: "noneYet", sound: true, autostart: false },
+    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true },
     appInfo,
     dashboard: snapshot({ data: importing(24), limits: noLimits }),
     game: { ...freshGame(), retroDone: false },
+    update: idle,
   },
   onboardingReady: {
     label: "Onboarding, logs found",
-    settings: { mode: "noneYet", sound: true, autostart: false },
+    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true },
     appInfo,
     dashboard: snapshot({ limits: noLimits }),
     game: { ...freshGame(), retroDone: false },
+    update: idle,
   },
   onboardingNoLogs: {
     label: "Onboarding, no logs",
-    settings: { mode: "noneYet", sound: true, autostart: false },
+    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true },
     appInfo: { ...appInfo, logsFound: false },
     dashboard: noLogsSnapshot(),
     game: freshGame(),
+    update: idle,
   },
   importingMax: {
     label: "Max it out, importing",
@@ -497,6 +518,7 @@ const buildScenarios = () => ({
     appInfo,
     dashboard: snapshot({ data: importing(24), limits: noLimits }),
     game: { ...freshGame(), retroDone: false },
+    update: idle,
   },
   noLogs: {
     label: "Max it out, no logs yet",
@@ -504,6 +526,7 @@ const buildScenarios = () => ({
     appInfo: { ...appInfo, logsFound: false },
     dashboard: noLogsSnapshot(),
     game: freshGame(),
+    update: idle,
   },
   logError: {
     label: "Max it out, logs unreadable",
@@ -514,6 +537,63 @@ const buildScenarios = () => ({
       data: { state: "error", filesTotal: 12, filesDone: 4, lastMessageAt: null, detail: null },
     }),
     game: maxGame,
+    update: idle,
+  },
+  updateAvailable: {
+    label: "Max it out, Update available",
+    settings: maxSettings,
+    appInfo,
+    dashboard: snapshot({}),
+    game: maxGame,
+    update: { kind: "available", version: "0.4.1", url: releaseUrl, checkedAt: NOW - 5 * 60_000 },
+  },
+  updateChecking: {
+    label: "Max it out, Update: checking",
+    settings: maxSettings,
+    appInfo,
+    dashboard: snapshot({}),
+    game: maxGame,
+    update: { kind: "checking" },
+  },
+  updateUpToDate: {
+    label: "Max it out, Update: up to date",
+    settings: maxSettings,
+    appInfo,
+    dashboard: snapshot({}),
+    game: maxGame,
+    update: { kind: "upToDate", checkedAt: NOW - 5 * 60_000 },
+  },
+  updateCheckFailed: {
+    label: "Max it out, Update: check failed",
+    settings: maxSettings,
+    appInfo,
+    dashboard: snapshot({}),
+    game: maxGame,
+    update: { kind: "checkFailed", checkedAt: NOW, detail: null },
+  },
+  updateInstalling: {
+    label: "Max it out, Update: installing",
+    settings: maxSettings,
+    appInfo,
+    dashboard: snapshot({}),
+    game: maxGame,
+    update: { kind: "installing", version: "0.4.1" },
+  },
+  updateInstallFailed: {
+    label: "Max it out, Update: install failed",
+    settings: maxSettings,
+    appInfo,
+    dashboard: snapshot({}),
+    game: maxGame,
+    update: { kind: "installFailed", version: "0.4.1", url: releaseUrl, detail: null },
+  },
+  updateUnavailable: {
+    label: "Max it out, Update: not set up in this build",
+    settings: maxSettings,
+    appInfo,
+    dashboard: snapshot({}),
+    game: maxGame,
+    update: { kind: "unavailable" },
   },
 }) satisfies Record<string, MockScenario>;
 

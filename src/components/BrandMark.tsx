@@ -7,8 +7,7 @@ interface BrandMarkProps {
 
 /**
  * The static brand mark (docs/DESIGN.md, "Brand mark"): an arc on a circle and
- * a centre dot. Not a gauge. The file `assets/brand/tokenmonk-ring-mark.svg`
- * holds the same drawing.
+ * a centre dot. Not a gauge. Drawn inline; see docs/DESIGN.md, "Brand mark".
  */
 export function BrandMark({ size, color = "var(--accent)" }: BrandMarkProps) {
   return (

@@ -14,10 +14,6 @@ permissions:
   issues: read
   pull-requests: write
 
-concurrency:
-  group: feature-register
-  cancel-in-progress: false
-
 env:
   REFRESH_BRANCH: register/refresh
   GH_TOKEN: ${{ github.token }}
@@ -27,7 +23,14 @@ jobs:
   refresh:
     name: refresh feature register
     # workflow_dispatch can be started from any ref; only the default branch may publish.
-    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    # The register shows only title, labels and state, so a body-only edit changes nothing.
+    if: >-
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      (github.event.action != 'edited' || github.event.changes.title != null)
+    # Serialise at job level so skipped runs never take the slot of a real one.
+    concurrency:
+      group: feature-register
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -82,14 +85,28 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      # Pushes and PRs made with GITHUB_TOKEN start no pull_request runs, but its
-      # workflow_dispatch events do. The runs attach to the branch head commit, so
+      # Pushes made with GITHUB_TOKEN start no runs, and the pull_request runs of a
+      # PR it opens wait for manual approval (action_required), so ci.yml and
+      # pr-key.yml ignore PRs that only touch docs/FEATURES.md. Its
+      # workflow_dispatch events do start runs. The runs attach to the branch head commit, so
       # their checks (same job names as on a normal PR) show on the refresh PR.
       - name: Run checks on the refresh branch
         if: steps.diff.outputs.changed == 'true'
         run: |
-          gh workflow run ci.yml --ref "$REFRESH_BRANCH"
-          gh workflow run pr-key.yml --ref "$REFRESH_BRANCH"
+          # The dispatch API fails now and then with HTTP 5xx; retry with backoff.
+          dispatch() {
+            for delay in 0 5 15 30 60; do
+              sleep "$delay"
+              gh workflow run "$1" --ref "$REFRESH_BRANCH" && return 0
+            done
+            echo "::warning::Could not start $1 on ${REFRESH_BRANCH} after retries."
+            echo "Could not start \`$1\` on \`${REFRESH_BRANCH}\`; re-run this workflow." >> "$GITHUB_STEP_SUMMARY"
+            failed=1
+          }
+          failed=
+          dispatch ci.yml
+          dispatch pr-key.yml
+          [ -z "$failed" ] || exit 1
 
       # The register on main already matches the tracker: retire a stale refresh PR.
       - name: Close stale refresh PR
