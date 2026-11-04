@@ -424,7 +424,8 @@ emitted as `update-status-changed` with the full status.
      the remote version is not newer than the running one).
    - `Err(e)`: `checkFailed { checkedAt, detail: Some(e.to_string()) }`.
      Offline and timeouts surface as `Error::Reqwest`; a 404 on
-     `latest.json` (no updater artifacts published) as
+     `latest.json` (the latest published release has no updater
+     artifacts) as
      `Error::ReleaseNotFound`; invalid JSON as `Error::Serialization`; a
      release without this platform as `Error::TargetNotFound`. All map to
      `checkFailed`, logged, no popup, no notification.
