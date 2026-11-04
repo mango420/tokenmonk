@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import markUrl from "../../assets/brand/tokenmonk-mark.svg?url";
+import markUrl from "../../assets/brand/tokenmonk-icon.svg?url";
 
 interface TopRowProps {
   /** Brand on the left (main screens); sub-screens hold only their link. */
