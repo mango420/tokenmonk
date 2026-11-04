@@ -12,14 +12,18 @@ const mainSvg = join(root, "assets", "brand", "tokenmonk-icon.svg");
 const winSvg = join(root, "assets", "brand", "tokenmonk-icon-windows.svg");
 
 function tauriIcon(input, output) {
+  // shell: true is required because Node 22 will not spawn npx.cmd on Windows
+  // without a shell; paths are quoted by hand for that reason.
   const r = spawnSync("npx", ["tauri", "icon", `"${input}"`, "-o", `"${output}"`], {
     cwd: root,
     stdio: "inherit",
     shell: true,
   });
+  if (r.error) {
+    throw Object.assign(new Error(`could not run npx: ${r.error.message}`), { status: 1 });
+  }
   if (r.status !== 0) {
-    console.error("tauri icon failed");
-    process.exit(r.status ?? 1);
+    throw Object.assign(new Error("tauri icon failed"), { status: r.status ?? 1 });
   }
 }
 
@@ -29,7 +33,10 @@ try {
   for (const d of ["android", "ios"]) rmSync(join(outDir, d), { recursive: true, force: true });
   tauriIcon(winSvg, tmp);
   copyFileSync(join(tmp, "icon.ico"), join(outDir, "icon.ico"));
+  console.log("icons regenerated in src-tauri/icons");
+} catch (err) {
+  console.error(err.message);
+  process.exitCode = err.status ?? 1;
 } finally {
   rmSync(tmp, { recursive: true, force: true });
 }
-console.log("icons regenerated in src-tauri/icons");
