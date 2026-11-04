@@ -209,4 +209,4 @@ Reverses the "`main` only" rule of TKM-111 ([RELEASE-FLOW.md](RELEASE-FLOW.md), 
 ## New app icon everywhere (2026-11-04)
 
 - Owner decision (TKM-185): the app icon (`assets/brand/tokenmonk-icon.svg`) replaces the old ring brand mark everywhere. The onboarding mode choice shows the app icon at 52 px, same file and colours in both rows; the inline ring mark in `src/components/BrandMark.tsx` is removed.
-- The ring stays only in the tray gauge. The tray gauge redesign with the new monk is tracked in a separate issue; until it lands the tray gauge stays as described in DESIGN.md, "Tray icon".
+- The ring stays only in the tray gauge. The tray gauge redesign with the new monk is tracked in #188 (TKM-188); until it lands the tray gauge stays as described in DESIGN.md, "Tray icon".
