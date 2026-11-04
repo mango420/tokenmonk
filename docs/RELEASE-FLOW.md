@@ -91,6 +91,9 @@ When the test build of `dev` has passed, the maintainer promotes it.
   (`chore(main): release x.y.z`, branch `release-please--*`) with the
   version bump in all version files and the new `CHANGELOG.md` section.
   Nobody edits it by hand; release-please rebuilds it on every push.
+- The repository's default branch is `dev`, so `release-please.yml` sets
+  `target-branch: main`; without it the release PR would target `dev`
+  (#175, fixed on `main` in #176).
 - Merge it through the merge queue, **squash** with the PR title as
   subject, as today. It has no TKM key; the PR-key check skips
   release-please branches.
@@ -101,16 +104,25 @@ When the test build of `dev` has passed, the maintainer promotes it.
   uploads the installers to that draft.
 - CI on the release PR: events created by the built-in `GITHUB_TOKEN` start
   no workflow runs, so without the secret `RELEASE_PLEASE_TOKEN` the release
-  PR has no CI checks. Its gate is then a reviewer check of the version and
-  changelog diff. Setting the secret (fine-grained token, this repository
-  only) fixes that without a workflow change.
+  PR has no CI checks. Start its required checks by hand on the release
+  branch:
+
+  ```bash
+  gh workflow run ci.yml --ref <release branch>
+  gh workflow run pr-key.yml --ref <release branch>
+  ```
+
+  That is how the v0.4.0 release PR (#177) got its checks. Otherwise the
+  gate is a reviewer check of the version and changelog diff. Setting the
+  secret (fine-grained token, this repository only) fixes that without a
+  workflow change.
 
 ## Draft test
 
 1. Wait until both `release.yml` build jobs have finished. Publishing
    earlier makes `tauri-action` create a second release.
-2. Check the draft lists the four installers named in DECISIONS.md
-   ("Release ownership").
+2. Check the draft lists the four installers, the three `.sig` files and
+   `latest.json` named in DECISIONS.md ("Release ownership").
 3. Download them from the draft, install on a Mac and a Windows machine
    and work through [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md). Review and,
    if needed, edit the notes on the draft.
@@ -126,8 +138,11 @@ download link points.
 
 Auto-update is on: releases carry `.sig` files and `latest.json`
 (`UPDATER_ARTIFACTS` is `'true'` in `release.yml`). Check `latest.json` on
-the draft before publishing; the in-app update check reads it from the
-latest published release.
+the draft before publishing. Publishing is what turns the in-app update
+check on for that version: the endpoint
+`releases/latest/download/latest.json` resolves to the latest published
+release only, so while a release is a draft, installed builds still see
+the previous release (or a 404 if that one has no `latest.json`).
 
 ## Back-merge
 

@@ -19,7 +19,8 @@ list and those documents disagree, the documents win and this list is fixed.
 
 - [ ] The draft release `v<version>` lists the four installers named in
       DECISIONS.md ("Release ownership"): `.dmg`, `.app.tar.gz`,
-      `-setup.exe`, `.msi`, plus their `.sig` files and `latest.json`.
+      `-setup.exe`, `.msi`, plus a `.sig` file for each except the
+      `.dmg`, and `latest.json`.
 - [ ] Downloaded from the draft (not built locally), so the OS treats it
       like a user download.
 - [ ] Test machine has Claude Code logs with some history, and no earlier
