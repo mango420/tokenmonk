@@ -127,8 +127,8 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false }: 
         <div className="bottom-group">
           <UpdateRow
             status={data.update}
-            onCheck={() => void actions.checkForUpdates()}
-            onInstall={() => void actions.installUpdate()}
+            onCheck={actions.checkForUpdates}
+            onInstall={actions.installUpdate}
           />
           <p className="note">
             {version === "" ? "Tokenmonk, MIT." : `Tokenmonk ${version}, MIT.`} Ideas and bugs go to GitHub
@@ -142,20 +142,17 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false }: 
 
 interface UpdateRowProps {
   status: UpdateStatus;
-  onCheck: () => void;
-  onInstall: () => void;
+  onCheck: () => Promise<void>;
+  onInstall: () => Promise<void>;
 }
 
 /** Update status text with its text links (docs/DESIGN.md, Settings item 6). */
 function UpdateRow({ status, onCheck, onInstall }: UpdateRowProps) {
   const [busy, setBusy] = useState(false);
-  const run = (action: () => void) => {
+  const run = (action: () => Promise<void>) => {
     setBusy(true);
-    action();
+    void action().finally(() => setBusy(false));
   };
-  useEffect(() => {
-    setBusy(false);
-  }, [status]);
 
   const version = (v: string) => <span className="live-number">{v}</span>;
   const check = (

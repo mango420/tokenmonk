@@ -64,12 +64,11 @@ export function Dashboard({ data, actions, onOpenSettings, onOpenLimitSetup, onO
               ),
             )}
             {note.kind === "update" && note.action !== null ? (
-              <>
-                {" "}
+              <span className="note__action">
                 <TextLink small onClick={installing ? undefined : install} disabled={installing}>
                   {note.action}
                 </TextLink>
-              </>
+              </span>
             ) : null}
           </>
         )}
