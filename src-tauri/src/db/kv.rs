@@ -10,6 +10,7 @@ const KEY_MODE: &str = "mode";
 const KEY_SOUND: &str = "sound";
 const KEY_AUTOSTART: &str = "autostart";
 const KEY_UPDATE_CHECK: &str = "update_check";
+const KEY_KEEP_OPEN: &str = "keep_open";
 
 fn get(conn: &Connection, table: &str, key: &str) -> DbResult<Option<Value>> {
     let sql = format!("SELECT value FROM {table} WHERE key = ?1");
@@ -56,6 +57,9 @@ impl Db {
         if let Some(b) = self.setting(KEY_UPDATE_CHECK)?.and_then(|v| v.as_bool()) {
             s.update_check = b;
         }
+        if let Some(b) = self.setting(KEY_KEEP_OPEN)?.and_then(|v| v.as_bool()) {
+            s.keep_open = b;
+        }
         Ok(s)
     }
 
@@ -76,6 +80,9 @@ impl Db {
         }
         if let Some(b) = patch.update_check {
             set(&tx, "settings", KEY_UPDATE_CHECK, &Value::Bool(b))?;
+        }
+        if let Some(b) = patch.keep_open {
+            set(&tx, "settings", KEY_KEEP_OPEN, &Value::Bool(b))?;
         }
         tx.commit()?;
         self.settings()
@@ -140,6 +147,27 @@ mod tests {
             })
             .unwrap();
         assert!(s.update_check);
+    }
+
+    #[test]
+    fn keep_open_defaults_false_and_round_trips() {
+        let db = Db::open_in_memory().unwrap();
+        assert!(!db.settings().unwrap().keep_open);
+        let s = db
+            .apply_settings_patch(&SettingsPatch {
+                keep_open: Some(true),
+                ..SettingsPatch::default()
+            })
+            .unwrap();
+        assert!(s.keep_open);
+        assert!(db.settings().unwrap().keep_open);
+        let s = db
+            .apply_settings_patch(&SettingsPatch {
+                keep_open: Some(false),
+                ..SettingsPatch::default()
+            })
+            .unwrap();
+        assert!(!s.keep_open);
     }
 
     #[test]
