@@ -3,9 +3,9 @@
 The design system for the Tokenmonk popup, tray icon and README. All values
 live as CSS variables in [`src/styles/tokens.css`](../src/styles/tokens.css);
 components use the variables, never literal values. Brand files are in
-[`assets/brand/`](../assets/brand/). The app icon is the monk without a
-ring on an ink rounded-square body (see "App icon"). It is the only brand
-mark; the ring appears only in the tray gauge, around the mono monk.
+[`assets/brand/`](../assets/brand/). One monk does three jobs: the app
+icon for the OS, the monk mark inside the popup and the tray gauge (see
+"Icon system").
 
 Source: the refreshed popup prototype (onboarding, dashboard, settings,
 achievements, toast, tray icon). Where an older rule and the prototype
@@ -44,7 +44,8 @@ onboarding there is no `data-mode` and the accent is saffron (brand). The
 accent is never the only signal: the mode always comes with its name,
 title or copy. The accent is used for fills and rules only (ring arcs,
 level bar, selected segment underline, selected settings row, switch on,
-toast edge, focus ring), never for text.
+toast edge, focus ring, the robe of the monk mark, the tray arc), never
+for text.
 
 ## Colour
 
@@ -131,6 +132,29 @@ Sound: one short synthesized tone per unlock or level-up (generated in the
 UI, no audio file). It plays only when `Settings.sound` is on, once per
 event, whether the popup is open or hidden.
 
+## Icon system
+
+One monk, three jobs. Each role has its own source and its own colour
+rule; they are never swapped.
+
+| Role | Source | Colour | Where | Size |
+|---|---|---|---|---|
+| A. App icon | `assets/brand/tokenmonk-icon.svg`, `tokenmonk-icon-windows.svg` | Fixed in the files (tile) | Only where the OS shows the app: taskbar, dock, Start menu, installer, notifications, the generated icon set. Never inside the popup. | Platform sizes from `node scripts/icons.mjs` |
+| B. Monk mark | `assets/brand/tokenmonk-mark-mono.svg` (paths unchanged) | Two-tone: head and sleeve `--ink`, robe `--accent` | Everywhere inside the popup | Top row 26 px (`--brand-mark-size`); onboarding rows and level-up 52 px (`--mark-lg-size`) |
+| C. Tray gauge | Rendered in Rust from the mono mark paths | Arc and robe `--accent`; track, head and sleeve `--tray-track` | Tray / menu bar | viewBox 24 x 24 |
+
+- **A. App icon**: the tile (monk on an ink rounded-square body). Details
+  in "App icon".
+- **B. Monk mark**: the three paths of the mono file, recoloured, with no
+  tile, no ring and no background. Path 1 (head with ears and eye
+  cut-outs) and path 3 (sleeve) fill `--ink`; path 2 (robe) fills
+  `--accent`. It follows theme (`--ink`) and mode (`--accent`) like every
+  other popup part. Where a row sets its own accent (the onboarding
+  choice rows), the robe takes that accent.
+- **C. Tray gauge**: the accent sits on the arc (its length means percent
+  left) and on the robe, matching the popup monk mark; head and sleeve
+  are neutral grey. Details in "Tray icon".
+
 ## Popup layout (360 x 680)
 
 The popup is 360 x 680 px, radius 18, background `pop`, `shadow-popup`,
@@ -141,16 +165,13 @@ overflow hidden. Each screen is a column with padding 20 (top), 24 (sides),
 ### Shared parts
 
 - **Top row**: min height 32, items centred, space-between. Brand on the
-  left: the app icon (`assets/brand/tokenmonk-icon.svg`, unchanged file,
-  body included, its own colours in both themes and both modes) at 26 px,
-  gap 10, "Tokenmonk" (brand style). On sub-screens the top row holds only
-  the text link "Back" (Esc does the same).
-- **Onboarding mark** (onboarding mode choice): the app icon
-  (`assets/brand/tokenmonk-icon.svg`, same file as the top row, body
-  included, its own colours) at 52 px. The former inline ring brand mark
-  is gone.
-- **Monk mark** (level-up screen): `assets/brand/tokenmonk-mark-mono.svg`
-  at 52 px, filled in `--accent` of the current mode, no body, no ring.
+  left: the monk mark at 26 px (`--brand-mark-size`), gap 10, "Tokenmonk"
+  (brand style). On sub-screens the top row holds only the text link
+  "Back" (Esc does the same).
+- **Monk mark**: the only brand mark in the popup (role B in "Icon
+  system"): head and sleeve `--ink`, robe `--accent`. 26 px in the top
+  row, 52 px (`--mark-lg-size`) in the onboarding rows and on the
+  level-up screen. The app icon tile never appears in the popup.
 - **Level bar**: track `line`, fill `--accent`, radius 2, height 3
   (dashboard) or 4 (achievements screen), width = `GameState.progress`.
 - **Hairline row**: full width, 1 px `line` on top, no fill.
@@ -287,8 +308,9 @@ opens by itself on every start while it is pending. Accent: saffron.
 3. "Pick one. You can switch later." (`ink-2`, margin bottom 22).
 4. Two choice rows, full width, each filling half of the remaining height
    (`flex: 1`), 1 px `line` on top, padding 22 0, gap 16, items centred:
-   the onboarding mark (app icon) at 52 px, the same in both rows, then
-   the name (choice-lg) over the description (14 px,
+   the monk mark at 52 px (`--mark-lg-size`), its robe in the row's own
+   mode accent (Max it out saffron, Do it yourself jade; head and sleeve
+   `--ink` in both), then the name (choice-lg) over the description (14 px,
    `ink-2`, margin top 2). Hover underlines the name (offset 4). Names
    and descriptions as in "Modes".
 5. Note (margin top 18): "Mindful about your tokens. Or not."
@@ -539,7 +561,9 @@ Not in the prototype; derived from the achievements screen. Shown for
 every `level-up` with `retroactive = false`, over the current screen
 (background `pop`, same padding), queued like toasts.
 
-Top to bottom: the monk mark at 52 px in the mode accent; "Level 8" (onboard-title); the
+Top to bottom: the monk mark at 52 px (`--mark-lg-size`), robe in
+`--accent` of the current mode, head and sleeve `--ink`; "Level 8"
+(onboard-title); the
 mode line (status style): Max it out "Keep burning.", Do it yourself
 "Well earned. Breathe."; "Level 8, 0 of 2,100 XP" (mono-sm); the level bar
 (4 px); the text link "Back to work". Several levels at once (`level -
@@ -558,23 +582,28 @@ Fed by: `LevelUp`, `GameState`, `Settings.sound`.
 Rendered in Rust (resvg) at runtime; `tokens.css` mirrors its values.
 viewBox 24 x 24:
 
-- Track: circle r 10, stroke `--tray-track` #8A8D8B at 60 %, width 2.
-  Without limit data (no 5-hour value) the track is dotted
-  (`stroke-dasharray 1.5 3`) and there is no arc.
+- Track: circle r 10, stroke `--tray-track` #8A8D8B at 60 %
+  (`--tray-track-opacity`), width 2. Without limit data (no 5-hour value)
+  the track is dotted (`stroke-dasharray 1.5 3`) and there is no arc.
 - Arc: r 10, stroke `--accent` of the current mode, width 2.4, round
   caps, from 12 o'clock clockwise, length = 5-hour percent left. It drains
   as the window is used.
 - Monk: the paths of `assets/brand/tokenmonk-mark-mono.svg` inside the
-  ring, filled in `--accent` of the current mode (black on the macOS
-  template icon), placed with `transform="translate(0.992 -0.416)
-  scale(0.0215)"`: about 13 units tall (y 5.4 to 18.6), centred at (12, 12). There is no
-  centre dot any more.
+  ring, placed with `transform="translate(0.992 -0.416) scale(0.0215)"`:
+  about 13 units tall (y 5.4 to 18.6), centred at (12, 12). Head (path 1)
+  and sleeve (path 3) fill `--tray-track` #8A8D8B at full opacity; the
+  robe (path 2) fills `--accent` of the current mode, as in the popup
+  monk mark. Without limit data the whole monk (all three paths) drops to
+  opacity 0.45 (`--tray-monk-nodata-opacity`).
+- macOS: a template image in black ink (alpha carries the shape; the menu
+  bar tints it). Track, arc and all monk paths are black; the track is at
+  40 % (`--tray-track-opacity-template`; the coloured track stays at
+  60 %) and the no-data fade of the monk (0.45) applies here too.
 
 Value: 5-hour percent left in both modes. Before onboarding the accent is
-saffron. The tray gauge is not the app icon: it carries the same monk as
-the app icon, in one colour and without the ink body, and is drawn from
-the mono mark, so it follows changes to that file, not to the app icon
-files.
+saffron. The tray gauge is not the app icon (role C in "Icon system"): it
+is drawn from the mono mark, so it follows changes to that file, not to
+the app icon files.
 
 ## Tray menu
 
@@ -599,18 +628,20 @@ Settings and the row keeps showing that state.
 
 ## App icon
 
-The monk without a ring on an ink rounded-square body. It replaces the
-monk-in-ring brand mark as the app icon. Files in `assets/brand/`:
+The monk without a ring on an ink rounded-square body (role A in "Icon
+system"). Used only where the OS shows the app (taskbar, dock, Start
+menu, installer, notifications, the generated icon set), never inside
+the popup. Files in `assets/brand/`:
 
 - `tokenmonk-icon.svg`: the macOS grid and the main source. Canvas
-  1024 x 1024; body 824 x 824 at 100,100, rx 185. Also the popup top row
-  mark at 26 px and the onboarding mark at 52 px.
+  1024 x 1024; body 824 x 824 at 100,100, rx 185.
 - `tokenmonk-icon-windows.svg`: the same artwork with viewBox
   `84 84 856 856` (tighter crop, so the body fills more of the small
   Windows sizes). Source of `icon.ico` only.
-- `tokenmonk-mark-mono.svg`: the monk alone, one colour on a transparent
-  background, eyes cut out by nonzero winding. Recolour it by `fill`; the
-  level-up screen fills it with `--accent`.
+- `tokenmonk-mark-mono.svg`: not part of the app icon. The monk alone in
+  three paths (head, robe, sleeve) on a transparent background, eyes cut
+  out by nonzero winding; the source of the monk mark (role B) and the
+  tray gauge monk (role C), recoloured per path by `fill`.
 
 Colours (fixed in the files, not tokens, same in both themes):
 
