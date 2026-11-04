@@ -15,8 +15,9 @@ const RING_RADIUS: f64 = 10.0;
 const TRACK_WIDTH: f64 = 2.0;
 /// Stroke width of the arc.
 const ARC_WIDTH: f64 = 2.4;
-/// Places the monk (1024 unit art, centre about 512 544) in the ring.
-const MONK_TRANSFORM: &str = "translate(0.992 0.704) scale(0.0215)";
+/// Places the monk (1024 unit art, spanning y 270 to 885) so it is centred at
+/// (12, 12) in the ring: about x 6.6 to 17.4, y 5.4 to 18.6.
+const MONK_TRANSFORM: &str = "translate(0.992 -0.416) scale(0.0215)";
 /// Path data of `assets/brand/tokenmonk-mark-mono.svg`: head with ears and
 /// eyes, robe, sleeve.
 const MONK_PATHS: [&str; 3] = [
@@ -283,8 +284,37 @@ mod tests {
     }
 
     #[test]
+    fn monk_stays_inside_the_ring_and_is_centred() {
+        let limit = 8.8 * f64::from(ICON_SIZE) / 24.0;
+        for p in [Some(0.0), None] {
+            let rgba = render_icon(COLOUR, p, Mode::Max).unwrap();
+            let (mut min_y, mut max_y) = (u32::MAX, 0);
+            for y in 0..ICON_SIZE {
+                for x in 0..ICON_SIZE {
+                    if !near(pixel(&rgba, x, y), SAFFRON_RGB) {
+                        continue;
+                    }
+                    let dx = f64::from(x) + 0.5 - f64::from(ICON_SIZE) / 2.0;
+                    let dy = f64::from(y) + 0.5 - f64::from(ICON_SIZE) / 2.0;
+                    assert!(dx.hypot(dy) <= limit, "monk pixel outside at {x},{y}");
+                    min_y = min_y.min(y);
+                    max_y = max_y.max(y);
+                }
+            }
+            let mid_y = f64::from(min_y + max_y + 1) / 2.0;
+            assert!(
+                (mid_y - f64::from(ICON_SIZE) / 2.0).abs() <= 1.5,
+                "monk vertical middle {mid_y}"
+            );
+        }
+    }
+
+    #[test]
     fn mono_icon_is_black_with_alpha_only() {
         let rgba = render_icon(IconStyle::pick(true), Some(60.0), Mode::Max).unwrap();
+        let mid = ICON_SIZE / 2;
+        let robe = pixel(&rgba, mid, mid + 8);
+        assert!(robe[3] > 240 && robe[..3] == [0, 0, 0], "{robe:?}");
         assert!(rgba.as_chunks::<4>().0.iter().any(|p| p[3] > 0));
         assert!(rgba
             .as_chunks::<4>()
