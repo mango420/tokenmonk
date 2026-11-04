@@ -1,5 +1,5 @@
 import { useState } from "react";
-import markUrl from "../../../assets/brand/tokenmonk-icon.svg?url";
+import { LogoMark } from "../../components/LogoMark";
 import type { AppActions } from "../../lib/appData";
 import { Header } from "../dashboard/Header";
 import { MODE_DESCRIPTION, MODE_LABEL, type PopupMode } from "../dashboard/model";
@@ -34,11 +34,11 @@ export function Onboarding({ onChoose }: OnboardingProps) {
         <button
           key={mode}
           type="button"
-          className="onboard-choice"
+          className={`onboard-choice onboard-choice--${mode}`}
           disabled={saving}
           onClick={() => void choose(mode)}
         >
-          <img src={markUrl} alt="" className="onboard-mark" />
+          <LogoMark />
           <span>
             <span className="onboard-choice__name">{MODE_LABEL[mode]}</span>
             <span className="onboard-choice__description">{MODE_DESCRIPTION[mode]}</span>
