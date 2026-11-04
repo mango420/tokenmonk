@@ -217,17 +217,43 @@ Top to bottom:
 
 ### Note line
 
-One line, first match wins. Status notes take precedence; the limit note
-is the fallback and shows with and without limit data, so the line is
-never empty:
+One line, first match wins. Status notes take precedence, then the update
+line; the limit note is the fallback and shows with and without limit
+data, so the line is never empty:
 
 | Condition | Text |
 |---|---|
 | `data.state = importing` | "Reading logs, 24 of 38 files." (derived; numbers mono) |
 | `data.state = noLogs` | "No Claude Code logs yet. Start a session." (derived) |
 | `data.state = error` | "Can’t read the logs. Retrying in the background." (derived) |
+| `UpdateStatus.kind` is `available`, `installing` or `installFailed` | the update line, see "Update line" below |
 | `limits.reason = noSource` | "No limit data yet. Setup is in Settings." as a text link to Settings, scrolled to "Limit data" (derived, see DECISIONS.md) |
 | otherwise (limit note) | "Limit % includes claude.ai chats. Token stats are Claude Code only." |
+
+### Update line
+
+The dashboard's only trace of updates, shown in the note line (above).
+Derived from the maintainer decisions in TKM-41; the design prototype has
+no update UI. Note style; the version is mono (`tabular-nums`), version
+first; actions are text links in the same line, styled like the
+`noSource` note link (gap 8 before the link). No icon, no badge, no
+popup, no toast.
+
+| `UpdateStatus.kind` | Text | Action |
+|---|---|---|
+| `available` | "0.4.1 is out. Update" | "Update" calls `install_update` |
+| `installing` | "Installing 0.4.1. Back in a moment." | none |
+| `installFailed` | "0.4.1 didn’t install. Try again" | "Try again" calls `install_update` |
+
+All other kinds (`idle`, `checking`, `upToDate`, `unavailable`,
+`checkFailed`) show nothing here; the note line falls through to the next
+row. "Couldn’t check" lives in Settings only. While `install_update` runs
+the link is disabled. Windows: the installer's own small progress window
+appears and Tokenmonk quits, then starts again. macOS: the app restarts by
+itself. If `install_update` rejects (`CommandError`, for example a stale
+status), re-read `get_update_status`; no copy for it.
+
+Version numbers come from `UpdateStatus.version` ("0.4.1" is a sample).
 
 ### Dashboard states
 
@@ -292,13 +318,40 @@ vertically when taller than the popup; the top row stays.
    14 0): label left, switch right (`role="switch"`):
    - "Sound"
    - "Start at login"
+   - "Check for updates automatically" (`Settings.updateCheck`, default
+     on). Off: no check at start; "Check now" still works. Turning it on
+     does not check at once.
    - Switch: 42 x 24, radius 12, track `line`; knob 18, round, `pop`,
      inset 3. On: track `--accent`, knob moved 18 px.
    A final empty hairline row closes the list.
 5. **Limit data** (below; not in the prototype, kept because it is the
    only place to set limits up).
-6. Note, pushed to the bottom: "Tokenmonk 0.1.0, MIT. Ideas and bugs go to
-   GitHub issues." (version from `AppInfo.version`).
+6. **Update row** and note, pushed to the bottom together:
+   - Update row (note style, min height 16, margin bottom 4), directly
+     above the version note: status text, then text links styled like
+     the `noSource` note link (gap 12). Versions and times mono
+     (`tabular-nums`), times in local 24 h format. By
+     `UpdateStatus.kind`:
+
+     | Kind | Text | Links |
+     |---|---|---|
+     | `idle` | none | "Check now" |
+     | `checking` | "Checking for updates." | none |
+     | `upToDate` | "Up to date, checked at 14:05." (`checkedAt`) | "Check now" |
+     | `available` | "0.4.1 is out." | "Update", "Release notes" |
+     | `installing` | "Installing 0.4.1. Back in a moment." | none |
+     | `installFailed` | "0.4.1 didn’t install." | "Try again", "Release notes" |
+     | `checkFailed` | "Couldn’t check." | "Check now" |
+     | `unavailable` | "Updates aren’t set up in this build." | none |
+
+     "Check now" calls `check_for_updates`, "Update" and "Try again" call
+     `install_update`, "Release notes" opens `UpdateStatus.url` (the
+     version's GitHub release page) in the browser. No release notes in
+     the app. On a `CommandError` from `check_for_updates` the row reads
+     "Couldn’t check." (derived).
+   - Note: "Tokenmonk 0.3.1, MIT. Ideas and bugs go to GitHub issues."
+     The version is `AppInfo.version` ("0.3.1" is a sample); while it is
+     still empty: "Tokenmonk, MIT. Ideas and bugs go to GitHub issues."
 
 Every change applies at once through `update_settings { patch }`, no save
 button. While a call runs the control stays in its new position; on
@@ -307,7 +360,9 @@ again." appears under the section (derived). Switching mode changes the
 accent after `settings-changed`.
 
 Fed by: `Settings`, `update_settings`, `settings-changed`,
-`AppInfo.version`, `NavigateTo`, `LimitSetup`, `DashboardSnapshot.limits`.
+`AppInfo.version`, `NavigateTo`, `LimitSetup`, `DashboardSnapshot.limits`,
+`UpdateStatus` (`get_update_status`, `update-status-changed`),
+`check_for_updates`, `install_update`.
 
 #### Limit data
 
@@ -520,3 +575,6 @@ Open points:
   and the snippet stays selectable.
 - The prototype lists all achievements regardless of mode; whether
   mode-only achievements need a hint for the other mode is open.
+- Update UI (update line, Settings update row and switch) is not in the
+  prototype; it is derived from the TKM-41 decisions using existing
+  styles only. Download progress is not shown.

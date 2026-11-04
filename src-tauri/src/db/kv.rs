@@ -9,6 +9,7 @@ use crate::contracts::settings::{Mode, Settings, SettingsPatch};
 const KEY_MODE: &str = "mode";
 const KEY_SOUND: &str = "sound";
 const KEY_AUTOSTART: &str = "autostart";
+const KEY_UPDATE_CHECK: &str = "update_check";
 
 fn get(conn: &Connection, table: &str, key: &str) -> DbResult<Option<Value>> {
     let sql = format!("SELECT value FROM {table} WHERE key = ?1");
@@ -52,6 +53,9 @@ impl Db {
         if let Some(b) = self.setting(KEY_AUTOSTART)?.and_then(|v| v.as_bool()) {
             s.autostart = b;
         }
+        if let Some(b) = self.setting(KEY_UPDATE_CHECK)?.and_then(|v| v.as_bool()) {
+            s.update_check = b;
+        }
         Ok(s)
     }
 
@@ -69,6 +73,9 @@ impl Db {
         }
         if let Some(b) = patch.autostart {
             set(&tx, "settings", KEY_AUTOSTART, &Value::Bool(b))?;
+        }
+        if let Some(b) = patch.update_check {
+            set(&tx, "settings", KEY_UPDATE_CHECK, &Value::Bool(b))?;
         }
         tx.commit()?;
         self.settings()
@@ -98,6 +105,7 @@ mod tests {
                 mode: Some(Mode::Diy),
                 sound: Some(false),
                 autostart: None,
+                update_check: None,
             })
             .unwrap();
         assert_eq!(s.mode, Mode::Diy);
@@ -110,6 +118,27 @@ mod tests {
             })
             .unwrap();
         assert_eq!((s.mode, s.sound, s.autostart), (Mode::Diy, false, true));
+    }
+
+    #[test]
+    fn update_check_defaults_true_and_round_trips() {
+        let db = Db::open_in_memory().unwrap();
+        assert!(db.settings().unwrap().update_check);
+        let s = db
+            .apply_settings_patch(&SettingsPatch {
+                update_check: Some(false),
+                ..SettingsPatch::default()
+            })
+            .unwrap();
+        assert!(!s.update_check);
+        assert!(!db.settings().unwrap().update_check);
+        let s = db
+            .apply_settings_patch(&SettingsPatch {
+                update_check: Some(true),
+                ..SettingsPatch::default()
+            })
+            .unwrap();
+        assert!(s.update_check);
     }
 
     #[test]

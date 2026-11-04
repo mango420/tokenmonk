@@ -9,6 +9,15 @@
 //! | `get_game_state`      | none                      | `GameState`        |
 //! | `get_app_info`        | none                      | `AppInfo`          |
 //! | `get_limit_setup`     | none                      | `LimitSetup`       |
+//! | `get_update_status`   | none                      | `UpdateStatus`     |
+//! | `check_for_updates`   | none                      | `UpdateStatus`     |
+//! | `install_update`      | none                      | `UpdateStatus`     |
+//!
+//! `check_for_updates` resolves when the check is done (or at once with the
+//! current status while a check or install is running). `install_update`
+//! resolves only on failure (`installFailed`): on success the app exits or
+//! restarts. Without an installable version it rejects with
+//! `invalidArgument`. Update failures are statuses, never `CommandError`s.
 //!
 //! Every command returns `Result<T, CommandError>`; on the TS side a failed
 //! `invoke` rejects with a `CommandError` object.
@@ -25,9 +34,12 @@ pub const COMPLETE_ONBOARDING: &str = "complete_onboarding";
 pub const GET_GAME_STATE: &str = "get_game_state";
 pub const GET_APP_INFO: &str = "get_app_info";
 pub const GET_LIMIT_SETUP: &str = "get_limit_setup";
+pub const GET_UPDATE_STATUS: &str = "get_update_status";
+pub const CHECK_FOR_UPDATES: &str = "check_for_updates";
+pub const INSTALL_UPDATE: &str = "install_update";
 
 /// Every command name, for registration checks in tests.
-pub const ALL: [&str; 7] = [
+pub const ALL: [&str; 10] = [
     GET_DASHBOARD,
     GET_SETTINGS,
     UPDATE_SETTINGS,
@@ -35,6 +47,9 @@ pub const ALL: [&str; 7] = [
     GET_GAME_STATE,
     GET_APP_INFO,
     GET_LIMIT_SETUP,
+    GET_UPDATE_STATUS,
+    CHECK_FOR_UPDATES,
+    INSTALL_UPDATE,
 ];
 
 /// Arguments of `update_settings`: `{ "patch": { ... } }`.
