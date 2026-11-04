@@ -2,6 +2,8 @@ name: CI
 
 on:
   pull_request:
+    # Refresh PRs of feature-register.yml would end action_required; see there.
+    paths-ignore: [docs/FEATURES.md]
   push:
     branches: [main, dev]
   # Started by feature-register.yml for the refresh branch: PRs made with

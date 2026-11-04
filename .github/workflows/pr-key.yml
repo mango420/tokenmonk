@@ -3,6 +3,7 @@ name: PR key
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
+    paths-ignore: [docs/FEATURES.md]
   # Started by feature-register.yml for the refresh branch (see ci.yml).
   workflow_dispatch:
 
