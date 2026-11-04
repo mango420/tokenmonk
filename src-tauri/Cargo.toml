@@ -1,6 +1,6 @@
 [package]
 name = "tokenmonk"
-version = "0.3.1"
+version = "0.4.0"
 description = "Tray widget showing live Claude Code token usage"
 authors = ["Tokenmonk contributors"]
 edition = "2021"
