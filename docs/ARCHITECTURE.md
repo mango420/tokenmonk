@@ -398,9 +398,10 @@ calls three commands. No new dependency.
 - Install: only on `install_update` (the user clicked "Update"). Nothing
   installs silently.
 
-**State.** `AppState` holds the current `UpdateStatus` (start: `idle`)
-and, after an `available` result, the plugin's `Update` value (it is
-`Clone + Send + Sync`) for the install. Every transition is stored, then
+**State.** The status lives in a separately managed `UpdateState`
+(`src-tauri/src/app/updates.rs`), not in `AppState`. It holds the current
+`UpdateStatus` (start: `idle`) and, after an `available` result, the plugin's
+`Update` value (it is `Clone + Send + Sync`) for the install. Every transition is stored, then
 emitted as `update-status-changed` with the full status.
 
 **Check** (`check_for_updates` and the start check):
