@@ -531,7 +531,7 @@ viewBox 24 x 24:
 - Monk: the paths of `assets/brand/tokenmonk-mark-mono.svg` inside the
   ring, filled in `--accent` of the current mode (black on the macOS
   template icon), placed with `transform="translate(0.992 -0.416)
-  scale(0.0215)"`: about 12 units tall, centred at (12, 12). There is no
+  scale(0.0215)"`: about 13 units tall (y 5.4 to 18.6), centred at (12, 12). There is no
   centre dot any more.
 
 Value: 5-hour percent left in both modes. Before onboarding the accent is
