@@ -43,6 +43,17 @@ const fail = (...problems) => {
   process.exit(1);
 };
 
+// Checked before the bot skips so no other head (release/*, register/refresh, ...) reaches main.
+if (
+  defaultBranch !== 'main' &&
+  base === 'main' &&
+  !/^(?:dev|hotfix\/TKM-\d+-.+|release-please--.+)$/.test(branch)
+) {
+  fail(
+    `PRs into main must come from dev (title "${PROMOTE_TITLE}"), a hotfix/TKM-<n>-<kebab> branch or a release-please branch; got ${JSON.stringify(branch)}`,
+  );
+}
+
 if (SKIP_BRANCH_RE.test(branch) || /^dependabot(\[bot\])?$/i.test(author)) {
   console.log(`pr-key: skipped (${branch || author})`);
   process.exit(0);
@@ -62,12 +73,6 @@ if (branch === 'main' && base === 'dev') {
   console.log('pr-key: ok (back-merge)');
   process.exit(0);
 }
-if (defaultBranch !== 'main' && base === 'main' && !/^hotfix\/TKM-\d+-/.test(branch)) {
-  fail(
-    `PRs into main must come from dev (title "${PROMOTE_TITLE}"), a hotfix/TKM-<n>-<kebab> branch or a release-please branch; got ${JSON.stringify(branch)}`,
-  );
-}
-
 const problems = [];
 const t = TITLE_RE.exec(title);
 const b = BRANCH_RE.exec(branch);

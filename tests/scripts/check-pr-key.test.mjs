@@ -183,7 +183,11 @@ test('into dev keeps the key rules and bot skips', () => {
   badBase('feat: add widget', 'feature/TKM-12-add-widget', 'dev', /title must be/);
   badBase('feat: add widget (TKM-12)', 'wip/x', 'dev', /branch must match/);
   okBase('anything', 'register/refresh', 'dev');
-  okBase('anything', 'register/refresh', 'main');
+  // Into main the bot skips only count while main is the default branch.
+  assert.equal(runBase('anything', 'register/refresh', 'main', 'main').code, 0);
+  assert.equal(runBase('anything', 'release/v1', 'main', 'main').code, 0);
+  badBase('anything', 'register/refresh', 'main', /into main must come from dev/);
+  badBase('anything', 'release/v1', 'main', /into main must come from dev/);
 });
 
 test('source rule for main is off while main is the default branch', () => {
