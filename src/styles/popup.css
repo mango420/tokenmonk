@@ -743,7 +743,7 @@ html[data-maximized] .popup {
 }
 
 .limit-data__check {
-  margin-top: calc(var(--space-1) * -1);
+  margin-top: calc(var(--space-1) - var(--space-3));
 }
 
 .limit-data__path {
