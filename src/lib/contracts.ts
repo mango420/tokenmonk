@@ -34,8 +34,8 @@ export interface Settings {
   /** "Check for updates automatically": check once at app start. Manual
    * checks ("Check now") work either way. Default true. */
   updateCheck: boolean;
-  /** "Keep popup open": no hide on blur, the popup closes only from the
-   * tray icon. Default false. */
+  /** "Keep popup open": no hide on blur, the popup closes only via the
+   * tray icon or its Close button. Default false. */
   keepOpen: boolean;
 }
 

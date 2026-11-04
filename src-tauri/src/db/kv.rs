@@ -106,6 +106,7 @@ mod tests {
                 sound: Some(false),
                 autostart: None,
                 update_check: None,
+                keep_open: None,
             })
             .unwrap();
         assert_eq!(s.mode, Mode::Diy);

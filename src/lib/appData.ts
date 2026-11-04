@@ -71,7 +71,7 @@ const EMPTY_TOKENS = { input: 0, output: 0, cacheCreation: 0, cacheRead: 0, tota
 
 function placeholders(): AppData {
   return {
-    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true },
+    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true, keepOpen: false },
     appInfo: {
       version: "",
       platform: "windows",

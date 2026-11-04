@@ -32,7 +32,7 @@ pub struct Settings {
     /// checks ("Check now") work either way. Default on.
     pub update_check: bool,
     /// "Keep popup open": the popup no longer hides on blur and closes only
-    /// from the tray icon. Default off (hide on blur). Missing in older
+    /// via the tray icon or its Close button. Default off (hide on blur). Missing in older
     /// stored settings, so it defaults on deserialize.
     #[serde(default)]
     pub keep_open: bool,

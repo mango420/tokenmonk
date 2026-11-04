@@ -534,7 +534,8 @@ Built in `tray::init` with `tauri::menu` items, handled in the tray's
   blur has settled (`BLUR_SETTLE`); a tray click right after such a hide
   (`BLUR_GRACE`) only dismisses, it does not reopen.
 - `keep_open = true`: blur is ignored, the popup stays visible (it is
-  `alwaysOnTop`) and hides only via the tray icon toggle. Read from the
+  `alwaysOnTop`) and hides only via the tray icon toggle or the title
+  bar "Close" (`CloseRequested`). Read from the
   cached `Settings` on each blur, so a change via `update_settings`
   applies at once without a restart.
 - Stored like the other switches; a stored settings set without the
