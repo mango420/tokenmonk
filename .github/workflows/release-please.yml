@@ -54,6 +54,8 @@ jobs:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+          # The default branch is dev; release PRs must target main.
+          target-branch: main
 
   dispatch-release:
     name: dispatch release build
