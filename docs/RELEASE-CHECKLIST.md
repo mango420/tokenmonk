@@ -64,10 +64,11 @@ As documented in the README, "Install":
 
 ## Tray and halo
 
-- [ ] Tray icon: ring track plus centre dot in the mode accent.
+- [ ] Tray icon: grey ring track, monk head and sleeve grey; arc and robe
+      in the mode accent.
 - [ ] With limit data: the arc shows 5-hour percent left and drains as the
       window is used.
-- [ ] Without limit data: dotted track, no arc.
+- [ ] Without limit data: dotted track, no arc, the monk faded.
 - [ ] Right click opens the tray menu: "Open Tokenmonk" opens the popup,
       "Settings" opens Settings, "Quit" ends the app.
 - [ ] Icon is legible in light and dark system themes.
