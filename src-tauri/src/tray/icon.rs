@@ -32,6 +32,9 @@ const JADE: &str = "#1f8a64";
 /// `--tray-track` and `--tray-track-opacity`.
 const TRACK: &str = "#8a8d8b";
 const TRACK_OPACITY: &str = "0.6";
+/// Opacity of the monk while there is no limit data. Mirrors
+/// `--tray-monk-nodata-opacity` in `src/styles/tokens.css`.
+const MONK_NODATA_OPACITY: &str = "0.45";
 
 /// Edge length of the rendered icon in pixels (square). Large enough for
 /// 2x displays; the OS scales it down to 16 to 22 points.
@@ -40,7 +43,7 @@ pub const ICON_SIZE: u32 = 64;
 /// Which artwork to draw.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mark {
-    /// Ring and monk in the accent of the mode, track in grey.
+    /// Grey head, sleeve and track; robe and arc in the accent of the mode.
     Colour,
     /// Black ink only (alpha carries the shape), for template use.
     Mono,
@@ -104,9 +107,13 @@ pub fn arc_length(percent: Option<f64>) -> f64 {
 /// from 12 o'clock) in the accent of `mode`. `None` draws the dotted track
 /// and no arc.
 pub fn halo_svg(style: IconStyle, percent: Option<f64>, mode: Mode) -> String {
-    let (accent, track, track_opacity) = match style.mark {
-        Mark::Colour => (accent(mode), TRACK, TRACK_OPACITY),
-        Mark::Mono => ("#000000", "#000000", "0.4"),
+    // Fills of head, robe and sleeve (in `MONK_PATHS` order).
+    let (accent, monk_fills, track, track_opacity) = match style.mark {
+        Mark::Colour => {
+            let a = accent(mode);
+            (a, [TRACK, a, TRACK], TRACK, TRACK_OPACITY)
+        }
+        Mark::Mono => ("#000000", ["#000000"; 3], "#000000", "0.4"),
     };
     let r = RING_RADIUS;
     let circumference = 2.0 * PI * r;
@@ -115,6 +122,11 @@ pub fn halo_svg(style: IconStyle, percent: Option<f64>, mode: Mode) -> String {
         ""
     } else {
         r#" stroke-dasharray="1.5 3""#
+    };
+    let monk_opacity = if has_data {
+        String::new()
+    } else {
+        format!(r#" opacity="{MONK_NODATA_OPACITY}""#)
     };
     let arc = arc_length(percent);
     let arc_svg = if arc > 0.0 {
@@ -126,10 +138,11 @@ pub fn halo_svg(style: IconStyle, percent: Option<f64>, mode: Mode) -> String {
     };
     let monk: String = MONK_PATHS
         .iter()
-        .map(|d| format!(r#"<path d="{d}"/>"#))
+        .zip(monk_fills)
+        .map(|(d, fill)| format!(r#"<path d="{d}" fill="{fill}"/>"#))
         .collect();
     format!(
-        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="{r}" fill="none" stroke="{track}" stroke-opacity="{track_opacity}" stroke-width="{TRACK_WIDTH}"{track_dash}/>{arc_svg}<g transform="{MONK_TRANSFORM}" fill="{accent}">{monk}</g></svg>"#
+        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="{r}" fill="none" stroke="{track}" stroke-opacity="{track_opacity}" stroke-width="{TRACK_WIDTH}"{track_dash}/>{arc_svg}<g transform="{MONK_TRANSFORM}" {monk_opacity}>{monk}</g></svg>"#
     )
 }
 
@@ -173,6 +186,7 @@ mod tests {
     };
     const SAFFRON_RGB: [u8; 3] = [0xE3, 0x9A, 0x0B];
     const JADE_RGB: [u8; 3] = [0x1F, 0x8A, 0x64];
+    const GREY_RGB: [u8; 3] = [0x8A, 0x8D, 0x8B];
 
     fn pixel(rgba: &[u8], x: u32, y: u32) -> [u8; 4] {
         let i = ((y * ICON_SIZE + x) * 4) as usize;
@@ -215,13 +229,37 @@ mod tests {
         let svg = halo_svg(COLOUR, Some(50.0), Mode::Max);
         assert!(svg.contains(r#"stroke-dasharray="31.42 62.83""#), "{svg}");
         assert!(svg.contains(r##"stroke="#e39a0b""##));
-        assert!(svg.contains(r##"fill="#e39a0b""##));
+        assert!(svg.contains(&format!(
+            r##"<path d="{}" fill="#e39a0b"/>"##,
+            MONK_PATHS[1]
+        )));
+        for i in [0, 2] {
+            assert!(svg.contains(&format!(
+                r##"<path d="{}" fill="#8a8d8b"/>"##,
+                MONK_PATHS[i]
+            )));
+        }
+        assert!(!svg.contains("opacity=\"0.45\""), "full opacity with data");
         assert!(svg.contains(MONK_TRANSFORM));
         assert_eq!(svg.matches("<path").count(), 3, "three monk paths");
         assert!(!svg.contains(r#"stroke-dasharray="1.5 3""#), "solid track");
         let diy = halo_svg(COLOUR, Some(50.0), Mode::Diy);
         assert!(diy.contains(r##"stroke="#1f8a64""##));
-        assert!(diy.contains(r##"fill="#1f8a64""##));
+        assert!(diy.contains(&format!(
+            r##"<path d="{}" fill="#1f8a64"/>"##,
+            MONK_PATHS[1]
+        )));
+    }
+
+    #[test]
+    fn monk_paths_match_brand_mark() {
+        let svg = include_str!("../../../assets/brand/tokenmonk-mark-mono.svg");
+        let ds: Vec<&str> = svg
+            .split(" d=\"")
+            .skip(1)
+            .map(|rest| rest.split('"').next().unwrap())
+            .collect();
+        assert_eq!(ds, MONK_PATHS.to_vec());
     }
 
     #[test]
@@ -230,6 +268,9 @@ mod tests {
             let svg = halo_svg(COLOUR, p, Mode::Max);
             assert!(svg.contains(r#"stroke-dasharray="1.5 3""#), "{svg}");
             assert!(!svg.contains(r#"stroke-width="2.4""#), "no arc: {svg}");
+            assert!(svg.contains(r#"opacity="0.45""#), "dim monk: {svg}");
+            let mono = halo_svg(IconStyle::pick(true), p, Mode::Max);
+            assert!(mono.contains(r#"opacity="0.45""#), "dim mono monk");
         }
     }
 
@@ -258,7 +299,7 @@ mod tests {
         let left = pixel(&rgba, mid - ring_px(), mid);
         assert!(left[3] > 100 && left[3] < 200, "track at 60 %: {left:?}");
         assert!(left[0].abs_diff(0x8A) <= 8 && left[1].abs_diff(0x8D) <= 8);
-        // The monk (robe, below the centre) carries the accent too.
+        // The robe (below the centre) carries the accent.
         assert!(near(pixel(&rgba, mid, mid + 8), SAFFRON_RGB));
     }
 
@@ -273,25 +314,27 @@ mod tests {
     #[test]
     fn no_data_renders_no_arc() {
         let rgba = render_icon(COLOUR, None, Mode::Max).unwrap();
-        let accent_px = rgba
+        // The monk is dimmed to about 45 % alpha and there is no opaque arc.
+        let mid = ICON_SIZE / 2;
+        let robe = pixel(&rgba, mid, mid + 8);
+        assert!(robe[3] > 90 && robe[3] < 140, "{robe:?}");
+        assert!(!rgba
             .as_chunks::<4>()
             .0
             .iter()
-            .filter(|p| near(**p, SAFFRON_RGB))
-            .count();
-        // Only the monk is in the accent; the track is grey.
-        assert!(accent_px > 300 && accent_px < 900, "{accent_px}");
+            .any(|p| near(*p, SAFFRON_RGB)));
     }
 
     #[test]
     fn monk_stays_inside_the_ring_and_is_centred() {
         let limit = 8.8 * f64::from(ICON_SIZE) / 24.0;
-        for p in [Some(0.0), None] {
+        for p in [Some(0.0)] {
             let rgba = render_icon(COLOUR, p, Mode::Max).unwrap();
             let (mut min_y, mut max_y) = (u32::MAX, 0);
             for y in 0..ICON_SIZE {
                 for x in 0..ICON_SIZE {
-                    if !near(pixel(&rgba, x, y), SAFFRON_RGB) {
+                    let px = pixel(&rgba, x, y);
+                    if !near(px, GREY_RGB) && !near(px, SAFFRON_RGB) {
                         continue;
                     }
                     let dx = f64::from(x) + 0.5 - f64::from(ICON_SIZE) / 2.0;
