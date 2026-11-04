@@ -11,10 +11,15 @@
 //!
 //! * Struct fields: `#[serde(rename_all = "camelCase")]`, so `resets_at`
 //!   becomes `resetsAt` on the wire.
-//! * Enums: v1 only has unit enums. They serialize as camelCase strings
-//!   (`Mode::NoneYet` -> `"noneYet"`, `AchievementId::RateLimitRambo` ->
-//!   `"rateLimitRambo"`). If a data-carrying enum is ever needed it is
-//!   internally tagged: `#[serde(tag = "kind", rename_all = "camelCase")]`.
+//! * Unit enums serialize as camelCase strings (`Mode::NoneYet` ->
+//!   `"noneYet"`, `AchievementId::RateLimitRambo` -> `"rateLimitRambo"`).
+//! * Data-carrying enums (only `UpdateStatus`) are internally tagged:
+//!   `#[serde(tag = "kind", rename_all = "camelCase")]` on the enum names
+//!   the variants, and every struct variant carries its own
+//!   `#[serde(rename_all = "camelCase")]` for its fields
+//!   (`UpdateStatus::UpToDate { checked_at }` ->
+//!   `{ "kind": "upToDate", "checkedAt": .. }`). TypeScript mirrors them as
+//!   a discriminated union on `kind`.
 //! * `Option<T>` serializes as `null` (never omitted) and maps to `T | null`
 //!   in TypeScript. Exception: patch types (`SettingsPatch`) where an absent
 //!   field means "leave unchanged"; those map to optional `field?: T`.
@@ -35,6 +40,7 @@ pub mod game;
 pub mod limits;
 pub mod schema;
 pub mod settings;
+pub mod update;
 
 pub use app::{AppInfo, Platform};
 pub use commands::{CommandError, CommandErrorCode, CompleteOnboardingArgs, UpdateSettingsArgs};
@@ -49,6 +55,7 @@ pub use limits::{
     LimitsView,
 };
 pub use settings::{Mode, Settings, SettingsPatch};
+pub use update::UpdateStatus;
 
 /// Unix epoch milliseconds, UTC.
 pub type EpochMs = i64;
