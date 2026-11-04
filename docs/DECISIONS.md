@@ -52,7 +52,7 @@ Dev: `typescript`, `vite`, `@vitejs/plugin-react`, `@types/react`, `@types/react
 - `plugins.updater.pubkey` is an empty placeholder in `tauri.conf.json`. The release phase replaces it with the public key; the private key and its password live only in GitHub secrets and outside the repo.
 - With the empty placeholder the app starts normally (the plugin only parses the config at startup). Update checks cannot verify a signature, so no update can be installed until the real key is set. `bundle.createUpdaterArtifacts` is also left for the release phase.
 - In-app update check (TKM-41, 2026-11-04; spec in ARCHITECTURE.md "Updates", UI in DESIGN.md "Update line" and "Settings"):
-  - Rust runs check and install (`UpdaterExt::updater_builder`, `Updater::check`, `Update::download_and_install`, then `AppHandle::restart` on macOS); the webview only calls `get_update_status`, `check_for_updates`, `install_update` and listens to `update-status-changed`. One place for the pubkey guard and the error mapping, no updater or process calls from the UI. `updater:default` and `process:allow-restart` in the capability are then unused by the webview; dropping them is up to #161.
+  - Rust runs check and install (`UpdaterExt::updater_builder`, `Updater::check`, `Update::download_and_install`, then `AppHandle::restart` on macOS); the webview only calls `get_update_status`, `check_for_updates`, `install_update` and listens to `update-status-changed`. One place for the pubkey guard and the error mapping, no updater or process calls from the UI. The capability grants no updater or process permission.
   - When: once at start while `Settings.updateCheck` is on (default on), and on "Check now". No periodic timer (maintainer decision in #41). Install only on the user's click; no silent auto-install.
   - Empty or missing `plugins.updater.pubkey` (dev, builds without updater artifacts): status `unavailable`, no request. Reason: `check()` itself does not use the key (only the download verification does), so without the guard a dev build would report updates it can never install.
   - Offline, timeout, 404 on `latest.json`, invalid JSON, missing platform: status `checkFailed`, calm copy, no popup. Verified in the plugin source: a non-2xx response only logs and tries the next endpoint, so with one endpoint a 404 ends in `Error::ReleaseNotFound`; a transport error is kept and returned (`Error::Reqwest`). Check timeout 20 s via `UpdaterBuilder::timeout`.
@@ -63,7 +63,7 @@ Dev: `typescript`, `vite`, `@vitejs/plugin-react`, `@types/react`, `@types/react
 
 ## Capabilities
 
-`src-tauri/capabilities/default.json` grants the `main` window only what the registered plugins need: `core:default`, `opener:default`, `notification:default`, `process:allow-restart`, `updater:default`, `autostart:allow-enable|disable|is-enabled`, `positioner:default`.
+`src-tauri/capabilities/default.json` grants the `main` window only what the registered plugins need: `core:default`, `opener:default`, `notification:default`, `autostart:allow-enable|disable|is-enabled`, `positioner:default`.
 
 CSP is strict: `default-src 'self'`, images and fonts from `self` and `data:`, inline styles allowed, IPC via `ipc:` and `http://ipc.localhost` only, no remote hosts. `devCsp` additionally allows the Vite dev server and its HMR websocket on `localhost:1420`. Tauri adds script hashes and style nonces at build time.
 
