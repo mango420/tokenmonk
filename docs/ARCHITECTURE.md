@@ -512,11 +512,11 @@ Built in `tray::init` with `tauri::menu` items, handled in the tray's
 |---|---|---|
 | `open` | "Open Tokenmonk" | `window::show` |
 | `settings` | "Settings" | `window::show`, then emit `navigate` with `NavigateTo { view: settings }` |
-| `check_updates` | "Check for updates" | as `settings`, then spawn the update check on `tauri::async_runtime` |
+| `check-updates` | "Check for updates" | as `settings`, then spawn the update check on `tauri::async_runtime` |
 | (separator) | | |
 | `quit` | "Quit" | `app.exit(0)` |
 
-- `check_updates` calls the same function as the `check_for_updates`
+- `check-updates` calls the same function as the `check_for_updates`
   command (`app::check_update`, Updates, "Check"), so the busy rule, the
   missing-pubkey case and the status mapping are identical. The handler
   does not wait for the result and shows nothing itself; every
