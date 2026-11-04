@@ -242,6 +242,7 @@ mod tests {
             mode: Some(Mode::Diy),
             sound: Some(false),
             autostart: None,
+            update_check: None,
         };
         let (before, after) = apply_update(&s, &patch, |_| Ok(())).unwrap();
         assert_eq!(before.mode, Mode::NoneYet);
