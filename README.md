@@ -46,6 +46,18 @@ Everything stays on your machine. No account, no login, no telemetry.
   bridge keeps only the rate-limit part (percent used and reset time for the
   5-hour and weekly window) and writes it to a small file in the app's data
   directory. Nothing else from that input is kept, stored or logged.
+- **Update check**: the only network request Tokenmonk makes. With "Check
+  for updates automatically" on (the default) it checks once at start;
+  "Check now" in Settings checks by hand, whatever the switch says. It
+  requests the address set in the app's config,
+  `https://github.com/mango420/tokenmonk/releases/latest/download/latest.json`,
+  which GitHub redirects to that file of the newest release. It is a plain
+  GET without a body; besides the standard connection data GitHub sees
+  (such as your IP address), it carries only the headers
+  `Accept: application/json` and `User-Agent: tauri-plugin-updater/<version>`.
+  No usage data, settings or IDs are sent. The installer is downloaded
+  from GitHub only after you click "Update". Builds without an update
+  signing key skip the check and make no request.
 - Tokenmonk makes no network requests for usage or limit data, and it never
   edits your Claude Code settings.
 
