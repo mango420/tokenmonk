@@ -303,9 +303,11 @@ html[data-maximized] .popup {
   letter-spacing: var(--text-brand-tracking);
 }
 
-.brand-mark {
+.onboard-mark {
   flex: none;
   display: block;
+  width: var(--onboard-mark-size);
+  height: var(--onboard-mark-size);
 }
 
 /* The monk mark in the top row: the file as is, its own colours. */
