@@ -229,9 +229,15 @@ html[data-maximized] .popup {
 }
 
 .logo-mark {
+  flex: none;
   display: flex;
-  width: var(--onboard-mark-size);
-  height: var(--onboard-mark-size);
+  width: var(--mark-lg-size);
+  height: var(--mark-lg-size);
+}
+
+.logo-mark--brand {
+  width: var(--brand-mark-size);
+  height: var(--brand-mark-size);
 }
 
 .logo-mark__svg {
@@ -301,21 +307,6 @@ html[data-maximized] .popup {
   line-height: var(--text-body-line);
   font-weight: var(--weight-medium);
   letter-spacing: var(--text-brand-tracking);
-}
-
-.onboard-mark {
-  flex: none;
-  display: block;
-  width: var(--onboard-mark-size);
-  height: var(--onboard-mark-size);
-}
-
-/* The monk mark in the top row: the file as is, its own colours. */
-.brand-logo {
-  flex: none;
-  display: block;
-  width: var(--brand-mark-size);
-  height: var(--brand-mark-size);
 }
 
 /* Text link: `ink-2`, `ink` on hover, 6 px above and below. */
@@ -876,4 +867,13 @@ html[data-maximized] .popup {
   .titlebar__bar {
     transition: none;
   }
+}
+
+/* Each onboarding row shows the mark in its own mode accent. */
+.onboard-choice--max {
+  --accent: var(--saffron);
+}
+
+.onboard-choice--diy {
+  --accent: var(--jade);
 }
