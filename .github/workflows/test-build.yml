@@ -2,8 +2,9 @@ name: Test build
 
 # Unsigned test installers from `dev` (docs/RELEASE-FLOW.md, "Test build").
 # The build steps mirror the build job in release.yml. No release, no tag,
-# no secrets: updater artifacts stay off (bundle.createUpdaterArtifacts is
-# unset in tauri.conf.json), so no signing key is needed.
+# no secrets: updater artifacts are switched off for these builds with
+# `--config` (createUpdaterArtifacts is true in tauri.conf.json), so no
+# signing key is needed.
 
 on:
   push:
@@ -59,7 +60,7 @@ jobs:
 
       - name: Build installers
         shell: bash
-        run: npx tauri build ${{ matrix.args }}
+        run: npx tauri build ${{ matrix.args }} --config '{"bundle":{"createUpdaterArtifacts":false}}'
 
       - name: Short SHA
         id: sha
