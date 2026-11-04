@@ -596,8 +596,9 @@ viewBox 24 x 24:
   monk mark. Without limit data the whole monk (all three paths) drops to
   opacity 0.45 (`--tray-monk-nodata-opacity`).
 - macOS: a template image in black ink (alpha carries the shape; the menu
-  bar tints it). Track, arc and all monk paths are black; the track keeps
-  its 60 % and the no-data fade of the monk (0.45) applies here too.
+  bar tints it). Track, arc and all monk paths are black; the track is at
+  40 % (`--tray-track-opacity-template`; the coloured track stays at
+  60 %) and the no-data fade of the monk (0.45) applies here too.
 
 Value: 5-hour percent left in both modes. Before onboarding the accent is
 saffron. The tray gauge is not the app icon (role C in "Icon system"): it
