@@ -21,7 +21,7 @@ use crate::contracts::{
 };
 use crate::db::DbError;
 use crate::game::{evaluate, Facts, GameStore};
-use crate::limits::setup::current_statusline_command;
+use crate::limits::setup::{current_statusline_command, current_statusline_file};
 use crate::watcher::IngestHandle;
 
 fn error(code: CommandErrorCode, message: impl Into<String>) -> CommandError {
@@ -187,8 +187,7 @@ pub fn get_app_info(state: State<'_, Arc<AppState>>) -> Result<AppInfo, CommandE
 pub fn get_limit_setup() -> Result<LimitSetup, CommandError> {
     Ok(LimitSetup {
         statusline_command: current_statusline_command(),
-        // Placeholder until the file check lands (backend-platform).
-        statusline_file: Default::default(),
+        statusline_file: current_statusline_file(),
     })
 }
 
