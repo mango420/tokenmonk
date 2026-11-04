@@ -40,6 +40,16 @@ export function formatClock(epochMs: number): string {
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** Local time on the same local day as `now` (`14:05`), else `3 Nov 14:05`. */
+export function formatDayTime(epochMs: number, now: number = Date.now()): string {
+  const d = new Date(epochMs);
+  const n = new Date(now);
+  const sameDay = d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
+  return sameDay ? formatClock(epochMs) : `${d.getDate()} ${MONTHS[d.getMonth()]} ${formatClock(epochMs)}`;
+}
+
 /** Reset duration: `2h 14m`, `0h 41m`; from 24 h `3d 4h`. Never negative. */
 export function formatResetIn(ms: number): string {
   const clamped = Math.max(0, ms);
