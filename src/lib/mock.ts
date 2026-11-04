@@ -292,11 +292,14 @@ export interface MockScenario {
 }
 
 /** Synthetic `get_limit_setup` answers for the settings preview. */
-const setupPlain: LimitSetup = { statuslineCommand: "C:/Tokenmonk/tokenmonk.exe --statusline" };
+// Placeholder file state ("never arrived") until the mocks cover it.
+const statuslineFile = { exists: false, receivedAt: null, modifiedAt: null };
+const setupPlain: LimitSetup = { statuslineCommand: "C:/Tokenmonk/tokenmonk.exe --statusline", statuslineFile };
 const setupQuoted: LimitSetup = {
   statuslineCommand: '"C:/Program Files/Tokenmonk/tokenmonk.exe" --statusline',
+  statuslineFile,
 };
-const setupMissing: LimitSetup = { statuslineCommand: null };
+const setupMissing: LimitSetup = { statuslineCommand: null, statuslineFile };
 
 export function mockLimitSetup(scenario: MockScenario): LimitSetup {
   return scenario.limitSetup ?? setupPlain;

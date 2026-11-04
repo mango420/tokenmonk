@@ -87,6 +87,21 @@ export interface LimitSetup {
    * `settings.json` (executable path plus `--statusline`); null if the
    * executable path is unknown. */
   statuslineCommand: string | null;
+  /** State of the bridge file `statusline.json` when the command ran. Lets
+   * Settings tell "never arrived" from "arrived, no current window". */
+  statuslineFile: StatuslineFileInfo;
+}
+
+/** What the app knows about the bridge file, without judging it. */
+export interface StatuslineFileInfo {
+  /** The file exists (false also when the app data directory is unknown). */
+  exists: boolean;
+  /** `receivedAt` from the file: when the bridge last ran. Null if the file
+   * is missing, unreadable or not a valid bridge file. */
+  receivedAt: EpochMs | null;
+  /** File modification time; useful when the file exists but
+   * `receivedAt` is null. Null if missing or not reported by the OS. */
+  modifiedAt: EpochMs | null;
 }
 
 // --------------------------------------------------------------- dashboard

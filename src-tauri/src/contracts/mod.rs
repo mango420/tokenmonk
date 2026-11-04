@@ -52,7 +52,7 @@ pub use events::{NavigateTo, View};
 pub use game::{AchievementId, AchievementProgress, AchievementUnlocked, GameState, LevelUp};
 pub use limits::{
     LimitError, LimitReading, LimitReason, LimitSetup, LimitSource, LimitStatus, LimitWindow,
-    LimitsView,
+    LimitsView, StatuslineFileInfo,
 };
 pub use settings::{Mode, Settings, SettingsPatch};
 pub use update::UpdateStatus;

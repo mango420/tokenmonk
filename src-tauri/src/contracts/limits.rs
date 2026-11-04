@@ -90,6 +90,29 @@ pub struct LimitSetup {
     /// example `"/Applications/Tokenmonk.app/Contents/MacOS/tokenmonk --statusline"`.
     /// `None` if the executable path cannot be determined.
     pub statusline_command: Option<String>,
+    /// State of the bridge file `statusline.json`, read when the command
+    /// runs. Lets Settings tell "never arrived" from "arrived, no current
+    /// window". Defaults to "missing" when absent on input (added after
+    /// v0.1's first `LimitSetup`; output always carries it).
+    #[serde(default)]
+    pub statusline_file: StatuslineFileInfo,
+}
+
+/// What the app knows about the bridge file, without judging it. Part of
+/// [`LimitSetup`]; see docs/ARCHITECTURE.md, "Setup snippet".
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatuslineFileInfo {
+    /// The file exists. `false` also when the app data directory is unknown
+    /// (then the bridge cannot write it either).
+    pub exists: bool,
+    /// `receivedAt` from the file: when the bridge last ran. `None` if the
+    /// file is missing, unreadable or not a valid bridge file.
+    pub received_at: Option<EpochMs>,
+    /// File modification time. Only adds value when `received_at` is `None`
+    /// but the file exists (something arrived, but it cannot be read).
+    /// `None` if the file is missing or the OS does not report it.
+    pub modified_at: Option<EpochMs>,
 }
 
 /// Error returned by a [`LimitSource`].
