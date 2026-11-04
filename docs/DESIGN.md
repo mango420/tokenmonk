@@ -4,8 +4,8 @@ The design system for the Tokenmonk popup, tray icon and README. All values
 live as CSS variables in [`src/styles/tokens.css`](../src/styles/tokens.css);
 components use the variables, never literal values. Brand files are in
 [`assets/brand/`](../assets/brand/). The app icon is the monk without a
-ring on an ink rounded-square body (see "App icon"); the ring appears only
-in the tray gauge and in the inline onboarding brand mark.
+ring on an ink rounded-square body (see "App icon"). It is the only brand
+mark; the ring appears only in the tray gauge.
 
 Source: the refreshed popup prototype (onboarding, dashboard, settings,
 achievements, toast, tray icon). Where an older rule and the prototype
@@ -145,12 +145,10 @@ overflow hidden. Each screen is a column with padding 20 (top), 24 (sides),
   body included, its own colours in both themes and both modes) at 26 px,
   gap 10, "Tokenmonk" (brand style). On sub-screens the top row holds only
   the text link "Back" (Esc does the same).
-- **Brand mark** (static, not a gauge; onboarding mode choice only, not
-  the top row, not the level-up screen): drawn inline in
-  `src/components/BrandMark.tsx` at 52 px, no file in `assets/brand/`.
-  viewBox 32 x 32; an arc on a circle r 12, stroke 3.2, `--accent`, round
-  caps, `stroke-dasharray 58 100`, rotated -70°; a centre dot r 3.4 in
-  `ink`.
+- **Onboarding mark** (onboarding mode choice): the app icon
+  (`assets/brand/tokenmonk-icon.svg`, same file as the top row, body
+  included, its own colours) at 52 px. The former inline ring brand mark
+  is gone.
 - **Monk mark** (level-up screen): `assets/brand/tokenmonk-mark-mono.svg`
   at 52 px, filled in `--accent` of the current mode, no body, no ring.
 - **Level bar**: track `line`, fill `--accent`, radius 2, height 3
@@ -289,8 +287,8 @@ opens by itself on every start while it is pending. Accent: saffron.
 3. "Pick one. You can switch later." (`ink-2`, margin bottom 22).
 4. Two choice rows, full width, each filling half of the remaining height
    (`flex: 1`), 1 px `line` on top, padding 22 0, gap 16, items centred:
-   the brand mark at 52 px drawn in that mode's accent (`--saffron`,
-   `--jade`), then the name (choice-lg) over the description (14 px,
+   the onboarding mark (app icon) at 52 px, the same in both rows, then
+   the name (choice-lg) over the description (14 px,
    `ink-2`, margin top 2). Hover underlines the name (offset 4). Names
    and descriptions as in "Modes".
 5. Note (margin top 18): "Mindful about your tokens. Or not."
@@ -542,7 +540,7 @@ monk-in-ring brand mark as the app icon. Files in `assets/brand/`:
 
 - `tokenmonk-icon.svg`: the macOS grid and the main source. Canvas
   1024 x 1024; body 824 x 824 at 100,100, rx 185. Also the popup top row
-  mark at 26 px.
+  mark at 26 px and the onboarding mark at 52 px.
 - `tokenmonk-icon-windows.svg`: the same artwork with viewBox
   `84 84 856 856` (tighter crop, so the body fills more of the small
   Windows sizes). Source of `icon.ico` only.
