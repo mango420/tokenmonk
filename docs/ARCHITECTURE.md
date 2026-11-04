@@ -423,6 +423,8 @@ calls three commands. No new dependency.
   `idle`.
 - By hand: `check_for_updates` ("Check now" in Settings), whatever the
   setting says. Turning the setting on does not start a check by itself.
+- From the tray: the menu item "Check for updates" (Tray menu) runs the
+  same check as `check_for_updates`, whatever the setting says.
 - Install: only on `install_update` (the user clicked "Update"). Nothing
   installs silently.
 
@@ -500,6 +502,31 @@ README "Privacy" states this for users.
 `check_for_updates`; the release link opens `url` with the opener plugin
 (`openUrl`; https URLs are allowed by `opener:default`). Copy and
 placement: DESIGN.md ("Update line", "Settings").
+
+## Tray menu
+
+Built in `tray::init` with `tauri::menu` items, handled in the tray's
+`on_menu_event`. Ids are internal to `tray` (not contracts):
+
+| Id | Label | Action |
+|---|---|---|
+| `open` | "Open Tokenmonk" | `window::show` |
+| `settings` | "Settings" | `window::show`, then emit `navigate` with `NavigateTo { view: settings }` |
+| `check_updates` | "Check for updates" | as `settings`, then spawn the update check on `tauri::async_runtime` |
+| (separator) | | |
+| `quit` | "Quit" | `app.exit(0)` |
+
+- `check_updates` calls the same function as the `check_for_updates`
+  command (`app::check_update`, Updates, "Check"), so the busy rule, the
+  missing-pubkey case and the status mapping are identical. The handler
+  does not wait for the result and shows nothing itself; every
+  transition goes out as `update-status-changed` and the Settings update
+  row renders it (DESIGN.md, "Tray menu").
+- Order: `navigate` is emitted before the check starts, so Settings is
+  the visible view when `checking` arrives. If the UI is not listening
+  yet it still gets the status from `get_update_status` on start.
+- No new command, event or payload; `View::Settings` and
+  `update-status-changed` already exist. No new dependency.
 
 ## Commands and events
 
