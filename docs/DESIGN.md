@@ -346,7 +346,8 @@ vertically when taller than the popup; the top row stays.
      `install_update`, "Release notes" opens `UpdateStatus.url` (the
      version's GitHub release page) in the browser. No release notes in
      the app. On a `CommandError` from `check_for_updates` the row reads
-     "Couldn’t check." (derived).
+     "Couldn’t check." (derived). The tray item "Check for updates"
+     (Tray menu) lands here and fills the row the same way.
    - Note: "Tokenmonk 0.3.1, MIT. Ideas and bugs go to GitHub issues."
      The version is `AppInfo.version` ("0.3.1" is a sample); while it is
      still empty: "Tokenmonk, MIT. Ideas and bugs go to GitHub issues."
@@ -574,6 +575,27 @@ saffron. The tray gauge is not the app icon: it carries the same monk as
 the app icon, in one colour and without the ink body, and is drawn from
 the mono mark, so it follows changes to that file, not to the app icon
 files.
+
+## Tray menu
+
+Opened by a right click on the tray icon (a left click toggles the
+popup). Native menu, system font, no tokens. Items, top to bottom:
+
+| Item | Does |
+|---|---|
+| "Open Tokenmonk" | Shows the popup. |
+| "Settings" | Shows the popup and opens Settings. |
+| "Check for updates" | Shows the popup, opens Settings and starts the same check as "Check now". |
+| separator | |
+| "Quit" | Ends the app. |
+
+"Check for updates" has no result of its own: no dialog, no
+notification, no menu text change. The answer appears on the Settings
+update row like any other check ("Checking for updates.", then "Up to
+date, checked at 14:05.", "0.4.1 is out." or "Couldn’t check."; see
+Settings, "Update row"). It works whatever "Check for updates
+automatically" says. While a check or an install runs it only opens
+Settings and the row keeps showing that state.
 
 ## App icon
 
