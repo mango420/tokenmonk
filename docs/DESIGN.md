@@ -3,7 +3,9 @@
 The design system for the Tokenmonk popup, tray icon and README. All values
 live as CSS variables in [`src/styles/tokens.css`](../src/styles/tokens.css);
 components use the variables, never literal values. Brand files are in
-[`assets/brand/`](../assets/brand/).
+[`assets/brand/`](../assets/brand/). The app icon is the monk without a
+ring on an ink rounded-square body (see "App icon"); the ring appears only
+in the tray gauge and in the inline onboarding brand mark.
 
 Source: the refreshed popup prototype (onboarding, dashboard, settings,
 achievements, toast, tray icon). Where an older rule and the prototype
@@ -139,14 +141,18 @@ overflow hidden. Each screen is a column with padding 20 (top), 24 (sides),
 ### Shared parts
 
 - **Top row**: min height 32, items centred, space-between. Brand on the
-  left: the monk mark (`assets/brand/tokenmonk-mark.svg`, unchanged
-  file, its own colours) at 26 px, gap 10, "Tokenmonk" (brand style). On
-  sub-screens the top row holds only the text link "Back" (Esc does the
-  same).
-- **Brand mark** (static, not a gauge; onboarding and level-up only,
-  not the top row): viewBox 32 x 32; an arc on a
-  circle r 12, stroke 3.2, `--accent`, round caps, `stroke-dasharray 58
-  100`, rotated -70°; a centre dot r 3.4 in `ink`.
+  left: the app icon (`assets/brand/tokenmonk-icon.svg`, unchanged file,
+  body included, its own colours in both themes and both modes) at 26 px,
+  gap 10, "Tokenmonk" (brand style). On sub-screens the top row holds only
+  the text link "Back" (Esc does the same).
+- **Brand mark** (static, not a gauge; onboarding mode choice only, not
+  the top row, not the level-up screen): drawn inline in
+  `src/components/BrandMark.tsx` at 52 px, no file in `assets/brand/`.
+  viewBox 32 x 32; an arc on a circle r 12, stroke 3.2, `--accent`, round
+  caps, `stroke-dasharray 58 100`, rotated -70°; a centre dot r 3.4 in
+  `ink`.
+- **Monk mark** (level-up screen): `assets/brand/tokenmonk-mark-mono.svg`
+  at 52 px, filled in `--accent` of the current mode, no body, no ring.
 - **Level bar**: track `line`, fill `--accent`, radius 2, height 3
   (dashboard) or 4 (achievements screen), width = `GameState.progress`.
 - **Hairline row**: full width, 1 px `line` on top, no fill.
@@ -444,7 +450,7 @@ Not in the prototype; derived from the achievements screen. Shown for
 every `level-up` with `retroactive = false`, over the current screen
 (background `pop`, same padding), queued like toasts.
 
-Top to bottom: the brand mark at 52 px; "Level 8" (onboard-title); the
+Top to bottom: the monk mark at 52 px in the mode accent; "Level 8" (onboard-title); the
 mode line (status style): Max it out "Keep burning.", Do it yourself
 "Well earned. Breathe."; "Level 8, 0 of 2,100 XP" (mono-sm); the level bar
 (4 px); the text link "Back to work". Several levels at once (`level -
@@ -472,11 +478,35 @@ viewBox 24 x 24:
 - Centre dot: r 2.2, filled in `--accent` of the current mode.
 
 Value: 5-hour percent left in both modes. Before onboarding the accent is
-saffron. The monk files in `assets/brand/` (`tokenmonk-mark*.svg`) remain
-the app icon source, and `tokenmonk-mark.svg` is also the popup top row
-mark at 26 px. The brand mark described above (onboarding and level-up
-screens) is kept as a file in `assets/brand/tokenmonk-ring-mark.svg`
-(saffron arc, light theme `ink` dot).
+saffron. The tray gauge is not the app icon and does not change with it.
+
+## App icon
+
+The monk without a ring on an ink rounded-square body. It replaces the
+monk-in-ring brand mark as the app icon. Files in `assets/brand/`:
+
+- `tokenmonk-icon.svg`: the macOS grid and the main source. Canvas
+  1024 x 1024; body 824 x 824 at 100,100, rx 185. Also the popup top row
+  mark at 26 px.
+- `tokenmonk-icon-windows.svg`: the same artwork with viewBox
+  `84 84 856 856` (tighter crop, so the body fills more of the small
+  Windows sizes). Source of `icon.ico` only.
+- `tokenmonk-mark-mono.svg`: the monk alone, one colour on a transparent
+  background, eyes cut out by nonzero winding. Recolour it by `fill`; the
+  level-up screen fills it with `--accent`.
+
+Colours (fixed in the files, not tokens, same in both themes):
+
+| Part | Colour |
+|---|---|
+| Body | #181A1B |
+| Inner edge (16 px stroke) | #363E3A |
+| Skin | #E4E3DD |
+| Robe | #E39A0B |
+| Eyes | #181A1B |
+
+Platform icons are generated from these files by `node scripts/icons.mjs`
+(desktop sets only).
 
 ## Not covered by the design / out of scope
 

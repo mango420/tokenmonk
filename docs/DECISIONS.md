@@ -7,7 +7,7 @@ Short log of decisions that are not obvious from the code. Newest entries at the
 - Created with `create-tauri-app` (template `react-ts`, npm), then stripped of demo content. Tauri 2, React 19, TypeScript, Vite.
 - Product name and window title: `Tokenmonk`. Bundle identifier: `app.tokenmonk.desktop`.
 - The only window is the tray popup: label `main`, 360 x 680, not resizable, no decorations, hidden at start, skipped in the taskbar. Tray and positioning logic come with later issues.
-- Icons are generated with `tauri icon` from the brand mark SVG. Only the desktop sets are kept (no Android/iOS).
+- Icons are generated with `tauri icon` from the brand mark SVG. Only the desktop sets are kept (no Android/iOS). Superseded by "App icon" below: the platform icons now come from `node scripts/icons.mjs`.
 - Desktop only. No macOS build in PR CI; macOS is built only in the release workflow on tags.
 
 ## v0.1 dependencies
@@ -152,7 +152,7 @@ The popup follows the refreshed prototype; DESIGN.md and `tokens.css` describe i
 - Fonts: Schibsted Grotesk (UI text, weights 400, 500, 700) and Martian Mono (all data numbers, weights 300, 400, 500), bundled through `@fontsource/schibsted-grotesk` and `@fontsource/martian-mono` (owner decision). They replace Fraunces, Manrope and JetBrains Mono. The package swap and the imports land in TKM-80; no CDN, no runtime network.
 - Theme: light and dark both ship; the theme follows the OS, `data-theme` forces one. New palettes and accents (saffron #E39A0B, jade #1F8A64). No danger colour: the ring never turns red, the status copy carries the urgency. `tokens.css` keeps a block of legacy aliases so the current components render until the frontend refresh removes them (removed in TKM-98; the icon and badge sizes became regular tokens).
 - Ring direction: the popup ring and the tray icon show percent left and drain as a window is used (before: percent used, filling up). The popup ring shows the window picked in the "5 hours" / "Week" segment in both modes; the Do it yourself budget gauge is gone and the budget moves to the "Daily budget" stat. Tray: ring plus centre dot, both in the mode accent, 5-hour percent left in both modes, dotted track without limit data (owner decision; the prototype's light grey dot is replaced by the accent).
-- The header brand mark is static (arc and dot), no longer a live halo. The monk files in `assets/brand/` stay the app icon source for now.
+- The header brand mark is static (arc and dot), no longer a live halo. The monk files in `assets/brand/` stay the app icon source for now (superseded by "App icon").
 - Motion: only the ring draw (1.1 s, first dashboard render after start), the toast slide (280 ms) and the switch knob (150 ms); all off under `prefers-reduced-motion: reduce`.
 - Not in the prototype but kept, so nothing regresses: Settings keeps the "Limit data" section, and the dashboard note links to it while `limits.reason = noSource`. The level-up screen and the empty, import, stale and error states are derived from the prototype's parts; DESIGN.md marks their copy as derived.
 - Game (owner decision, prototype copy and rules): one title per mode at every level, "Limit Chaser" (Max it out, also before onboarding) and "Quiet Spender" (Do it yourself); the level ladders go. New descriptions for all five achievements. XP: First Blood 10 (was 25), So Close 60 (was 100), Rate-Limit Rambo 100, Night Owl 50 and Token Monk 150 unchanged. Night Owl: a message between 00:00 and 04:00 local time (was 02:00 to 04:00; only the start moved). Token Monk: one finished day under the daily budget, `usedPercent` below 100 (was 7 days in a row below 20 %), so it becomes a one-shot without `target`. Level curve and mode restrictions unchanged. Stored unlocks and XP events are not rewritten. Boo stays retired (see the carry-over under "Automatic versioning with release-please").
@@ -172,6 +172,7 @@ The popup follows the refreshed prototype; DESIGN.md and `tokens.css` describe i
 
 - The popup top row shows the monk mark (`assets/brand/tokenmonk-mark.svg`) at 26 px instead of the ring brand mark (TKM-121). It stays static. The file is used as is, with its own fixed colours, in both themes and both modes.
 - The ring brand mark (`tokenmonk-ring-mark.svg`, arc and dot in the mode accent) stays for the onboarding and level-up screens at 52 px. The header line of "Design refresh" above is superseded for the top row only.
+- Both points are superseded by "App icon" below: the top row shows `tokenmonk-icon.svg`, the level-up screen the mono monk mark, and `tokenmonk-ring-mark.svg` is gone.
 
 ## Dev and main branches (2026-11-04)
 
@@ -186,3 +187,10 @@ Reverses the "`main` only" rule of TKM-111 ([RELEASE-FLOW.md](RELEASE-FLOW.md), 
 - New rules that follow from dry-runs on scratch branches: the freeze between merging a promotion and merging its release PR, and no edits to version files, `CHANGELOG.md` or `.release-please-manifest.json` on `dev` (RELEASE-FLOW.md, "Promotion PR" and "Back-merge").
 - The labelled PR build of idea #115 is covered in large part by the `dev` test build.
 - Repository settings, rulesets and workflow changes land through the cutover plan in [RELEASE-FLOW.md](RELEASE-FLOW.md); until step 6 of that plan is done, the previous flow stays in force.
+
+## App icon (2026-11-04)
+
+- New app icon "N1": the monk without a ring on an ink rounded-square body replaces the monk-in-ring brand mark (TKM-153). Owner decision. Description, colours and grid: [DESIGN.md](DESIGN.md), "App icon".
+- Files in `assets/brand/`: `tokenmonk-icon.svg` (macOS grid, 824 px body at 100,100, rx 185 on a 1024 canvas; also the popup top row mark at 26 px), `tokenmonk-icon-windows.svg` (same artwork, viewBox `84 84 856 856`, source of `icon.ico` only) and `tokenmonk-mark-mono.svg` (one colour, transparent, recoloured by `fill`; the level-up screen at 52 px in the mode accent).
+- The ring stays only in the tray gauge (drawn in Rust, unchanged) and in the onboarding brand mark, drawn inline in `src/components/BrandMark.tsx`. `tokenmonk-ring-mark.svg` is removed; `tokenmonk-mark.svg` is removed once nothing imports it.
+- Platform icons are generated by `node scripts/icons.mjs` (TKM-154), desktop sets only (no Android/iOS). This replaces the `tauri icon` step of "Scaffold".
