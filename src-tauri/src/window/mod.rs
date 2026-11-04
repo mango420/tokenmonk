@@ -344,6 +344,15 @@ mod tests {
     }
 
     #[test]
+    fn blur_with_keep_open_is_ignored() {
+        assert_eq!(blur_action(true, true, false, None), BlurAction::Ignore);
+        let old = Some(DRAG_WINDOW + Duration::from_millis(1));
+        assert_eq!(blur_action(true, true, false, old), BlurAction::Ignore);
+        let recent = Some(Duration::from_millis(20));
+        assert_eq!(blur_action(true, true, false, recent), BlurAction::Ignore);
+    }
+
+    #[test]
     fn visible_popup_hides() {
         assert_eq!(toggle_action(true, None), ToggleAction::Hide);
     }
