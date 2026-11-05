@@ -107,8 +107,6 @@
   --top-row-height: 32px;
   --brand-mark-size: 26px; /* monk mark, top row */
   --mark-lg-size: 52px; /* monk mark, onboarding rows and level-up */
-  /* Deprecated alias, removed once popup.css and game.css use --mark-lg-size */
-  --onboard-mark-size: var(--mark-lg-size);
   --ring-size: 248px; /* viewBox 248 x 248 */
   --ring-radius: 104px;
   --ring-stroke: 14px;
