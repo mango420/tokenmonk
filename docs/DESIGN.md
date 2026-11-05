@@ -670,8 +670,9 @@ Open points:
 - Copy links in "Limit data" use the web Clipboard API
   (`navigator.clipboard.writeText`). Verified manually on Windows (WebView2,
   installed release build): the snippet lands on the clipboard. macOS
-  (WKWebView) is still unverified. There, the fallback applies: feedback
-  shows "failed" and the snippet stays selectable for manual copy.
+  (WKWebView) is still unverified. If `writeText` rejects there, the
+  fallback applies: the caption "Couldn’t copy. Select it and copy by hand."
+  shows and the snippet text is selected.
 - The prototype lists all achievements regardless of mode; whether
   mode-only achievements need a hint for the other mode is open.
 - Update UI (update line, Settings update row and switch) is not in the
