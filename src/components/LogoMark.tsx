@@ -32,8 +32,6 @@ const MARK = buildMark();
 interface LogoMarkProps {
   /** `brand` is the 26 px top-row size, `lg` (default) the 52 px one. */
   size?: "brand" | "lg";
-  /** Unused; kept optional so the level-up screen compiles until TKM-205 drops it. */
-  ratio?: number | null;
 }
 
 export function LogoMark({ size = "lg" }: LogoMarkProps) {
