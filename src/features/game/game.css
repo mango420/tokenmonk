@@ -81,8 +81,8 @@
 
 /* The brand mark at the onboarding size. */
 .game-overlay .logo-mark {
-  width: var(--onboard-mark-size);
-  height: var(--onboard-mark-size);
+  width: var(--mark-lg-size);
+  height: var(--mark-lg-size);
   margin-bottom: var(--space-5);
 }
 

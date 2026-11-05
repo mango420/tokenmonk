@@ -48,7 +48,7 @@ export function LevelUpScreen({ model, game, open, onClose }: LevelUpScreenProps
       aria-label={copy.display}
       style={{ ...fadeStyle(shown), pointerEvents: shown ? "auto" : "none" }}
     >
-      <LogoMark ratio={1} />
+      <LogoMark />
       <h2 className="game-overlay__title">{copy.display}</h2>
       {copy.extra !== null ? <span className="game-overlay__mono game-overlay__extra">{copy.extra}</span> : null}
       {copy.newTitle !== null ? (
