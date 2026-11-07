@@ -204,7 +204,7 @@ function budgetStat(budget: DailyBudget): StatModel {
     return { label, value: formatCompact(left), unit: "tokens left today" };
   }
   if (budget.tokensLeftPerDay === null) return { label, value: "n/a", unit: "no pace yet" };
-  return { label, value: formatCompact(budget.tokensLeftPerDay), unit: "tokens left per day" };
+  return { label, value: `~${formatCompact(budget.tokensLeftPerDay)}`, unit: "tokens left per day" };
 }
 
 // ------------------------------------------------------------- level block
