@@ -106,6 +106,10 @@ offline.
   ("1.2M").
 - Reset durations: under 24 h "Hh Mm" ("2h 14m", "0h 41m"); from 24 h
   "Dd Hh" ("3d 4h"). Prefixed "Resets in ".
+- Estimates carry `~` directly before the number, no space ("~84.2k",
+  "~25 min"); the `~` uses the number's own style.
+- Limit ETA: `burnRate.limitEtaMinutes` rounded to 5, at least 5, as
+  "~N min" (same rule as the OS notification, "While hidden").
 - XP: full numbers with thousands commas ("1,240 / 1,850 XP").
 
 ## Spacing, radius, motion
@@ -211,22 +215,40 @@ Top to bottom:
    | 10 to 29 | "Nearly there. As planned." | "Getting thin. Slow down." |
    | below 10 | "Almost gone. Make it count." | "Nearly out. Go for a walk." |
 
-5. **Reset line** (mono-sm, centred, margin top 4, min height 18): "Resets
-   in 2h 14m" from the selected window's `resetsAt`; empty when it is
-   `null`.
+5. **Reset line** (mono-sm, centred, margin top 4, min height 18, one
+   line): "Resets in 2h 14m" from the selected window's `resetsAt`; empty
+   when it is `null`. With a limit ETA (below) it leads with the ETA.
+   - **Limit ETA** (derived, TKM-228). Shown only if all hold: "5 hours"
+     is selected, `limits.status = ok`, `limits.fiveHour` is set,
+     `burnRate.limitEtaMinutes` is at least 1, and either
+     `fiveHour.resetsAt` is `null` or the rounded N shown in the text
+     (see "Number formats") is less than the whole minutes until
+     `resetsAt`, as also shown in "resets in" (otherwise the window resets
+     first and the ETA means nothing; 118 min with the reset in 1h 59m
+     rounds to ~120 and is hidden). Text: "Limit in ~25 min, resets in 2h 14m";
+     with `resetsAt = null`: "Limit in ~25 min at this pace". N as in
+     "Number formats". At most 35 characters, which fits 312 px in
+     mono-sm. `limitEtaMinutes = 0` shows no ETA (the ring already says
+     0 %). Never on the "Week" tab, never while stale.
 6. **Stats** (two equal columns, gap 24, margin top 24). Each: label
-   (caption), value (stat style, margin top 2), unit (small).
+   (caption), value (stat style, margin top 2), unit (small, one line).
    - "Burn rate": `burnRate.tokensPerMinute`, compact; unit "tokens per
      minute".
+   - Second tile: "Daily budget" if `dailyBudget` is set, else "This
+     session".
    - "Daily budget", by `DailyBudget.basis`:
-     - `weeklyLimit`: `tokensLeftPerDay`, compact; unit "tokens left per
+     - `weeklyLimit`: `tokensLeftPerDay`, compact, as an estimate with `~`
+       ("~84.2k", it also counts claude.ai chats); unit "tokens left per
        day". If it is `null` (no pace yet): value "n/a", unit "no pace yet".
      - `tokenHistory` (Do it yourself mode without limit data; `allowance`
        is the average active day of the past week in tokens): value
        `allowance - usedToday` floored at 0, compact; unit "tokens left
        today".
-     - `dailyBudget` is `null` (no budget at all): value "n/a", unit "needs
-       limit data".
+   - "This session" (derived, TKM-228), when `dailyBudget` is `null`:
+     value `session.tokens.total`, compact; unit `session.projectName`,
+     one line, cut with an ellipsis at the column width, full name in the
+     `title` attribute; "tokens" if the name is empty. With `session =
+     null` (idle): value "n/a", unit "no active session".
 7. **Level block**, pushed to the bottom (margin top auto): a full-width
    button, 1 px `line` on top, padding 14 0 6. Row (space-between,
    baseline): `GameState.title` (row style) and "340 / 500 XP" (small,
@@ -246,7 +268,7 @@ data, so the line is never empty:
 | `data.state = noLogs` | "No Claude Code logs yet. Start a session." (derived) |
 | `data.state = error` | "Can’t read the logs. Retrying in the background." (derived) |
 | `UpdateStatus.kind` is `available`, `installing` or `installFailed` | the update line, see "Update line" below |
-| `limits.reason = noSource` | "No limit data yet. Setup is in Settings." as a text link to Settings, scrolled to "Limit data" (derived, see DECISIONS.md) |
+| `limits.reason = noSource` | "No limit data. It comes from the status line, see Settings." as a text link to Settings, scrolled to "Limit data" (derived, TKM-228; see DECISIONS.md) |
 | otherwise (limit note) | "Limit % includes claude.ai chats. Token stats are Claude Code only." |
 
 ### Update line
@@ -276,14 +298,29 @@ Version numbers come from `UpdateStatus.version` ("0.4.1" is a sample).
 
 ### Dashboard states
 
-- **No limit data** (`limits.status = unavailable`): segment hidden; ring
-  track only; centre hero-sm with `today.total` (compact) and caption
-  "tokens today"; status line "No limit data. Showing tokens only."; reset
-  line empty; daily budget stat on its `tokenHistory` basis in Do it
-  yourself mode, or "n/a" / "needs limit data" when there is no budget.
+- **No limit data, with a token budget** (`limits.status = unavailable`
+  and `dailyBudget.basis = tokenHistory`; only Do it yourself gets this
+  basis; derived, TKM-228): segment hidden, its height kept.
+  - Ring: track as usual. Main arc from 12 o'clock clockwise, length =
+    `min(usedPercent, 100)` % of the circle: it fills over the day with
+    tokens today against the average active day (`allowance`). Inner arc
+    0.93 x the main arc, same wobble. At 0 % only the track shows; from
+    100 % the arc is a closed circle and stays there. No colour change.
+  - Centre: hero-sm with `today.total` (compact), caption "tokens today".
+  - Status line: budget left = `max(0, round(100 - usedPercent))` through
+    the mode's column of the status table ("Light day. Nicely done." and
+    so on). Above 100 % (`usedPercent > 100`): "Over budget. The AI wins
+    today." (the OS notification body).
+  - Reset line: "Average day 52.1k" (`allowance`, compact).
+  - Stats: "Daily budget" on its `tokenHistory` basis.
+- **No limit data, no budget** (`limits.status = unavailable`, any other
+  case): segment hidden; ring track only; centre hero-sm with
+  `today.total` (compact) and caption "tokens today"; status line "No
+  limit data. Showing tokens only."; reset line empty; second stat tile
+  "This session" (see "Dashboard", stats).
 - **Selected window missing** (`limits` usable but the selected window is
   `null`, for example a fresh 5-hour window before the next reply): ring
-  track only; centre as in "No limit data"; status line "Fresh window.
+  track only; centre as in "No limit data, no budget"; status line "Fresh window.
   Numbers on your next reply." (derived); reset line empty. The other tab
   still works.
 - **Stale** (`limits.status = stale`): values as usual, hero in `ink-2`;
@@ -481,7 +518,11 @@ Code settings; this section only shows what to paste.
      status line? Tokenmonk can’t share it on Windows yet. Swap yours for
      the block above, or keep it and go without limits."
 6. Plan note (caption): "Needs a Pro or Max plan. Numbers show up after
-   the first reply."
+   the first reply. Limit numbers come from Claude Code’s status line;
+   sessions in the desktop app may not run it and then bring no numbers."
+   (Hedged on purpose: the docs say nothing about the desktop app; that
+   it did not run there was only observed once, not verified. See
+   DECISIONS.md, "Popup with log-only data".)
 
 Fed by: `LimitSetup` (`get_limit_setup`, called once when the view opens
 and again on "Check again"; `statuslineCommand`, `statuslineFile`),
