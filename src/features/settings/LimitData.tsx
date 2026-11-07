@@ -170,7 +170,7 @@ export const LimitData = forwardRef<HTMLElement, LimitDataProps>(function LimitD
         </>
       )}
 
-      <p className="caption">Needs a Pro or Max plan. Numbers show up after the first reply.</p>
+      <p className="caption">Needs a Pro or Max plan. Numbers show up after the first reply. Limit numbers come from Claude Code’s status line; sessions in the desktop app may not run it and then bring no numbers.</p>
     </section>
   );
 });

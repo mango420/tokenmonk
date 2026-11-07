@@ -5,6 +5,7 @@
  * snapshot.
  */
 import type {
+  DailyBudget,
   DashboardSnapshot,
   GameState,
   LimitWindow,
@@ -20,6 +21,7 @@ import {
   formatResetIn,
   percentLeft,
 } from "../../lib/format";
+import { limitEtaText, roundEtaMinutes } from "../notifications/limitWarnings";
 
 export type PopupMode = "max" | "diy";
 
@@ -89,22 +91,49 @@ export function selectedWindow(limits: LimitsView, choice: WindowChoice): LimitW
   return choice === "fiveHour" ? limits.fiveHour : limits.weekly;
 }
 
-function tokensRing(snap: DashboardSnapshot, status: string): RingModel {
+function tokensRing(snap: DashboardSnapshot, status: string, fill: number | null = null, reset = ""): RingModel {
   return {
     hero: formatCompact(snap.today.total),
     unit: null,
     caption: "tokens today",
-    percentLeft: null,
+    // Token-budget ring: the arc fills with usage (0..100), not drains.
+    percentLeft: fill,
     stale: false,
     small: true,
     status,
-    reset: "",
+    reset,
   };
+}
+
+/** Do it yourself without limit data: the ring fills against the average active day. */
+function budgetRing(mode: PopupMode, snap: DashboardSnapshot, budget: DailyBudget): RingModel {
+  const fill = Math.min(Math.max(budget.usedPercent, 0), 100);
+  const status =
+    budget.usedPercent > 100
+      ? "Over budget. The AI wins today."
+      : statusLine(mode, Math.max(0, Math.round(100 - budget.usedPercent)));
+  return tokensRing(snap, status, fill, `Average day ${formatCompact(budget.allowance)}`);
+}
+
+/** Reset line with the limit ETA in front, or `null` when the ETA does not apply. */
+function etaResetLine(snap: DashboardSnapshot, window: LimitWindow): string | null {
+  const { limits, burnRate } = snap;
+  const eta = burnRate.limitEtaMinutes;
+  if (limits.status !== "ok" || eta === null || eta < 1) return null;
+  const n = roundEtaMinutes(eta);
+  if (window.resetsAt === null) return limitEtaText(eta);
+  const minutesToReset = Math.floor(Math.max(0, window.resetsAt - snap.generatedAt) / 60_000);
+  if (n >= minutesToReset) return null;
+  return `Limit in ~${n} min, resets in ${formatResetIn(window.resetsAt - snap.generatedAt)}`;
 }
 
 export function buildRing(mode: PopupMode, snap: DashboardSnapshot, choice: WindowChoice): RingModel {
   const { limits } = snap;
-  if (hasNoLimitData(limits)) return tokensRing(snap, "No limit data. Showing tokens only.");
+  if (hasNoLimitData(limits)) {
+    const budget = snap.dailyBudget;
+    if (budget !== null && budget.basis === "tokenHistory") return budgetRing(mode, snap, budget);
+    return tokensRing(snap, "No limit data. Showing tokens only.");
+  }
   const window = selectedWindow(limits, choice);
   if (window === null) return tokensRing(snap, "Fresh window. Numbers on your next reply.");
 
@@ -115,8 +144,10 @@ export function buildRing(mode: PopupMode, snap: DashboardSnapshot, choice: Wind
     if (limits.fetchedAt !== null) {
       reset = `As of ${formatClock(limits.fetchedAt)}. Updates on your next reply.`;
     }
-  } else if (window.resetsAt !== null) {
-    reset = `Resets in ${formatResetIn(window.resetsAt - snap.generatedAt)}`;
+  } else {
+    const eta = choice === "fiveHour" ? etaResetLine(snap, window) : null;
+    if (eta !== null) reset = eta;
+    else if (window.resetsAt !== null) reset = `Resets in ${formatResetIn(window.resetsAt - snap.generatedAt)}`;
   }
   return {
     hero: String(left),
@@ -136,6 +167,8 @@ export interface StatModel {
   label: string;
   value: string;
   unit: string;
+  /** Full text for the `title` attribute when the unit may be cut. */
+  unitTitle?: string;
 }
 
 export function buildStats(snap: DashboardSnapshot): StatModel[] {
@@ -145,13 +178,26 @@ export function buildStats(snap: DashboardSnapshot): StatModel[] {
       value: formatCompact(snap.burnRate.tokensPerMinute),
       unit: "tokens per minute",
     },
-    budgetStat(snap.dailyBudget),
+    snap.dailyBudget === null ? sessionStat(snap) : budgetStat(snap.dailyBudget),
   ];
 }
 
-function budgetStat(budget: DashboardSnapshot["dailyBudget"]): StatModel {
+/** "This session" tile, shown while there is no daily budget. */
+function sessionStat(snap: DashboardSnapshot): StatModel {
+  const label = "This session";
+  const { session } = snap;
+  if (session === null) return { label, value: "n/a", unit: "no active session" };
+  const name = session.projectName;
+  return {
+    label,
+    value: formatCompact(session.tokens.total),
+    unit: name === "" ? "tokens" : name,
+    unitTitle: name === "" ? undefined : name,
+  };
+}
+
+function budgetStat(budget: DailyBudget): StatModel {
   const label = "Daily budget";
-  if (budget === null) return { label, value: "n/a", unit: "needs limit data" };
   if (budget.basis === "tokenHistory") {
     // Allowance is in tokens: the average active day of the past week.
     const left = Math.max(budget.allowance - budget.usedToday, 0);
@@ -243,7 +289,7 @@ export function buildNote(snap: DashboardSnapshot, update: UpdateStatus): NoteMo
     };
   }
   if (limits.reason === "noSource") {
-    return { kind: "limitSetup", text: "No limit data yet. Setup is in Settings." };
+    return { kind: "limitSetup", text: "No limit data. It comes from the status line, see Settings." };
   }
   return {
     kind: "text",
