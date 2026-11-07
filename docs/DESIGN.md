@@ -221,9 +221,11 @@ Top to bottom:
    - **Limit ETA** (derived, TKM-228). Shown only if all hold: "5 hours"
      is selected, `limits.status = ok`, `limits.fiveHour` is set,
      `burnRate.limitEtaMinutes` is at least 1, and either
-     `fiveHour.resetsAt` is `null` or `limitEtaMinutes` is less than the
-     whole minutes until `resetsAt` (otherwise the window resets first and
-     the ETA means nothing). Text: "Limit in ~25 min, resets in 2h 14m";
+     `fiveHour.resetsAt` is `null` or the rounded N shown in the text
+     (see "Number formats") is less than the whole minutes until
+     `resetsAt`, as also shown in "resets in" (otherwise the window resets
+     first and the ETA means nothing; 118 min with the reset in 1h 59m
+     rounds to ~120 and is hidden). Text: "Limit in ~25 min, resets in 2h 14m";
      with `resetsAt = null`: "Limit in ~25 min at this pace". N as in
      "Number formats". At most 35 characters, which fits 312 px in
      mono-sm. `limitEtaMinutes = 0` shows no ETA (the ring already says
@@ -516,11 +518,11 @@ Code settings; this section only shows what to paste.
      status line? Tokenmonk can’t share it on Windows yet. Swap yours for
      the block above, or keep it and go without limits."
 6. Plan note (caption): "Needs a Pro or Max plan. Numbers show up after
-   the first reply. The status line belongs to Claude Code in the
-   terminal; sessions in the desktop app may not run it and then bring no
-   numbers." (The last sentence is hedged on purpose: the terminal part
-   is documented, the desktop part was only observed; see DECISIONS.md,
-   "Popup with log-only data".)
+   the first reply. Limit numbers come from Claude Code’s status line;
+   sessions in the desktop app may not run it and then bring no numbers."
+   (Hedged on purpose: the docs say nothing about the desktop app; that
+   it did not run there was only observed once, not verified. See
+   DECISIONS.md, "Popup with log-only data".)
 
 Fed by: `LimitSetup` (`get_limit_setup`, called once when the view opens
 and again on "Check again"; `statuslineCommand`, `statuslineFile`),
