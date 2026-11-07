@@ -512,6 +512,9 @@ html[data-maximized] .popup {
 }
 
 .stat__unit {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-size: var(--text-small-size);
   color: var(--ink-2);
 }

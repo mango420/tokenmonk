@@ -6,10 +6,14 @@
  */
 import type { DashboardSnapshot, Mode } from "../../lib/contracts";
 
+/** ETA minutes rounded to 5, at least 5 (docs/DESIGN.md, "Number formats"). */
+export function roundEtaMinutes(etaMinutes: number): number {
+  return Math.max(5, Math.round(etaMinutes / 5) * 5);
+}
+
 /** "Limit in ~25 min at this pace": N rounded to 5, at least 5. */
 export function limitEtaText(etaMinutes: number): string {
-  const rounded = Math.max(5, Math.round(etaMinutes / 5) * 5);
-  return `Limit in ~${rounded} min at this pace`;
+  return `Limit in ~${roundEtaMinutes(etaMinutes)} min at this pace`;
 }
 
 export interface OsNotice {
