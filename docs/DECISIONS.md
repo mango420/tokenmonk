@@ -222,3 +222,13 @@ Owner decision (TKM-202), supersedes TKM-185 for the popup and the monk colour o
 - A. App icon: the tile (`assets/brand/tokenmonk-icon.svg`, `tokenmonk-icon-windows.svg`, fixed colours) only where the OS shows the app: taskbar, dock, Start menu, installer, notifications, the generated icon set. Never inside the popup.
 - B. Monk mark: `assets/brand/tokenmonk-mark-mono.svg` with its paths unchanged, two-tone: head (with ears and eye cut-outs) and sleeve in `--ink`, robe in `--accent`; follows theme and mode, no tile, no ring. The only brand mark in the popup: top row 26 px (`--brand-mark-size`), onboarding rows 52 px with each row in its own mode accent (Max it out saffron, Do it yourself jade), level-up 52 px in the current mode accent. `--onboard-mark-size` is renamed `--mark-lg-size` (52 px); the old name is removed (TKM-224).
 - C. Tray gauge (Rust): arc in `--accent` (its length means percent left). Monk head and sleeve in `--tray-track` #8A8D8B at full opacity, robe in `--accent` of the current mode, matching the popup monk mark. Without limit data: dotted track and the whole monk at opacity 0.45 (new token `--tray-monk-nodata-opacity`, mirrored like the other tray tokens). The macOS template stays black ink; the no-data fade applies there too.
+
+## Popup with log-only data (2026-11-07)
+
+Architect decision (TKM-228, part of TKM-180). Details: [DESIGN.md](DESIGN.md), "Dashboard", "Note line", "Dashboard states", "Limit data". No contract change; every field already exists.
+
+- Without limits but with a `tokenHistory` budget (Do it yourself only), the ring fills with tokens today against the average active day instead of showing the track only. It fills rather than drains so the arc and the hero (tokens today) move the same way. It caps at a closed circle; above 100 % the status line says "Over budget. The AI wins today."; no colour change.
+- With `dailyBudget = null` the second stat tile shows "This session" (`session.tokens.total`, unit the project name) instead of "n/a"; idle shows "n/a" / "no active session".
+- The limit ETA shows in the reset line on the "5 hours" tab while limits are `ok`, only if it comes before the window reset: "Limit in ~25 min, resets in 2h 14m". Same rounding as the OS notification.
+- `tokensLeftPerDay` is shown with a `~` prefix: it is an estimate, the weekly limit also counts claude.ai chats.
+- Status line placement: the official status line docs describe it as the bar at the bottom of Claude Code's terminal interface. Observed on one machine, not verified: it did not run while Claude Code was used from the desktop app. Copy therefore says "may not run" and never states it as fact.
