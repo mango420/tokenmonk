@@ -12,9 +12,11 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use chrono::{Days, NaiveDate, TimeZone, Timelike};
 
 use super::constants::{
-    achievement_def, AchievementDef, ACHIEVEMENTS, DIY_DAILY_MAX_XP, DIY_UNMEASURED_DAY_XP,
-    KIND_ACHIEVEMENT, KIND_DAY, KIND_TOKENS, MAX_BLOCKS_PER_DAY, RAMBO_PERCENT, RECENT_UNLOCKS,
-    SO_CLOSE_PERCENT, TOKENS_PER_BLOCK, TOKEN_MONK_BELOW_PERCENT, WINDOW_BUCKET_MS, XP_PER_BLOCK,
+    achievement_def, AchievementDef, ACHIEVEMENTS, DIY_DAILY_MAX_XP, DIY_DAILY_MIN_XP,
+    DIY_FULL_XP_UP_TO_PERCENT, DIY_UNMEASURED_DAY_XP, FULL_RATE_BLOCKS_PER_DAY, KIND_ACHIEVEMENT,
+    KIND_DAY, KIND_DAY_MODE, KIND_TOKENS, MAX_ACTIVE_DAY_XP, RAMBO_PERCENT, RECENT_UNLOCKS,
+    SOFT_BAND_END_BLOCK, SO_CLOSE_PERCENT, TOKENS_PER_BLOCK, TOKEN_MONK_BELOW_PERCENT,
+    WINDOW_BUCKET_MS, XP_PER_BLOCK, XP_PER_SOFT_BLOCK,
 };
 use super::levels::{level_info, title_for};
 use super::model::{
@@ -61,10 +63,11 @@ pub fn evaluate<Tz: TimeZone>(
             let at = day_start_ms(d.day, tz);
             match m {
                 Mode::Max => {
-                    let blocks = (d.tokens / TOKENS_PER_BLOCK).min(MAX_BLOCKS_PER_DAY);
+                    let blocks = (d.tokens / TOKENS_PER_BLOCK).min(SOFT_BAND_END_BLOCK);
                     for k in 1..=blocks {
-                        awards.add(at, KIND_TOKENS, format!("{key}/{k}"), XP_PER_BLOCK);
+                        awards.add(at, KIND_TOKENS, format!("{key}/{k}"), max_block_xp(k));
                     }
+                    awards.add(at, KIND_DAY, key, MAX_ACTIVE_DAY_XP);
                 }
                 Mode::Diy if d.day < today => {
                     let xp = d
@@ -170,11 +173,31 @@ pub fn evaluate<Tz: TimeZone>(
     }
 }
 
+/// XP of the `block`-th (1-based) 100k-token block of a Max it out day: full
+/// rate up to the full-rate band, the soft rate up to its end, 0 above.
+pub fn max_block_xp(block: u64) -> u32 {
+    if block <= FULL_RATE_BLOCKS_PER_DAY {
+        XP_PER_BLOCK
+    } else if block <= SOFT_BAND_END_BLOCK {
+        XP_PER_SOFT_BLOCK
+    } else {
+        0
+    }
+}
+
 /// XP a day at `used_percent` of the daily budget earns in Do it yourself:
-/// 100 at 0 %, falling linearly to 0 at 100 % and above.
+/// the maximum up to the full-XP edge, linear down to the minimum at 100 %,
+/// 0 above 100 %.
 pub fn diy_day_xp(used_percent: f64) -> u32 {
-    let left = (1.0 - used_percent / 100.0).clamp(0.0, 1.0);
-    (f64::from(DIY_DAILY_MAX_XP) * left).round() as u32
+    if used_percent > 100.0 {
+        return 0;
+    }
+    if used_percent <= DIY_FULL_XP_UP_TO_PERCENT {
+        return DIY_DAILY_MAX_XP;
+    }
+    let t = (used_percent - DIY_FULL_XP_UP_TO_PERCENT) / (100.0 - DIY_FULL_XP_UP_TO_PERCENT);
+    let max = f64::from(DIY_DAILY_MAX_XP);
+    (max - (max - f64::from(DIY_DAILY_MIN_XP)) * t).round() as u32
 }
 
 /// Local calendar day of an epoch timestamp.
@@ -240,11 +263,12 @@ impl Awards {
     }
 }
 
-/// The mode each local day was awarded under (`tokens` and `day` rows).
-fn day_modes(prev: &GameData) -> HashMap<String, Mode> {
+/// The mode each local day was awarded under (`tokens`, `day` and `daymode`
+/// rows).
+pub(super) fn day_modes(prev: &GameData) -> HashMap<String, Mode> {
     prev.ledger
         .iter()
-        .filter(|e| e.kind == KIND_TOKENS || e.kind == KIND_DAY)
+        .filter(|e| e.kind == KIND_TOKENS || e.kind == KIND_DAY || e.kind == KIND_DAY_MODE)
         .filter_map(|e| {
             let day = e.reference.split('/').next()?;
             Some((day.to_string(), e.mode))

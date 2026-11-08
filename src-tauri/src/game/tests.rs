@@ -80,19 +80,127 @@ fn max_awards_token_blocks_once() {
     assert_eq!(more.ledger.len(), 2);
 }
 
-#[test]
-fn daily_cap_limits_blocks() {
-    let f = facts(vec![day(date(2026, 10, 28), 50_000_000, None)]);
+fn max_day_xp(tokens: u64) -> u32 {
     let ev = evaluate(
         &GameData::default(),
-        &f,
+        &facts(vec![day(date(2026, 10, 28), tokens, None)]),
         Mode::Max,
         ms(2026, 10, 29, 1, 0),
         &Utc,
         false,
     );
-    let blocks = ev.ledger.iter().filter(|e| e.kind == KIND_TOKENS).count();
-    assert_eq!(blocks as u64, MAX_BLOCKS_PER_DAY);
+    ev.ledger
+        .iter()
+        .filter(|e| e.kind != KIND_ACHIEVEMENT)
+        .map(|e| e.amount)
+        .sum()
+}
+
+#[test]
+fn max_bands_and_active_day_bonus() {
+    assert_eq!(max_day_xp(1), MAX_ACTIVE_DAY_XP, "small day still counts");
+    assert_eq!(max_day_xp(99_999), 10);
+    assert_eq!(max_day_xp(100_000), 10 + 10);
+    assert_eq!(max_day_xp(2_000_000), 200 + 10);
+    assert_eq!(max_day_xp(2_100_000), 200 + 2 + 10);
+    assert_eq!(max_day_xp(5_000_000), 200 + 60 + 10);
+    assert_eq!(max_day_xp(5_100_000), 270);
+    assert_eq!(max_day_xp(50_000_000), 270);
+}
+
+#[test]
+fn diy_edges() {
+    assert_eq!(diy_day_xp(0.0), 150);
+    assert_eq!(diy_day_xp(50.0), 150);
+    assert_eq!(diy_day_xp(75.0), 90);
+    assert_eq!(diy_day_xp(100.0), 30);
+    assert_eq!(diy_day_xp(100.1), 0);
+}
+
+fn old_history() -> Facts {
+    facts(vec![
+        day(date(2026, 10, 20), 3_000_000, None),
+        day(date(2026, 10, 21), 400_000, None),
+    ])
+}
+
+#[test]
+fn recount_runs_once_and_matches_a_fresh_replay() {
+    let now = ms(2026, 10, 28, 12, 0);
+    let mut store = MemoryStore::default();
+    apply(&mut store, &old_history(), Mode::Max, now, true);
+    // Build the legacy state: old-rules rows, achievements, outdated version.
+    let kept: Vec<_> = store
+        .data
+        .ledger
+        .iter()
+        .filter(|e| e.kind == KIND_ACHIEVEMENT)
+        .cloned()
+        .collect();
+    assert!(!kept.is_empty());
+    store.data.ledger.retain(|e| e.kind == KIND_ACHIEVEMENT);
+    for (d, n) in [("2026-10-20", 20), ("2026-10-21", 4)] {
+        for k in 1..=n {
+            store.data.ledger.push(LedgerEntry {
+                earned_at: 1,
+                mode: Mode::Diy,
+                kind: KIND_TOKENS.into(),
+                reference: format!("{d}/{k}"),
+                amount: 10,
+                retroactive: true,
+            });
+        }
+    }
+    store.rules_version = Some(1);
+
+    assert!(recount_if_outdated(&mut store).unwrap());
+    assert!(!store.data.retro_done);
+    assert_eq!(store.rules_version, Some(RULES_VERSION));
+    assert!(store
+        .data
+        .ledger
+        .iter()
+        .all(|e| e.kind != KIND_TOKENS && e.kind != KIND_DAY));
+    let snapshot = store.data.clone();
+    assert!(!recount_if_outdated(&mut store).unwrap(), "runs once");
+    assert_eq!(store.data, snapshot);
+
+    // Replay under the new rules; the days keep the mode they were earned in,
+    // so a Max-mode run does not take them over from Diy.
+    let ev = apply(&mut store, &old_history(), Mode::Max, now, true);
+    assert!(
+        ev.ledger
+            .iter()
+            .all(|e| e.kind != KIND_TOKENS && e.kind != KIND_DAY),
+        "days belong to the recorded mode"
+    );
+
+    let ach: u32 = kept.iter().map(|e| e.amount).sum();
+    let xp: u64 = store.data.ledger.iter().map(|e| u64::from(e.amount)).sum();
+    assert_eq!(xp, u64::from(ach));
+}
+
+#[test]
+fn recount_replay_equals_live_levelling() {
+    let now = ms(2026, 10, 28, 12, 0);
+    let mut recounted = MemoryStore::default();
+    recounted.data.ledger.push(LedgerEntry {
+        earned_at: 1,
+        mode: Mode::Max,
+        kind: KIND_TOKENS.into(),
+        reference: "2026-10-20/1".into(),
+        amount: 10,
+        retroactive: true,
+    });
+    recounted.data.retro_done = true;
+    recounted.rules_version = Some(0);
+    recount_if_outdated(&mut recounted).unwrap();
+    let ev = apply(&mut recounted, &old_history(), Mode::Max, now, true);
+    assert!(ev.state.retro_done);
+
+    let mut fresh = MemoryStore::default();
+    let live = apply(&mut fresh, &old_history(), Mode::Max, now, false);
+    assert_eq!(ev.state.xp_total, live.state.xp_total);
 }
 
 #[test]
@@ -144,7 +252,8 @@ fn first_blood_and_night_owl_with_local_detail() {
     assert_eq!(owl.xp, 50);
     assert_eq!(owl.unlocked_at, ts);
     assert!(!owl.retroactive);
-    assert_eq!(ev.state.xp_total, 10 + 50);
+    // Two achievements plus the Max active-day bonus.
+    assert_eq!(ev.state.xp_total, 10 + 50 + MAX_ACTIVE_DAY_XP as u64);
     assert_eq!(ev.state.recent_unlocks.len(), 2);
 }
 
@@ -240,9 +349,9 @@ fn diy_awards_finished_days_by_budget_and_previews_today() {
         .map(|e| (e.reference.clone(), e.amount))
         .collect();
     assert_eq!(amounts.len(), 2, "today is not finished");
-    assert_eq!(amounts["2026-10-26"], 77);
+    assert_eq!(amounts["2026-10-26"], 150);
     assert_eq!(amounts["2026-10-27"], DIY_UNMEASURED_DAY_XP);
-    assert_eq!(ev.state.daily_xp_preview, Some(77));
+    assert_eq!(ev.state.daily_xp_preview, Some(150));
 
     let over = facts(vec![day(today, 5_000, Some(130.0))]);
     let ev = evaluate(&store.data, &over, Mode::Diy, now, &Utc, false);
@@ -355,10 +464,11 @@ fn level_up_reports_levels_and_title_change() {
     assert!(!up.title_changed);
     assert!(!up.retroactive);
     assert_eq!(ev.state.level, 2);
-    // 5 short of level 2, plus 10 for the block and 10 for First Blood.
-    assert_eq!(ev.state.xp_into_level, 15);
+    // 5 short of level 2, plus 10 for the block, 10 for the active day and
+    // 10 for First Blood.
+    assert_eq!(ev.state.xp_into_level, 25);
 
-    // 2 -> 3 keeps the title: one per mode.
+    // 2 -> 3 keeps the title inside a tier.
     let mut prev = GameData::default();
     prev.ledger.push(LedgerEntry {
         earned_at: 0,
@@ -372,7 +482,23 @@ fn level_up_reports_levels_and_title_change() {
     let up = ev.level_up.unwrap();
     assert_eq!(up.level, 3);
     assert!(!up.title_changed);
-    assert_eq!(up.title, "Limit Chaser");
+    assert_eq!(up.title, "Token Tourist");
+
+    // 4 -> 5 crosses a tier edge.
+    let mut prev = GameData::default();
+    prev.ledger.push(LedgerEntry {
+        earned_at: 0,
+        mode: Mode::Max,
+        kind: "seed".into(),
+        reference: "a".into(),
+        amount: ((1..5).map(xp_for_level).sum::<u64>() - 5) as u32,
+        retroactive: false,
+    });
+    let ev = evaluate(&prev, &f, Mode::Max, ms(2026, 10, 28, 12, 0), &Utc, false);
+    let up = ev.level_up.unwrap();
+    assert_eq!((up.previous_level, up.level), (4, 5));
+    assert!(up.title_changed);
+    assert_eq!(up.title, "Prompt Regular");
 }
 
 #[test]
@@ -426,7 +552,10 @@ fn legacy_boo() -> GameData {
 
 #[test]
 fn legacy_boo_stays_unlocked_and_is_never_regranted() {
-    let mut store = MemoryStore { data: legacy_boo() };
+    let mut store = MemoryStore {
+        data: legacy_boo(),
+        ..MemoryStore::default()
+    };
     let now = ms(2026, 11, 2, 12, 0);
     let ev = apply(&mut store, &Facts::default(), Mode::Max, now, false);
     assert!(ev.unlocks.is_empty() && ev.ledger.is_empty());
