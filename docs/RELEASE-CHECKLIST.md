@@ -1,28 +1,29 @@
 # Release checklist
 
-Run it twice per release: first on the installer from the `dev` test-build
-artifact, before the promotion PR, then on the draft release from `main`,
-before publishing ([RELEASE-FLOW.md](RELEASE-FLOW.md), "Test build" and
-"Draft test").
+Manual test of an installed build. The maintainer runs it once per release,
+on Windows, on the installer from the `dev` test-build artifact, before the
+promotion PR ([RELEASE-FLOW.md](RELEASE-FLOW.md), "Test build"). That run is
+the release gate: every Windows item must pass; a failure blocks the
+promotion and becomes a `bug` issue. The draft release gets no install
+test ([RELEASE-FLOW.md](RELEASE-FLOW.md), "Draft check").
 
-Manual test of an installed **draft** build, run before the draft is
-published ([RELEASE-FLOW.md](RELEASE-FLOW.md)). Work through the list once
-on macOS and once on Windows. Every item must pass on both platforms; a
-failure keeps the draft unpublished and becomes a `bug` issue.
+macOS is not part of the gate and ships untested by the maintainer. The
+community can use this list on macOS after publishing: the items without a
+platform plus those marked "macOS (community)". Those marked items are not
+part of the maintainer gate. macOS reports become `bug` issues and are fixed
+forward.
 
-Copy the list into a comment on the merged release PR, tick per platform,
-and note the version under test. Expected behaviour comes from
-[DESIGN.md](DESIGN.md) and [ARCHITECTURE.md](ARCHITECTURE.md); when this
-list and those documents disagree, the documents win and this list is fixed.
+Copy the list into a comment on the promotion PR, tick the Windows items,
+and note the `dev` head commit under test; the promotion must merge that
+commit. Expected behaviour comes from [DESIGN.md](DESIGN.md) and
+[ARCHITECTURE.md](ARCHITECTURE.md); when this list and those documents
+disagree, the documents win and this list is fixed.
 
 ## Before you start
 
-- [ ] The draft release `v<version>` lists the four installers named in
-      DECISIONS.md ("Release ownership"): `.dmg`, `.app.tar.gz`,
-      `-setup.exe`, `.msi`, plus a `.sig` file for each except the
-      `.dmg`, and `latest.json`.
-- [ ] Downloaded from the draft (not built locally), so the OS treats it
-      like a user download.
+- [ ] The Windows installer comes from the artifacts of the test-build run
+      for the `dev` head commit under test (not built locally), so the OS
+      treats it like a user download.
 - [ ] Test machine has Claude Code logs with some history, and no earlier
       Tokenmonk data (fresh user account, or the previous install and its
       app data removed), so first start and retroactive XP are covered.
@@ -38,13 +39,15 @@ As documented in the README, "Install":
       between releases).
 - [ ] **Windows:** if Smart App Control is on and blocks the app without
       that option, note it; the README already says so.
-- [ ] **macOS:** open the `.dmg`, move the app to Applications. The first
-      open is refused because the app is not signed or notarized.
-- [ ] **macOS:** after closing the warning, **System Settings > Privacy &
-      Security > Security** lists Tokenmonk with **Open Anyway**; confirming
-      with the login password opens the app.
-- [ ] **macOS (Apple silicon):** the app is not reported as "damaged". If
-      it is, the gate fails (the README asks users to open an issue).
+- [ ] **macOS (community):** open the `.dmg`, move the app to
+      Applications. The first open is refused because the app is not signed
+      or notarized.
+- [ ] **macOS (community):** after closing the warning, **System Settings >
+      Privacy & Security > Security** lists Tokenmonk with **Open Anyway**;
+      confirming with the login password opens the app.
+- [ ] **macOS (community, Apple silicon):** the app is not reported as
+      "damaged". If it is, open a `bug` issue (the README asks users to do
+      so).
 
 ## First start and onboarding
 
@@ -66,8 +69,8 @@ As documented in the README, "Install":
 
 - [ ] Tray icon (Windows): grey ring track, monk head and sleeve grey; arc
       and robe in the mode accent.
-- [ ] Tray icon (macOS): black template image tinted by the menu bar;
-      track at 40 %, arc and monk solid.
+- [ ] Tray icon, macOS (community): black template image tinted by the
+      menu bar; track at 40 %, arc and monk solid.
 - [ ] With limit data: the arc shows 5-hour percent left and drains as the
       window is used.
 - [ ] Without limit data: dotted track, no arc, the monk faded.
@@ -103,7 +106,8 @@ As documented in the README, "Install":
 - [ ] Switching mode applies at once and changes the accent; no save
       button.
 - [ ] "Sound" on: a tone plays on the next unlock or level-up; off: silent.
-- [ ] Version in the note matches the release under test.
+- [ ] Version in the note matches `package.json` of the commit under test
+      (test builds keep the version of the last release).
 - [ ] Settings survive a restart.
 
 ## Achievements
@@ -132,6 +136,11 @@ As documented in the README, "Install":
 
 ## Done
 
-- [ ] All items pass on macOS.
-- [ ] All items pass on Windows.
-- [ ] Release notes on the draft reviewed. Then publish.
+- [ ] All Windows items pass on the test build of the `dev` head under
+      test. This is the gate; then promote ([RELEASE-FLOW.md](RELEASE-FLOW.md),
+      "Promotion PR").
+
+Not part of the gate: macOS is checked by the community after publishing;
+reports become `bug` issues and are fixed forward. Draft check and
+publishing follow [RELEASE-FLOW.md](RELEASE-FLOW.md), "Draft check" and
+"Publish".
