@@ -836,6 +836,13 @@ html[data-maximized] .popup {
   color: var(--ink-2);
 }
 
+.ach__hint {
+  display: block;
+  margin-top: var(--half);
+  font-size: var(--text-small-size);
+  color: var(--ink-2);
+}
+
 .ach__state {
   padding-top: calc(var(--space-1) - var(--hair));
   font-size: var(--text-small-size);
