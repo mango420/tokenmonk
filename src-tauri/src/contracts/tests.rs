@@ -39,10 +39,28 @@ fn settings_use_camel_case_strings() {
             "mode": "noneYet",
             "sound": true,
             "autostart": false,
-            "updateCheck": true
+            "updateCheck": true,
+            "keepOpen": false
         })
     );
     assert_eq!(to_value(Mode::Diy).unwrap(), json!("diy"));
+}
+
+#[test]
+fn settings_without_keep_open_still_load() {
+    let parsed: Settings = serde_json::from_value(json!({
+        "mode": "max",
+        "sound": true,
+        "autostart": false,
+        "updateCheck": true
+    }))
+    .unwrap();
+    assert!(!parsed.keep_open);
+    let patch = SettingsPatch {
+        keep_open: Some(true),
+        ..Default::default()
+    };
+    assert_eq!(to_value(&patch).unwrap(), json!({ "keepOpen": true }));
 }
 
 #[test]
@@ -114,6 +132,34 @@ fn update_status_is_tagged_by_kind() {
         to_value(&installing).unwrap(),
         json!({ "kind": "installing", "version": "0.4.1" })
     );
+    let downloading = UpdateStatus::Downloading {
+        version: "0.4.1".into(),
+        percent: Some(42),
+    };
+    assert!(downloading.is_busy());
+    assert_eq!(downloading.installable_version(), None);
+    assert_eq!(
+        to_value(&downloading).unwrap(),
+        json!({ "kind": "downloading", "version": "0.4.1", "percent": 42 })
+    );
+    assert_eq!(
+        to_value(UpdateStatus::Downloading {
+            version: "0.4.1".into(),
+            percent: None
+        })
+        .unwrap(),
+        json!({ "kind": "downloading", "version": "0.4.1", "percent": null })
+    );
+    assert_eq!(update::download_percent(0, Some(200)), Some(0));
+    assert_eq!(update::download_percent(85, Some(200)), Some(42));
+    assert_eq!(update::download_percent(200, Some(200)), Some(100));
+    assert_eq!(update::download_percent(300, Some(200)), Some(100));
+    assert_eq!(
+        update::download_percent(u64::MAX, Some(u64::MAX)),
+        Some(100)
+    );
+    assert_eq!(update::download_percent(85, None), None);
+    assert_eq!(update::download_percent(85, Some(0)), None);
     let failed: UpdateStatus = serde_json::from_value(json!({
         "kind": "installFailed",
         "version": "0.4.1",
@@ -234,24 +280,56 @@ fn app_info_and_errors_shape() {
         json!({ "view": "settings" })
     );
     assert_eq!(to_value(View::Achievements).unwrap(), json!("achievements"));
+    assert_eq!(to_value(View::About).unwrap(), json!("about"));
+    assert_eq!(
+        serde_json::from_value::<NavigateTo>(json!({ "view": "about" })).unwrap(),
+        NavigateTo { view: View::About }
+    );
+}
+
+#[test]
+fn github_links_share_one_repo() {
+    use super::app::{ISSUES_URL, REPO_URL};
+    use super::update::RELEASE_PAGE_BASE;
+    assert_eq!(ISSUES_URL, format!("{REPO_URL}/issues"));
+    assert_eq!(RELEASE_PAGE_BASE, format!("{REPO_URL}/releases/tag/"));
 }
 
 #[test]
 fn limit_setup_shape() {
     let setup = LimitSetup {
         statusline_command: Some("/opt/example/tokenmonk --statusline".into()),
+        statusline_file: StatuslineFileInfo {
+            exists: true,
+            received_at: Some(1_767_225_600_000),
+            modified_at: Some(1_767_225_600_120),
+        },
     };
     assert_eq!(
         to_value(setup).unwrap(),
-        json!({ "statuslineCommand": "/opt/example/tokenmonk --statusline" })
+        json!({
+            "statuslineCommand": "/opt/example/tokenmonk --statusline",
+            "statuslineFile": {
+                "exists": true,
+                "receivedAt": 1_767_225_600_000_i64,
+                "modifiedAt": 1_767_225_600_120_i64
+            }
+        })
     );
     let none = LimitSetup {
         statusline_command: None,
+        statusline_file: StatuslineFileInfo::default(),
     };
     assert_eq!(
         to_value(none).unwrap(),
-        json!({ "statuslineCommand": null })
+        json!({
+            "statuslineCommand": null,
+            "statuslineFile": { "exists": false, "receivedAt": null, "modifiedAt": null }
+        })
     );
+    // Additive: input without the block still parses, as "missing".
+    let old: LimitSetup = serde_json::from_value(json!({ "statuslineCommand": null })).unwrap();
+    assert_eq!(old.statusline_file, StatuslineFileInfo::default());
     assert_eq!(commands::GET_LIMIT_SETUP, "get_limit_setup");
 }
 

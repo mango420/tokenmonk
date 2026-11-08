@@ -16,6 +16,7 @@ interface SettingsViewProps {
   onBack: () => void;
   /** Scroll to "Limit data" on open (the dashboard's setup hint asks for it). */
   scrollToLimits?: boolean;
+  onOpenAbout: () => void;
 }
 
 const MODES: readonly PopupMode[] = ["max", "diy"];
@@ -24,7 +25,7 @@ const MODES: readonly PopupMode[] = ["max", "diy"];
  * Settings: every change applies at once through `update_settings`. While the
  * call runs the control stays in its new position; a rejected call flips it back.
  */
-export function SettingsView({ data, actions, onBack, scrollToLimits = false }: SettingsViewProps) {
+export function SettingsView({ data, actions, onBack, scrollToLimits = false, onOpenAbout }: SettingsViewProps) {
   const limitsRef = useRef<HTMLElement>(null);
   useEffect(() => {
     if (scrollToLimits) limitsRef.current?.scrollIntoView({ block: "start" });
@@ -109,6 +110,17 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false }: 
               onChange={(updateCheck) => void change({ updateCheck })}
             />
           </div>
+          <div className="switch-row">
+            <span className="switch-row__text">
+              <span>Keep popup open</span>
+              <span className="caption">Stays put until the tray icon or Close.</span>
+            </span>
+            <Switch
+              label="Keep popup open"
+              checked={shown.keepOpen}
+              onChange={(keepOpen) => void change({ keepOpen })}
+            />
+          </div>
           <div className="switch-end" />
         </div>
         {failed ? (
@@ -131,8 +143,18 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false }: 
             onInstall={actions.installUpdate}
           />
           <p className="note">
-            {version === "" ? "Tokenmonk, MIT." : `Tokenmonk ${version}, MIT.`} Ideas and bugs go to GitHub
-            issues.
+            {version === "" ? (
+              "Tokenmonk, MIT."
+            ) : (
+              <>
+                Tokenmonk <span className="live-number">{version}</span>, MIT.
+              </>
+            )}
+            <span className="note__action note__action--wide">
+              <TextLink small onClick={onOpenAbout}>
+                About
+              </TextLink>
+            </span>
           </p>
         </div>
       </div>
@@ -193,6 +215,19 @@ function UpdateRow({ status, onCheck, onInstall }: UpdateRowProps) {
           </TextLink>
           {notes(status.url)}
         </>
+      );
+      break;
+    case "downloading":
+      content = (
+        <span>
+          Downloading {version(status.version)}
+          {status.percent === null ? null : (
+            <>
+              , <span className="live-number">{Math.round(status.percent)}%</span>
+            </>
+          )}
+          .
+        </span>
       );
       break;
     case "installing":

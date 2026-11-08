@@ -3,9 +3,9 @@
 The design system for the Tokenmonk popup, tray icon and README. All values
 live as CSS variables in [`src/styles/tokens.css`](../src/styles/tokens.css);
 components use the variables, never literal values. Brand files are in
-[`assets/brand/`](../assets/brand/). The app icon is the monk without a
-ring on an ink rounded-square body (see "App icon"); the ring appears only
-in the tray gauge and in the inline onboarding brand mark.
+[`assets/brand/`](../assets/brand/). One monk does three jobs: the app
+icon for the OS, the monk mark inside the popup and the tray gauge (see
+"Icon system").
 
 Source: the refreshed popup prototype (onboarding, dashboard, settings,
 achievements, toast, tray icon). Where an older rule and the prototype
@@ -44,7 +44,8 @@ onboarding there is no `data-mode` and the accent is saffron (brand). The
 accent is never the only signal: the mode always comes with its name,
 title or copy. The accent is used for fills and rules only (ring arcs,
 level bar, selected segment underline, selected settings row, switch on,
-toast edge, focus ring), never for text.
+toast edge, focus ring, the robe of the monk mark, the tray arc), never
+for text.
 
 ## Colour
 
@@ -105,6 +106,10 @@ offline.
   ("1.2M").
 - Reset durations: under 24 h "Hh Mm" ("2h 14m", "0h 41m"); from 24 h
   "Dd Hh" ("3d 4h"). Prefixed "Resets in ".
+- Estimates carry `~` directly before the number, no space ("~84.2k",
+  "~25 min"); the `~` uses the number's own style.
+- Limit ETA: `burnRate.limitEtaMinutes` rounded to 5, at least 5, as
+  "~N min" (same rule as the OS notification, "While hidden").
 - XP: full numbers with thousands commas ("1,240 / 1,850 XP").
 
 ## Spacing, radius, motion
@@ -131,6 +136,29 @@ Sound: one short synthesized tone per unlock or level-up (generated in the
 UI, no audio file). It plays only when `Settings.sound` is on, once per
 event, whether the popup is open or hidden.
 
+## Icon system
+
+One monk, three jobs. Each role has its own source and its own colour
+rule; they are never swapped.
+
+| Role | Source | Colour | Where | Size |
+|---|---|---|---|---|
+| A. App icon | `assets/brand/tokenmonk-icon.svg`, `tokenmonk-icon-windows.svg` | Fixed in the files (tile) | Only where the OS shows the app: taskbar, dock, Start menu, installer, notifications, the generated icon set. Never inside the popup. | Platform sizes from `node scripts/icons.mjs` |
+| B. Monk mark | `assets/brand/tokenmonk-mark-mono.svg` (paths unchanged) | Two-tone: head and sleeve `--ink`, robe `--accent` | Everywhere inside the popup | Top row 26 px (`--brand-mark-size`); onboarding rows and level-up 52 px (`--mark-lg-size`) |
+| C. Tray gauge | Rendered in Rust from the mono mark paths | Arc and robe `--accent`; track, head and sleeve `--tray-track` | Tray / menu bar | viewBox 24 x 24 |
+
+- **A. App icon**: the tile (monk on an ink rounded-square body). Details
+  in "App icon".
+- **B. Monk mark**: the three paths of the mono file, recoloured, with no
+  tile, no ring and no background. Path 1 (head with ears and eye
+  cut-outs) and path 3 (sleeve) fill `--ink`; path 2 (robe) fills
+  `--accent`. It follows theme (`--ink`) and mode (`--accent`) like every
+  other popup part. Where a row sets its own accent (the onboarding
+  choice rows), the robe takes that accent.
+- **C. Tray gauge**: the accent sits on the arc (its length means percent
+  left) and on the robe, matching the popup monk mark; head and sleeve
+  are neutral grey. Details in "Tray icon".
+
 ## Popup layout (360 x 680)
 
 The popup is 360 x 680 px, radius 18, background `pop`, `shadow-popup`,
@@ -141,18 +169,13 @@ overflow hidden. Each screen is a column with padding 20 (top), 24 (sides),
 ### Shared parts
 
 - **Top row**: min height 32, items centred, space-between. Brand on the
-  left: the app icon (`assets/brand/tokenmonk-icon.svg`, unchanged file,
-  body included, its own colours in both themes and both modes) at 26 px,
-  gap 10, "Tokenmonk" (brand style). On sub-screens the top row holds only
-  the text link "Back" (Esc does the same).
-- **Brand mark** (static, not a gauge; onboarding mode choice only, not
-  the top row, not the level-up screen): drawn inline in
-  `src/components/BrandMark.tsx` at 52 px, no file in `assets/brand/`.
-  viewBox 32 x 32; an arc on a circle r 12, stroke 3.2, `--accent`, round
-  caps, `stroke-dasharray 58 100`, rotated -70°; a centre dot r 3.4 in
-  `ink`.
-- **Monk mark** (level-up screen): `assets/brand/tokenmonk-mark-mono.svg`
-  at 52 px, filled in `--accent` of the current mode, no body, no ring.
+  left: the monk mark at 26 px (`--brand-mark-size`), gap 10, "Tokenmonk"
+  (brand style). On sub-screens the top row holds only the text link
+  "Back" (Esc does the same).
+- **Monk mark**: the only brand mark in the popup (role B in "Icon
+  system"): head and sleeve `--ink`, robe `--accent`. 26 px in the top
+  row, 52 px (`--mark-lg-size`) in the onboarding rows and on the
+  level-up screen. The app icon tile never appears in the popup.
 - **Level bar**: track `line`, fill `--accent`, radius 2, height 3
   (dashboard) or 4 (achievements screen), width = `GameState.progress`.
 - **Hairline row**: full width, 1 px `line` on top, no fill.
@@ -192,22 +215,40 @@ Top to bottom:
    | 10 to 29 | "Nearly there. As planned." | "Getting thin. Slow down." |
    | below 10 | "Almost gone. Make it count." | "Nearly out. Go for a walk." |
 
-5. **Reset line** (mono-sm, centred, margin top 4, min height 18): "Resets
-   in 2h 14m" from the selected window's `resetsAt`; empty when it is
-   `null`.
+5. **Reset line** (mono-sm, centred, margin top 4, min height 18, one
+   line): "Resets in 2h 14m" from the selected window's `resetsAt`; empty
+   when it is `null`. With a limit ETA (below) it leads with the ETA.
+   - **Limit ETA** (derived, TKM-228). Shown only if all hold: "5 hours"
+     is selected, `limits.status = ok`, `limits.fiveHour` is set,
+     `burnRate.limitEtaMinutes` is at least 1, and either
+     `fiveHour.resetsAt` is `null` or the rounded N shown in the text
+     (see "Number formats") is less than the whole minutes until
+     `resetsAt`, as also shown in "resets in" (otherwise the window resets
+     first and the ETA means nothing; 118 min with the reset in 1h 59m
+     rounds to ~120 and is hidden). Text: "Limit in ~25 min, resets in 2h 14m";
+     with `resetsAt = null`: "Limit in ~25 min at this pace". N as in
+     "Number formats". At most 35 characters, which fits 312 px in
+     mono-sm. `limitEtaMinutes = 0` shows no ETA (the ring already says
+     0 %). Never on the "Week" tab, never while stale.
 6. **Stats** (two equal columns, gap 24, margin top 24). Each: label
-   (caption), value (stat style, margin top 2), unit (small).
+   (caption), value (stat style, margin top 2), unit (small, one line).
    - "Burn rate": `burnRate.tokensPerMinute`, compact; unit "tokens per
      minute".
+   - Second tile: "Daily budget" if `dailyBudget` is set, else "This
+     session".
    - "Daily budget", by `DailyBudget.basis`:
-     - `weeklyLimit`: `tokensLeftPerDay`, compact; unit "tokens left per
+     - `weeklyLimit`: `tokensLeftPerDay`, compact, as an estimate with `~`
+       ("~84.2k", it also counts claude.ai chats); unit "tokens left per
        day". If it is `null` (no pace yet): value "n/a", unit "no pace yet".
      - `tokenHistory` (Do it yourself mode without limit data; `allowance`
        is the average active day of the past week in tokens): value
        `allowance - usedToday` floored at 0, compact; unit "tokens left
        today".
-     - `dailyBudget` is `null` (no budget at all): value "n/a", unit "needs
-       limit data".
+   - "This session" (derived, TKM-228), when `dailyBudget` is `null`:
+     value `session.tokens.total`, compact; unit `session.projectName`,
+     one line, cut with an ellipsis at the column width, full name in the
+     `title` attribute; "tokens" if the name is empty. With `session =
+     null` (idle): value "n/a", unit "no active session".
 7. **Level block**, pushed to the bottom (margin top auto): a full-width
    button, 1 px `line` on top, padding 14 0 6. Row (space-between,
    baseline): `GameState.title` (row style) and "340 / 500 XP" (small,
@@ -226,8 +267,8 @@ data, so the line is never empty:
 | `data.state = importing` | "Reading logs, 24 of 38 files." (derived; numbers mono) |
 | `data.state = noLogs` | "No Claude Code logs yet. Start a session." (derived) |
 | `data.state = error` | "Can’t read the logs. Retrying in the background." (derived) |
-| `UpdateStatus.kind` is `available`, `installing` or `installFailed` | the update line, see "Update line" below |
-| `limits.reason = noSource` | "No limit data yet. Setup is in Settings." as a text link to Settings, scrolled to "Limit data" (derived, see DECISIONS.md) |
+| `UpdateStatus.kind` is `available`, `downloading`, `installing` or `installFailed` | the update line, see "Update line" below |
+| `limits.reason = noSource` | "No limit data. It comes from the status line, see Settings." as a text link to Settings, scrolled to "Limit data" (derived, TKM-228; see DECISIONS.md) |
 | otherwise (limit note) | "Limit % includes claude.ai chats. Token stats are Claude Code only." |
 
 ### Update line
@@ -242,13 +283,27 @@ popup, no toast.
 | `UpdateStatus.kind` | Text | Action |
 |---|---|---|
 | `available` | "0.4.1 is out. Update" | "Update" calls `install_update` |
+| `downloading`, `percent` set | "Downloading 0.4.1, 42%." | none |
+| `downloading`, `percent` null | "Downloading 0.4.1." | none |
 | `installing` | "Installing 0.4.1. Back in a moment." | none |
 | `installFailed` | "0.4.1 didn’t install. Try again" | "Try again" calls `install_update` |
 
 All other kinds (`idle`, `checking`, `upToDate`, `unavailable`,
 `checkFailed`) show nothing here; the note line falls through to the next
 row. "Couldn’t check" lives in Settings only. While `install_update` runs
-the link is disabled. Windows: the installer's own small progress window
+the link is disabled.
+
+Download progress (TKM-212, derived; the prototype has no update UI): after
+"Update" the line goes `downloading` (percent null, then 0 to 100), then
+`installing`. The percent is a live number: mono, `tabular-nums`, the "%"
+inside the same mono span, last in the line so nothing after it shifts as
+it grows from 1 to 3 digits. It is the whole percent from Rust, shown as
+is: no decimals, no rounding in the UI, no animation between values, no
+progress bar, no spinner. Percent null (size not known yet, or the server
+sends no length) drops the number and the comma: "Downloading 0.4.1."
+stays until `installing`, no fake percent, no ellipsis animation. Rust
+emits only on whole-percent changes (see `UpdateStatus` in the contracts),
+so the UI renders every event as it comes, no extra throttle. Windows: the installer's own small progress window
 appears and Tokenmonk quits, then starts again. macOS: the app restarts by
 itself. If `install_update` rejects (`CommandError`, for example a stale
 status), re-read `get_update_status`; no copy for it.
@@ -257,14 +312,29 @@ Version numbers come from `UpdateStatus.version` ("0.4.1" is a sample).
 
 ### Dashboard states
 
-- **No limit data** (`limits.status = unavailable`): segment hidden; ring
-  track only; centre hero-sm with `today.total` (compact) and caption
-  "tokens today"; status line "No limit data. Showing tokens only."; reset
-  line empty; daily budget stat on its `tokenHistory` basis in Do it
-  yourself mode, or "n/a" / "needs limit data" when there is no budget.
+- **No limit data, with a token budget** (`limits.status = unavailable`
+  and `dailyBudget.basis = tokenHistory`; only Do it yourself gets this
+  basis; derived, TKM-228): segment hidden, its height kept.
+  - Ring: track as usual. Main arc from 12 o'clock clockwise, length =
+    `min(usedPercent, 100)` % of the circle: it fills over the day with
+    tokens today against the average active day (`allowance`). Inner arc
+    0.93 x the main arc, same wobble. At 0 % only the track shows; from
+    100 % the arc is a closed circle and stays there. No colour change.
+  - Centre: hero-sm with `today.total` (compact), caption "tokens today".
+  - Status line: budget left = `max(0, round(100 - usedPercent))` through
+    the mode's column of the status table ("Light day. Nicely done." and
+    so on). Above 100 % (`usedPercent > 100`): "Over budget. The AI wins
+    today." (the OS notification body).
+  - Reset line: "Average day 52.1k" (`allowance`, compact).
+  - Stats: "Daily budget" on its `tokenHistory` basis.
+- **No limit data, no budget** (`limits.status = unavailable`, any other
+  case): segment hidden; ring track only; centre hero-sm with
+  `today.total` (compact) and caption "tokens today"; status line "No
+  limit data. Showing tokens only."; reset line empty; second stat tile
+  "This session" (see "Dashboard", stats).
 - **Selected window missing** (`limits` usable but the selected window is
   `null`, for example a fresh 5-hour window before the next reply): ring
-  track only; centre as in "No limit data"; status line "Fresh window.
+  track only; centre as in "No limit data, no budget"; status line "Fresh window.
   Numbers on your next reply." (derived); reset line empty. The other tab
   still works.
 - **Stale** (`limits.status = stale`): values as usual, hero in `ink-2`;
@@ -289,8 +359,9 @@ opens by itself on every start while it is pending. Accent: saffron.
 3. "Pick one. You can switch later." (`ink-2`, margin bottom 22).
 4. Two choice rows, full width, each filling half of the remaining height
    (`flex: 1`), 1 px `line` on top, padding 22 0, gap 16, items centred:
-   the brand mark at 52 px drawn in that mode's accent (`--saffron`,
-   `--jade`), then the name (choice-lg) over the description (14 px,
+   the monk mark at 52 px (`--mark-lg-size`), its robe in the row's own
+   mode accent (Max it out saffron, Do it yourself jade; head and sleeve
+   `--ink` in both), then the name (choice-lg) over the description (14 px,
    `ink-2`, margin top 2). Hover underlines the name (offset 4). Names
    and descriptions as in "Modes".
 5. Note (margin top 18): "Mindful about your tokens. Or not."
@@ -321,6 +392,11 @@ vertically when taller than the popup; the top row stays.
    - "Check for updates automatically" (`Settings.updateCheck`, default
      on). Off: no check at start; "Check now" still works. Turning it on
      does not check at once.
+   - "Keep popup open" (`Settings.keepOpen`, default off), with the
+     caption "Stays put until the tray icon or Close." under the label.
+     Off: the popup hides when it loses focus. On: it stays visible next
+     to other windows and hides only via the tray icon or the title bar
+     "Close". Applies at once.
    - Switch: 42 x 24, radius 12, track `line`; knob 18, round, `pop`,
      inset 3. On: track `--accent`, knob moved 18 px.
    A final empty hairline row closes the list.
@@ -339,6 +415,8 @@ vertically when taller than the popup; the top row stays.
      | `checking` | "Checking for updates." | none |
      | `upToDate` | "Up to date, checked at 14:05." (`checkedAt`) | "Check now" |
      | `available` | "0.4.1 is out." | "Update", "Release notes" |
+     | `downloading`, `percent` set | "Downloading 0.4.1, 42%." (`percent` mono) | none |
+     | `downloading`, `percent` null | "Downloading 0.4.1." | none |
      | `installing` | "Installing 0.4.1. Back in a moment." | none |
      | `installFailed` | "0.4.1 didn’t install." | "Try again", "Release notes" |
      | `checkFailed` | "Couldn’t check." | "Check now" |
@@ -347,11 +425,16 @@ vertically when taller than the popup; the top row stays.
      "Check now" calls `check_for_updates`, "Update" and "Try again" call
      `install_update`, "Release notes" opens `UpdateStatus.url` (the
      version's GitHub release page) in the browser. No release notes in
-     the app. On a `CommandError` from `check_for_updates` the row reads
-     "Couldn’t check." (derived).
-   - Note: "Tokenmonk 0.3.1, MIT. Ideas and bugs go to GitHub issues."
-     The version is `AppInfo.version` ("0.3.1" is a sample); while it is
-     still empty: "Tokenmonk, MIT. Ideas and bugs go to GitHub issues."
+     the app. `downloading` follows the dashboard's update line rules
+     (Update line above): same copy, same null fallback, no bar. On a
+     `CommandError` from `check_for_updates` the row reads
+     "Couldn’t check." (derived). The tray item "Check for updates"
+     (Tray menu) lands here and fills the row the same way.
+   - Note: "Tokenmonk 0.3.1, MIT." followed by the text link "About"
+     (styled like the `noSource` note link, gap 12), which opens About.
+     The version is `AppInfo.version` ("0.3.1" is a sample, mono
+     `tabular-nums`); while it is still empty: "Tokenmonk, MIT." and the
+     same link. The issues hint moved to About (TKM-125).
 
 Every change applies at once through `update_settings { patch }`, no save
 button. While a call runs the control stays in its new position; on
@@ -375,11 +458,35 @@ Code settings; this section only shows what to paste.
    | Limits | Text |
    |---|---|
    | `ok` or `stale` | "Connected. Last reading 14:05." (`fetchedAt`, local 24 h time, mono for the time); "Connected." if `fetchedAt` is `null` |
-   | `unavailable`, `noSource` or no `reason` | "Not set up yet." |
+   | `unavailable`, `noSource` or no `reason`, `statuslineFile.receivedAt` set | "Set up. No current limits." |
+   | `unavailable`, `noSource` or no `reason`, otherwise | "Not set up yet." |
    | `unavailable`, other reasons | "Can’t read the limit file. Next reply fixes it." |
 
+   `statuslineFile` comes from `LimitSetup`; while `get_limit_setup` runs
+   or if it failed, the "otherwise" row applies.
+
+   Setup check line (caption, directly below the status, margin top 4),
+   from `LimitSetup.statuslineFile`. Shown only if `limits.status` is
+   `unavailable` and `get_limit_setup` succeeded; for `ok` and `stale` the
+   status already carries the time. Time first, mono, `tabular-nums`;
+   `<time>` is local 24 h time ("14:05") on the same local day, otherwise
+   day, English short month and time ("3 Nov 14:05"). First match:
+
+   | `statuslineFile` | Text |
+   |---|---|
+   | `exists = false` | "Nothing from the status line yet. Paste the block below, then send Claude Code one message." |
+   | `receivedAt` set | "<receivedAt> · last status line. No current window in it: the next reply brings one on Pro or Max." |
+   | `modifiedAt` set | "<modifiedAt> · something arrived, but it can’t be read. Send another message; if it sticks, update Tokenmonk." |
+   | otherwise | "Something arrived, but it can’t be read. Send another message; if it sticks, update Tokenmonk." |
+
+   Text link "Check again" (note link style) at the end of the line: calls
+   `get_limit_setup` again and updates the check line and the status; the
+   line keeps its old text while the call runs; if it fails, the old text
+   stays.
+
 3. Setup copy (caption): "Limits come from Claude Code’s status line.
-   Local only, no login. Open <path>, create it if missing, and add this:"
+   Local only, no login. Open <path>, create it if missing, and add this
+   as your status line:"
    (the path in mono). `<path>` is `%USERPROFILE%\.claude\settings.json`
    if `AppInfo.platform = windows`, otherwise `~/.claude/settings.json`.
 4. Snippet block: 1 px `line` border, radius 8, padding 12, mono 12,
@@ -397,10 +504,13 @@ Code settings; this section only shows what to paste.
    }
    ```
 
-   Merge hint (caption, directly below the block): "File already has
-   settings? Put "statusLine" at the top level next to them and end the key
-   before it with a comma. Already has a "statusLine"? Replace it, or keep
-   your script (below)." The key names in mono.
+   The block is the whole status line setting: its `command` is the
+   entire status line command, not a line for a script. Merge hint
+   (caption, directly below the block): "File already has settings? Put
+   "statusLine" at the top level next to them and end the key before it
+   with a comma. Already has a "statusLine"? This replaces it." followed,
+   if `AppInfo.platform` is not `windows`, by " To keep your own script,
+   skip this block and use the line below." The key names in mono.
 
    Text link "Copy" at the block's top right. After a successful copy the
    caption under the block reads "Copied. Paste it, then send Claude Code
@@ -417,15 +527,71 @@ Code settings; this section only shows what to paste.
    Git Bash? Claude Code then uses PowerShell. Use this one instead:" and a
    second block (same style, own copy link and captions) with
    `command = "& " + statuslineCommand`. Otherwise not shown.
-5. Chain hint (caption): "Already have a status line? Keep it. Add this
-   line to your script after it reads the input:" and a block (own copy
-   link) with `printf '%s' "$input" | <command> >/dev/null`, where
-   `<command>` is `statuslineCommand`.
+5. Chain hint. The line is Bash, so it depends on the platform:
+   - `AppInfo.platform` is not `windows`: caption "Already have a status
+     line script? Leave settings.json as it is. Add this line inside the
+     script, after it reads the input:" (settings.json in mono) and a
+     block (own copy link) with
+     `printf '%s' "$input" | <command> >/dev/null`, where `<command>` is
+     `statuslineCommand`.
+   - `windows`: caption only, no block and no copy link: "Already have a
+     status line? Tokenmonk can’t share it on Windows yet. Swap yours for
+     the block above, or keep it and go without limits."
 6. Plan note (caption): "Needs a Pro or Max plan. Numbers show up after
-   the first reply."
+   the first reply. Limit numbers come from Claude Code’s status line;
+   sessions in the desktop app may not run it and then bring no numbers."
+   (Hedged on purpose: the docs say nothing about the desktop app; that
+   it did not run there was only observed once, not verified. See
+   DECISIONS.md, "Popup with log-only data".)
 
-Fed by: `LimitSetup` (`get_limit_setup`, called once when the view opens),
-`DashboardSnapshot.limits` (`status`, `reason`, `fetchedAt`).
+Fed by: `LimitSetup` (`get_limit_setup`, called once when the view opens
+and again on "Check again"; `statuslineCommand`, `statuslineFile`),
+`DashboardSnapshot.limits` (`status`, `reason`, `fetchedAt`),
+`AppInfo.platform`.
+
+### About
+
+Not in the prototype: derived from the Settings and Achievements parts,
+so all of its copy is derived. `View = about` (TKM-125), opened by the "About" link in the Settings
+footer note (Settings, item 6). No other entry point: no tray item, no
+link on the dashboard. Back: the "Back" link or Esc, both return to
+Settings (not the dashboard); Settings opens at the top as usual. A
+`navigate` event while About is open switches views like on any other
+screen. Scrolls vertically when taller than the popup; the top row stays.
+
+1. Top row: "Back".
+2. Monk mark at 52 px (`--mark-lg-size`), margin top 16.
+3. Title "Tokenmonk" (title style, margin 12 0 2).
+4. Version, the screen's number: `AppInfo.version` as is, for example
+   "0.4.0" (stat style, mono `tabular-nums`). While it is still empty:
+   "n/a" in the same style (derived).
+5. Caption under it (margin top 2, margin bottom 18): "Installed
+   version. Updates live in Settings."
+6. Hairline rows (space-between, 1 px `line` on top, padding 14 0):
+   label left (row style), value right; a final empty hairline row closes
+   the list.
+
+   | Label | Value |
+   |---|---|
+   | "Licence" | "MIT" (`ink-2`, plain text, no link) |
+   | "Source" | text link "GitHub", opens `REPO_URL` |
+   | "Ideas and bugs" | text link "GitHub issues", opens `ISSUES_URL` |
+
+   Text links as everywhere (`ink-2`, hover `ink`, padding 6 px
+   vertical). They open in the browser through the opener plugin like
+   "Release notes"; a failed open shows nothing.
+7. Note, pushed to the bottom: "Made by Tokenmonk contributors. No
+   account, no telemetry."
+
+Nothing else: no author, no email, no website, no credits list, no
+changelog, no update controls (those stay in Settings). Only the two
+GitHub links above leave the app.
+
+Tokens: existing ones only (`--mark-lg-size`, title, stat, row, caption
+and note text tokens, `line`, `ink`, `ink-2`). No new token.
+
+Fed by: `AppInfo.version` (`get_app_info`, `app-info-changed`),
+`REPO_URL`, `ISSUES_URL`.
 
 ### Achievements
 
@@ -505,7 +671,9 @@ Not in the prototype; derived from the achievements screen. Shown for
 every `level-up` with `retroactive = false`, over the current screen
 (background `pop`, same padding), queued like toasts.
 
-Top to bottom: the monk mark at 52 px in the mode accent; "Level 8" (onboard-title); the
+Top to bottom: the monk mark at 52 px (`--mark-lg-size`), robe in
+`--accent` of the current mode, head and sleeve `--ink`; "Level 8"
+(onboard-title); the
 mode line (status style): Max it out "Keep burning.", Do it yourself
 "Well earned. Breathe."; "Level 8, 0 of 2,100 XP" (mono-sm); the level bar
 (4 px); the text link "Back to work". Several levels at once (`level -
@@ -524,31 +692,66 @@ Fed by: `LevelUp`, `GameState`, `Settings.sound`.
 Rendered in Rust (resvg) at runtime; `tokens.css` mirrors its values.
 viewBox 24 x 24:
 
-- Track: circle r 8.5, stroke `--tray-track` #8A8D8B at 60 %, width 2.
-  Without limit data (no 5-hour value) the track is dotted
-  (`stroke-dasharray 1.5 3`) and there is no arc.
-- Arc: r 8.5, stroke `--accent` of the current mode, width 2.6, round
+- Track: circle r 10, stroke `--tray-track` #8A8D8B at 60 %
+  (`--tray-track-opacity`), width 2. Without limit data (no 5-hour value)
+  the track is dotted (`stroke-dasharray 1.5 3`) and there is no arc.
+- Arc: r 10, stroke `--accent` of the current mode, width 2.4, round
   caps, from 12 o'clock clockwise, length = 5-hour percent left. It drains
   as the window is used.
-- Centre dot: r 2.2, filled in `--accent` of the current mode.
+- Monk: the paths of `assets/brand/tokenmonk-mark-mono.svg` inside the
+  ring, placed with `transform="translate(0.992 -0.416) scale(0.0215)"`:
+  about 13 units tall (y 5.4 to 18.6), centred at (12, 12). Head (path 1)
+  and sleeve (path 3) fill `--tray-track` #8A8D8B at full opacity; the
+  robe (path 2) fills `--accent` of the current mode, as in the popup
+  monk mark. Without limit data the whole monk (all three paths) drops to
+  opacity 0.45 (`--tray-monk-nodata-opacity`).
+- macOS: a template image in black ink (alpha carries the shape; the menu
+  bar tints it). Track, arc and all monk paths are black; the track is at
+  40 % (`--tray-track-opacity-template`; the coloured track stays at
+  60 %) and the no-data fade of the monk (0.45) applies here too.
 
 Value: 5-hour percent left in both modes. Before onboarding the accent is
-saffron. The tray gauge is not the app icon and does not change with it.
+saffron. The tray gauge is not the app icon (role C in "Icon system"): it
+is drawn from the mono mark, so it follows changes to that file, not to
+the app icon files.
+
+## Tray menu
+
+Opened by a right click on the tray icon (a left click toggles the
+popup). Native menu, system font, no tokens. Items, top to bottom:
+
+| Item | Does |
+|---|---|
+| "Open Tokenmonk" | Shows the popup. |
+| "Settings" | Shows the popup and opens Settings. |
+| "Check for updates" | Shows the popup, opens Settings and starts the same check as "Check now". |
+| separator | |
+| "Quit" | Ends the app. |
+
+"Check for updates" has no result of its own: no dialog, no
+notification, no menu text change. The answer appears on the Settings
+update row like any other check ("Checking for updates.", then "Up to
+date, checked at 14:05.", "0.4.1 is out." or "Couldn’t check."; see
+Settings, "Update row"). It works whatever "Check for updates
+automatically" says. While a check or an install runs it only opens
+Settings and the row keeps showing that state.
 
 ## App icon
 
-The monk without a ring on an ink rounded-square body. It replaces the
-monk-in-ring brand mark as the app icon. Files in `assets/brand/`:
+The monk without a ring on an ink rounded-square body (role A in "Icon
+system"). Used only where the OS shows the app (taskbar, dock, Start
+menu, installer, notifications, the generated icon set), never inside
+the popup. Files in `assets/brand/`:
 
 - `tokenmonk-icon.svg`: the macOS grid and the main source. Canvas
-  1024 x 1024; body 824 x 824 at 100,100, rx 185. Also the popup top row
-  mark at 26 px.
+  1024 x 1024; body 824 x 824 at 100,100, rx 185.
 - `tokenmonk-icon-windows.svg`: the same artwork with viewBox
   `84 84 856 856` (tighter crop, so the body fills more of the small
   Windows sizes). Source of `icon.ico` only.
-- `tokenmonk-mark-mono.svg`: the monk alone, one colour on a transparent
-  background, eyes cut out by nonzero winding. Recolour it by `fill`; the
-  level-up screen fills it with `--accent`.
+- `tokenmonk-mark-mono.svg`: not part of the app icon. The monk alone in
+  three paths (head, robe, sleeve) on a transparent background, eyes cut
+  out by nonzero winding; the source of the monk mark (role B) and the
+  tray gauge monk (role C), recoloured per path by `fill`.
 
 Colours (fixed in the files, not tokens, same in both themes):
 
@@ -565,16 +768,17 @@ Platform icons are generated from these files by `node scripts/icons.mjs`
 
 ## Not covered by the design / out of scope
 
-Out of scope for v0.1: the about screen (no `View` in the contracts).
-
 Open points:
 
 - Copy links in "Limit data" use the web Clipboard API
-  (`navigator.clipboard.writeText`); whether it works in the Tauri webviews
-  on both platforms is unverified. On failure the fallback copy applies
-  and the snippet stays selectable.
+  (`navigator.clipboard.writeText`). Verified manually on Windows (WebView2,
+  installed release build): the snippet lands on the clipboard. macOS
+  (WKWebView) is still unverified. If `writeText` rejects there, the
+  fallback applies: the caption "Couldn’t copy. Select it and copy by hand."
+  shows and the snippet text is selected.
 - The prototype lists all achievements regardless of mode; whether
   mode-only achievements need a hint for the other mode is open.
 - Update UI (update line, Settings update row and switch) is not in the
   prototype; it is derived from the TKM-41 decisions using existing
-  styles only. Download progress is not shown.
+  styles only. Download progress (TKM-212) is text in the same line, no
+  bar.

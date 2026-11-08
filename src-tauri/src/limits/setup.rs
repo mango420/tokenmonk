@@ -1,6 +1,10 @@
 //! The status-line setup command shown in Settings (`get_limit_setup`).
 
 use std::path::Path;
+use std::time::UNIX_EPOCH;
+
+use super::bridge::{self, BridgeFile};
+use crate::contracts::{EpochMs, StatuslineFileInfo};
 
 /// Flag that switches the executable into bridge mode.
 pub const BRIDGE_FLAG: &str = "--statusline";
@@ -30,6 +34,40 @@ pub fn statusline_command(exe: &Path, windows: bool) -> Option<String> {
 pub fn current_statusline_command() -> Option<String> {
     let exe = std::env::current_exe().ok()?;
     statusline_command(&exe, cfg!(windows))
+}
+
+/// State of the bridge file at the default location. Never fails.
+pub fn current_statusline_file() -> StatuslineFileInfo {
+    bridge::statusline_path()
+        .map(|p| statusline_file_info(&p))
+        .unwrap_or_default()
+}
+
+/// State of the bridge file at `path`. Any error maps to the missing or
+/// partial values; the content is only checked for a valid `receivedAt`.
+pub fn statusline_file_info(path: &Path) -> StatuslineFileInfo {
+    let Ok(meta) = std::fs::metadata(path) else {
+        return StatuslineFileInfo::default();
+    };
+    if !meta.is_file() {
+        return StatuslineFileInfo::default();
+    }
+    let modified_at = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .and_then(|d| EpochMs::try_from(d.as_millis()).ok());
+    let received_at = (meta.len() <= bridge::MAX_INPUT_BYTES)
+        .then(|| std::fs::read(path).ok())
+        .flatten()
+        .and_then(|b| serde_json::from_slice::<BridgeFile>(&b).ok())
+        .filter(|f| f.version == bridge::FILE_VERSION)
+        .map(|f| f.received_at);
+    StatuslineFileInfo {
+        exists: true,
+        received_at,
+        modified_at,
+    }
 }
 
 #[cfg(test)]
@@ -72,5 +110,62 @@ mod tests {
     #[test]
     fn empty_path_gives_none() {
         assert_eq!(statusline_command(Path::new(""), false), None);
+    }
+
+    #[test]
+    fn file_info_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        let info = statusline_file_info(&dir.path().join("statusline.json"));
+        assert_eq!(info, StatuslineFileInfo::default());
+    }
+
+    #[test]
+    fn file_info_valid() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("statusline.json");
+        std::fs::write(
+            &p,
+            r#"{"version":1,"receivedAt":1700000000000,"fiveHour":{"usedPercentage":12.0,"resetsAt":null}}"#,
+        )
+        .unwrap();
+        let info = statusline_file_info(&p);
+        assert!(info.exists);
+        assert_eq!(info.received_at, Some(1_700_000_000_000));
+        assert!(info.modified_at.is_some());
+    }
+
+    #[test]
+    fn file_info_invalid_content_keeps_mtime() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("statusline.json");
+        std::fs::write(&p, "not json").unwrap();
+        let info = statusline_file_info(&p);
+        assert!(info.exists);
+        assert_eq!(info.received_at, None);
+        assert!(info.modified_at.is_some());
+    }
+
+    #[test]
+    fn file_info_directory_counts_as_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(
+            statusline_file_info(dir.path()),
+            StatuslineFileInfo::default()
+        );
+    }
+
+    #[test]
+    fn file_info_unknown_version_has_no_received_at() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("statusline.json");
+        std::fs::write(
+            &p,
+            r#"{"version":2,"receivedAt":1,"fiveHour":null,"sevenDay":null}"#,
+        )
+        .unwrap();
+        let info = statusline_file_info(&p);
+        assert!(info.exists);
+        assert_eq!(info.received_at, None);
+        assert!(info.modified_at.is_some());
     }
 }

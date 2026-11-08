@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BrandMark } from "../../components/BrandMark";
+import { LogoMark } from "../../components/LogoMark";
 import type { AppActions } from "../../lib/appData";
 import { Header } from "../dashboard/Header";
 import { MODE_DESCRIPTION, MODE_LABEL, type PopupMode } from "../dashboard/model";
@@ -9,11 +9,6 @@ interface OnboardingProps {
 }
 
 const MODES: readonly PopupMode[] = ["max", "diy"];
-
-const MARK_COLOR: Record<PopupMode, string> = {
-  max: "var(--saffron)",
-  diy: "var(--jade)",
-};
 
 /** First start: "How do you want to vibe?" A click on a mode chooses it at once. */
 export function Onboarding({ onChoose }: OnboardingProps) {
@@ -39,11 +34,11 @@ export function Onboarding({ onChoose }: OnboardingProps) {
         <button
           key={mode}
           type="button"
-          className="onboard-choice"
+          className={`onboard-choice onboard-choice--${mode}`}
           disabled={saving}
           onClick={() => void choose(mode)}
         >
-          <BrandMark size={52} color={MARK_COLOR[mode]} />
+          <LogoMark />
           <span>
             <span className="onboard-choice__name">{MODE_LABEL[mode]}</span>
             <span className="onboard-choice__description">{MODE_DESCRIPTION[mode]}</span>

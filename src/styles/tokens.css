@@ -35,8 +35,10 @@
   --ring-inner-opacity: 0.35;
 
   /* Tray icon (rendered in Rust; mirrored here for docs and previews) */
-  --tray-track: #8a8d8b;
+  --tray-track: #8a8d8b; /* track, monk head and sleeve */
   --tray-track-opacity: 0.6;
+  --tray-track-opacity-template: 0.4; /* macOS black template track */
+  --tray-monk-nodata-opacity: 0.45; /* whole monk without limit data */
 
   /* Type families */
   --font-sans: "Schibsted Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -103,8 +105,8 @@
   --popup-padding-x: 24px;
   --popup-padding-bottom: 18px;
   --top-row-height: 32px;
-  --brand-mark-size: 26px;
-  --onboard-mark-size: 52px;
+  --brand-mark-size: 26px; /* monk mark, top row */
+  --mark-lg-size: 52px; /* monk mark, onboarding rows and level-up */
   --ring-size: 248px; /* viewBox 248 x 248 */
   --ring-radius: 104px;
   --ring-stroke: 14px;

@@ -120,7 +120,7 @@ Superseded: releases are cut through the release PR, see "Automatic versioning w
 - `bundle.macOS.signingIdentity` is `"-"` (ad-hoc signing, confirmed by the Tauri 2 macOS signing docs); users still approve the app once in Privacy & Security.
 - Switching updater artifacts back on: follow "Cutting a release" step 1 and "`tauri.conf.json` changes applied in the release phase" above (except the signing identity, already set), then set `UPDATER_ARTIFACTS: 'true'` in `release.yml`. The guard then requires both secrets, a non-empty pubkey and `createUpdaterArtifacts: true`.
 - Update (2026-11-04): the in-app update check is specified and its contracts exist (TKM-41, see "Updater"); implementation follows in #161 (core) and #162 (UI). Release-side state is unchanged: no signing key, `UPDATER_ARTIFACTS: 'false'`, empty pubkey. Until the release-side switch (#163, once the maintainer key exists) builds report `unavailable` and make no update request. The first build with a key can only update to later releases that publish `latest.json`; earlier installs (without a key) never update in-app and need one manual install.
-- Update (2026-11-04, TKM-163): updater artifacts are on. `plugins.updater.pubkey` holds the public key, `bundle.createUpdaterArtifacts` is `true`, `UPDATER_ARTIFACTS` is `'true'`; the private key and password are GitHub secrets. Releases now carry `.sig` files and `latest.json` (the expected-assets note further down predates this). Test builds on `dev` have no secrets and pass `--config '{"bundle":{"createUpdaterArtifacts":false}}'`.
+- Update (2026-11-04, TKM-163): updater artifacts are on. `plugins.updater.pubkey` holds the public key, `bundle.createUpdaterArtifacts` is `true`, `UPDATER_ARTIFACTS` is `'true'`; the private key and password are GitHub secrets. Releases now carry `.sig` files and `latest.json` (see the expected-assets note under "Release ownership"). Test builds on `dev` have no secrets and pass `--config '{"bundle":{"createUpdaterArtifacts":false}}'`.
 
 ## Issue keys and feature register (2026-11-01)
 
@@ -164,6 +164,7 @@ The popup follows the refreshed prototype; DESIGN.md and `tokens.css` describe i
 - Theme: light and dark both ship; the theme follows the OS, `data-theme` forces one. New palettes and accents (saffron #E39A0B, jade #1F8A64). No danger colour: the ring never turns red, the status copy carries the urgency. `tokens.css` keeps a block of legacy aliases so the current components render until the frontend refresh removes them (removed in TKM-98; the icon and badge sizes became regular tokens).
 - Ring direction: the popup ring and the tray icon show percent left and drain as a window is used (before: percent used, filling up). The popup ring shows the window picked in the "5 hours" / "Week" segment in both modes; the Do it yourself budget gauge is gone and the budget moves to the "Daily budget" stat. Tray: ring plus centre dot, both in the mode accent, 5-hour percent left in both modes, dotted track without limit data (owner decision; the prototype's light grey dot is replaced by the accent).
 - The header brand mark is static (arc and dot), no longer a live halo. The monk files in `assets/brand/` stay the app icon source for now (superseded by "App icon").
+- The header brand mark line and the tray "ring plus centre dot" part are superseded by "Icon system (2026-11-04, final)" below.
 - Motion: only the ring draw (1.1 s, first dashboard render after start), the toast slide (280 ms) and the switch knob (150 ms); all off under `prefers-reduced-motion: reduce`.
 - Not in the prototype but kept, so nothing regresses: Settings keeps the "Limit data" section, and the dashboard note links to it while `limits.reason = noSource`. The level-up screen and the empty, import, stale and error states are derived from the prototype's parts; DESIGN.md marks their copy as derived.
 - Game (owner decision, prototype copy and rules): one title per mode at every level, "Limit Chaser" (Max it out, also before onboarding) and "Quiet Spender" (Do it yourself); the level ladders go. New descriptions for all five achievements. XP: First Blood 10 (was 25), So Close 60 (was 100), Rate-Limit Rambo 100, Night Owl 50 and Token Monk 150 unchanged. Night Owl: a message between 00:00 and 04:00 local time (was 02:00 to 04:00; only the start moved). Token Monk: one finished day under the daily budget, `usedPercent` below 100 (was 7 days in a row below 20 %), so it becomes a one-shot without `target`. Level curve and mode restrictions unchanged. Stored unlocks and XP events are not rewritten. Boo stays retired (see the carry-over under "Automatic versioning with release-please").
@@ -175,7 +176,7 @@ The popup follows the refreshed prototype; DESIGN.md and `tokens.css` describe i
 
 - release-please drives the version, the tag and the notes: it bumps `package.json`, `package-lock.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json` and `.release-please-manifest.json` together, writes `CHANGELOG.md`, creates the tag `v<version>` and the draft release. Nothing else bumps versions or pushes tags.
 - `release.yml` (`tauri-action`) only builds and uploads: it finds the draft by tag and attaches the installers. It never creates a tag, bumps a version or publishes. Publishing the draft stays a manual maintainer step.
-- Expected assets per release while `UPDATER_ARTIFACTS` is `'false'`: four installers, `Tokenmonk_<version>_universal.dmg`, `Tokenmonk_<version>_universal.app.tar.gz`, `Tokenmonk_<version>_x64-setup.exe` and `Tokenmonk_<version>_x64_en-US.msi`. GitHub adds the two source archives, so the release page lists six. No `.sig` files, no `latest.json`.
+- Expected assets per release (`UPDATER_ARTIFACTS` is `'true'` since TKM-163): four installers, `Tokenmonk_<version>_universal.dmg`, `Tokenmonk_<version>_universal.app.tar.gz`, `Tokenmonk_<version>_x64-setup.exe` and `Tokenmonk_<version>_x64_en-US.msi`; a `.sig` file for the `.app.tar.gz`, the `-setup.exe` and the `.msi`; and `latest.json` (`updaterJsonPreferNsis: true`, so Windows updates use the `-setup.exe`). GitHub adds the two source archives. Releases built while the switch was `'false'` (up to v0.3.x) carry only the four installers.
 - The guard allows exactly one co-author trailer in commit messages, `github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>`. GitHub appends it when a maintainer squash-merges a PR whose commits the Actions bot authored (the release PR, the register refresh PR). It names the GitHub Actions bot, not an assistant. Every other co-author trailer stays blocked. Cause: the v0.3.0 tag commit carried it, the release guard failed and no installers were built (TKM-104).
 - Rebuilding an existing tag: start `release.yml` from `main` with the input `tag` (for example `v0.3.0`). The run checks out and builds the tag, checks that it is a tag matching the app version, and runs the guard script from `main` over the tag's tree and history. A plain re-run would use the tag's own, older guard. The tag is never moved, deleted or recreated.
 
@@ -184,6 +185,7 @@ The popup follows the refreshed prototype; DESIGN.md and `tokens.css` describe i
 - The popup top row shows the monk mark (`assets/brand/tokenmonk-mark.svg`) at 26 px instead of the ring brand mark (TKM-121). It stays static. The file is used as is, with its own fixed colours, in both themes and both modes.
 - The ring brand mark (`tokenmonk-ring-mark.svg`, arc and dot in the mode accent) stays for the onboarding and level-up screens at 52 px. The header line of "Design refresh" above is superseded for the top row only.
 - Both points are superseded by "App icon" below: the top row shows `tokenmonk-icon.svg`, the level-up screen the mono monk mark, and `tokenmonk-ring-mark.svg` is gone.
+- Superseded by "Icon system (2026-11-04, final)" below.
 
 ## Dev and main branches (2026-11-04)
 
@@ -203,5 +205,49 @@ Reverses the "`main` only" rule of TKM-111 ([RELEASE-FLOW.md](RELEASE-FLOW.md), 
 
 - New app icon "N1": the monk without a ring on an ink rounded-square body replaces the monk-in-ring brand mark (TKM-153). Owner decision. Description, colours and grid: [DESIGN.md](DESIGN.md), "App icon".
 - Files in `assets/brand/`: `tokenmonk-icon.svg` (macOS grid, 824 px body at 100,100, rx 185 on a 1024 canvas; also the popup top row mark at 26 px), `tokenmonk-icon-windows.svg` (same artwork, viewBox `84 84 856 856`, source of `icon.ico` only) and `tokenmonk-mark-mono.svg` (one colour, transparent, recoloured by `fill`; the level-up screen at 52 px in the mode accent).
-- The ring stays only in the tray gauge (drawn in Rust, unchanged) and in the onboarding brand mark, drawn inline in `src/components/BrandMark.tsx`. `tokenmonk-ring-mark.svg` is removed; `tokenmonk-mark.svg` is removed too (TKM-153), as nothing imports it any more.
+- The ring stays only in the tray gauge (drawn in Rust, unchanged) and in the onboarding brand mark, drawn inline in `src/components/BrandMark.tsx` (the onboarding part is superseded by "New app icon everywhere" below). `tokenmonk-ring-mark.svg` is removed; `tokenmonk-mark.svg` is removed too (TKM-153), as nothing imports it any more.
 - Platform icons are generated by `node scripts/icons.mjs` (TKM-154), desktop sets only (no Android/iOS). This replaces the `tauri icon` step of "Scaffold".
+- The popup uses of the files above (top row, level-up) are superseded by "Icon system (2026-11-04, final)" below; files and generation stay.
+
+## New app icon everywhere (2026-11-04)
+
+- Owner decision (TKM-185): the app icon (`assets/brand/tokenmonk-icon.svg`) replaces the old ring brand mark everywhere. The onboarding mode choice shows the app icon at 52 px, same file and colours in both rows; the inline ring mark in `src/components/BrandMark.tsx` is removed.
+- The ring stays only in the tray gauge, which now carries the new monk inside the ring (TKM-188): the mono mark paths in the mode accent (black on the macOS template) replace the centre dot; ring r 10, arc width 2.4. Details: [DESIGN.md](DESIGN.md), "Tray icon".
+- Superseded by "Icon system (2026-11-04, final)" below.
+
+## Icon system (2026-11-04, final)
+
+Owner decision (TKM-202), supersedes TKM-185 for the popup and the monk colour of TKM-188. One monk, three jobs; details and sizes: [DESIGN.md](DESIGN.md), "Icon system".
+
+- A. App icon: the tile (`assets/brand/tokenmonk-icon.svg`, `tokenmonk-icon-windows.svg`, fixed colours) only where the OS shows the app: taskbar, dock, Start menu, installer, notifications, the generated icon set. Never inside the popup.
+- B. Monk mark: `assets/brand/tokenmonk-mark-mono.svg` with its paths unchanged, two-tone: head (with ears and eye cut-outs) and sleeve in `--ink`, robe in `--accent`; follows theme and mode, no tile, no ring. The only brand mark in the popup: top row 26 px (`--brand-mark-size`), onboarding rows 52 px with each row in its own mode accent (Max it out saffron, Do it yourself jade), level-up 52 px in the current mode accent. `--onboard-mark-size` is renamed `--mark-lg-size` (52 px); the old name is removed (TKM-224).
+- C. Tray gauge (Rust): arc in `--accent` (its length means percent left). Monk head and sleeve in `--tray-track` #8A8D8B at full opacity, robe in `--accent` of the current mode, matching the popup monk mark. Without limit data: dotted track and the whole monk at opacity 0.45 (new token `--tray-monk-nodata-opacity`, mirrored like the other tray tokens). The macOS template stays black ink; the no-data fade applies there too.
+
+## Popup with log-only data (2026-11-07)
+
+Architect decision (TKM-228, part of TKM-180). Details: [DESIGN.md](DESIGN.md), "Dashboard", "Note line", "Dashboard states", "Limit data". No contract change; every field already exists.
+
+- Without limits but with a `tokenHistory` budget (Do it yourself only), the ring fills with tokens today against the average active day instead of showing the track only. It fills rather than drains so the arc and the hero (tokens today) move the same way. It caps at a closed circle; above 100 % the status line says "Over budget. The AI wins today."; no colour change.
+- With `dailyBudget = null` the second stat tile shows "This session" (`session.tokens.total`, unit the project name) instead of "n/a"; idle shows "n/a" / "no active session".
+- The limit ETA shows in the reset line on the "5 hours" tab while limits are `ok`, only if it comes before the window reset: "Limit in ~25 min, resets in 2h 14m". Same rounding as the OS notification.
+- `tokensLeftPerDay` is shown with a `~` prefix: it is an estimate, the weekly limit also counts claude.ai chats.
+- Status line placement: the official docs (https://code.claude.com/docs/en/statusline, checked 2026-11-07) call it "a customizable bar at the bottom of Claude Code" that "appears at the bottom of the interface". They do not say "terminal" and say nothing about the desktop app. "Terminal only" is an inference, not a documented fact. Observed on one machine, not verified: the status line did not run while Claude Code was used from the desktop app. Copy therefore names neither the terminal nor the desktop app as certain and says "may not run".
+
+## About screen in v0.1 (2026-11-08)
+
+Maintainer moved the About screen into v0.1 scope; architect design (TKM-125). Details: [DESIGN.md](DESIGN.md), "About"; [ARCHITECTURE.md](ARCHITECTURE.md), "Tray menu".
+
+- Contracts: `View` gains `about` (Rust `View::About`, camelCase like the other variants). New constants `REPO_URL` and `ISSUES_URL` in `src/lib/contracts.ts` and `contracts::app`; a test ties them and `RELEASE_PAGE_BASE` to one repository. No new command, event or payload field.
+- Entry point: an "About" text link in the Settings footer note only. No tray item, so `tray` and `commands` stay unchanged; the tray menu stays short and About is a rare visit.
+- Content: version (`AppInfo.version`), MIT licence, links to the GitHub repository and its issues. No personal data, no other links. The Settings note drops "Ideas and bugs go to GitHub issues."; About carries it.
+- Back and Esc on About return to Settings, where it was opened from.
+- No new design token.
+
+## Update download progress (2026-11-08)
+
+Maintainer moved download progress into v0.1 (TKM-212); contract and design by the architect. Details: [ARCHITECTURE.md](ARCHITECTURE.md), "Updates"; [DESIGN.md](DESIGN.md), "Update line" and Settings item 6.
+
+- New `UpdateStatus` variant `downloading { version, percent }` between `available` and `installing`; `percent` is a whole number 0 to 100 or `null` (unknown size). Same `kind` tag and camelCase rules as the other variants; no new event, it rides on `update-status-changed`.
+- Source: tauri-plugin-updater 2.x on docs.rs (`Update::download_and_install`, `on_chunk: FnMut(usize, Option<u64>)`, `on_download_finish: FnOnce()`) and https://v2.tauri.app/plugin/updater/, checked 2026-11-08. The content length is `None` when the server sends no `Content-Length`.
+- Throttle: Rust emits only when the whole percent changes, so at most 101 progress events per download. The UI adds no throttle of its own.
+- Copy: "Downloading 0.4.1, 42%." with the percent as a live number; without a percent "Downloading 0.4.1.". No progress bar, no spinner.

@@ -9,7 +9,7 @@
 //! | `level-up`             | `LevelUp`             | once per live level change             |
 //! | `app-info-changed`     | `AppInfo`             | when `logsFound` changes               |
 //! | `navigate`             | `NavigateTo`          | tray menu asks the popup to show a view|
-//! | `update-status-changed`| `UpdateStatus`        | on every update check or install transition |
+//! | `update-status-changed`| `UpdateStatus`        | on every update check or install transition, and per whole-percent download step |
 //!
 //! All events are emitted to every window. Payloads are full state, never
 //! diffs, so a missed event is healed by the next one.
@@ -50,6 +50,9 @@ pub enum View {
     /// `"achievements"`: title, level and the achievement list, opened from
     /// the dashboard's level block.
     Achievements,
+    /// `"about"`: version, licence and the GitHub links, opened from the
+    /// Settings footer (TKM-125). Back returns to Settings.
+    About,
 }
 
 /// Payload of `navigate`.

@@ -229,9 +229,15 @@ html[data-maximized] .popup {
 }
 
 .logo-mark {
+  flex: none;
   display: flex;
-  width: var(--onboard-mark-size);
-  height: var(--onboard-mark-size);
+  width: var(--mark-lg-size);
+  height: var(--mark-lg-size);
+}
+
+.logo-mark--brand {
+  width: var(--brand-mark-size);
+  height: var(--brand-mark-size);
 }
 
 .logo-mark__svg {
@@ -303,19 +309,6 @@ html[data-maximized] .popup {
   letter-spacing: var(--text-brand-tracking);
 }
 
-.brand-mark {
-  flex: none;
-  display: block;
-}
-
-/* The monk mark in the top row: the file as is, its own colours. */
-.brand-logo {
-  flex: none;
-  display: block;
-  width: var(--brand-mark-size);
-  height: var(--brand-mark-size);
-}
-
 /* Text link: `ink-2`, `ink` on hover, 6 px above and below. */
 .link {
   padding: var(--gap-6) 0;
@@ -336,6 +329,10 @@ html[data-maximized] .popup {
 
 .note__action {
   margin-left: var(--space-2);
+}
+
+.note__action--wide {
+  margin-left: var(--space-3);
 }
 
 .link--small {
@@ -519,6 +516,9 @@ html[data-maximized] .popup {
 }
 
 .stat__unit {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-size: var(--text-small-size);
   color: var(--ink-2);
 }
@@ -682,6 +682,11 @@ html[data-maximized] .popup {
   border-top: var(--hair) solid var(--line);
 }
 
+.switch-row__text {
+  display: flex;
+  flex-direction: column;
+}
+
 /* Closes the list. */
 .switch-end {
   border-top: var(--hair) solid var(--line);
@@ -738,6 +743,10 @@ html[data-maximized] .popup {
 
 .limit-data .caption {
   margin: 0;
+}
+
+.limit-data__check {
+  margin-top: calc(var(--space-1) - var(--space-3));
 }
 
 .limit-data__path {
@@ -870,4 +879,56 @@ html[data-maximized] .popup {
   .titlebar__bar {
     transition: none;
   }
+}
+
+/* Each onboarding row shows the mark in its own mode accent. */
+.onboard-choice--max {
+  --accent: var(--saffron);
+}
+
+.onboard-choice--diy {
+  --accent: var(--jade);
+}
+
+/* ------------------------------------------------------------------- about */
+
+.about__mark {
+  margin-top: var(--space-4);
+}
+
+.about__title {
+  margin: var(--space-3) 0 var(--half);
+}
+
+.about__version {
+  margin: 0;
+  font-size: var(--text-stat-size);
+  line-height: var(--text-stat-line);
+  font-weight: var(--weight-regular);
+  letter-spacing: var(--text-stat-tracking);
+}
+
+.about__caption {
+  margin: var(--half) 0 var(--gap-18);
+}
+
+.about__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--gap-14) 0;
+  border-top: var(--hair) solid var(--line);
+}
+
+.about__row .link {
+  padding: var(--gap-6) 0;
+}
+
+.about__end {
+  border-top: var(--hair) solid var(--line);
+}
+
+.about__label {
+  font-size: var(--text-row-size);
+  font-weight: var(--weight-medium);
 }

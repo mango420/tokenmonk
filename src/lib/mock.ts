@@ -10,6 +10,7 @@ import type {
   GameState,
   LevelUp,
   LimitSetup,
+  StatuslineFileInfo,
   Settings,
   TokenBreakdown,
   UpdateStatus,
@@ -292,11 +293,16 @@ export interface MockScenario {
 }
 
 /** Synthetic `get_limit_setup` answers for the settings preview. */
-const setupPlain: LimitSetup = { statuslineCommand: "C:/Tokenmonk/tokenmonk.exe --statusline" };
-const setupQuoted: LimitSetup = {
-  statuslineCommand: '"C:/Program Files/Tokenmonk/tokenmonk.exe" --statusline',
-};
-const setupMissing: LimitSetup = { statuslineCommand: null };
+const fileNever: StatuslineFileInfo = { exists: false, receivedAt: null, modifiedAt: null };
+const fileArrived: StatuslineFileInfo = { exists: true, receivedAt: NOW - 12 * MIN, modifiedAt: NOW - 12 * MIN };
+const fileUnreadable: StatuslineFileInfo = { exists: true, receivedAt: null, modifiedAt: NOW - 3 * 24 * 60 * MIN };
+const commandPlain = "C:/Tokenmonk/tokenmonk.exe --statusline";
+const commandQuoted = '"C:/Program Files/Tokenmonk/tokenmonk.exe" --statusline';
+const setupPlain: LimitSetup = { statuslineCommand: commandPlain, statuslineFile: fileNever };
+const setupQuoted: LimitSetup = { statuslineCommand: commandQuoted, statuslineFile: fileNever };
+const setupArrived: LimitSetup = { statuslineCommand: commandPlain, statuslineFile: fileArrived };
+const setupUnreadable: LimitSetup = { statuslineCommand: commandPlain, statuslineFile: fileUnreadable };
+const setupMissing: LimitSetup = { statuslineCommand: null, statuslineFile: fileNever };
 
 export function mockLimitSetup(scenario: MockScenario): LimitSetup {
   return scenario.limitSetup ?? setupPlain;
@@ -333,8 +339,8 @@ const booGame: GameState = {
   achievements: achievements.map((a) => (a.id === "boo" ? { ...a, unlockedAt: NOW - 3 * HOUR } : a)),
 };
 
-const maxSettings: Settings = { mode: "max", sound: true, autostart: false, updateCheck: true };
-const diySettings: Settings = { mode: "diy", sound: true, autostart: false, updateCheck: true };
+const maxSettings: Settings = { mode: "max", sound: true, autostart: false, updateCheck: true, keepOpen: false };
+const diySettings: Settings = { mode: "diy", sound: true, autostart: false, updateCheck: true, keepOpen: false };
 
 const buildScenarios = () => ({
   max: {
@@ -432,6 +438,24 @@ const buildScenarios = () => ({
     limitSetup: setupQuoted,
     update: idle,
   },
+  maxSetupArrived: {
+    label: "Max it out, status line ran, no current window",
+    settings: maxSettings,
+    appInfo,
+    dashboard: snapshot({ limits: noLimits }),
+    game: maxGame,
+    limitSetup: setupArrived,
+    update: idle,
+  },
+  maxSetupUnreadable: {
+    label: "Max it out, status line file unreadable",
+    settings: maxSettings,
+    appInfo,
+    dashboard: snapshot({ limits: noLimits }),
+    game: maxGame,
+    limitSetup: setupUnreadable,
+    update: idle,
+  },
   maxSetupMissing: {
     label: "Max it out, executable path unknown",
     settings: maxSettings,
@@ -490,7 +514,7 @@ const buildScenarios = () => ({
   },
   onboarding: {
     label: "Onboarding, importing",
-    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true },
+    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true, keepOpen: false },
     appInfo,
     dashboard: snapshot({ data: importing(24), limits: noLimits }),
     game: { ...freshGame(), retroDone: false },
@@ -498,7 +522,7 @@ const buildScenarios = () => ({
   },
   onboardingReady: {
     label: "Onboarding, logs found",
-    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true },
+    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true, keepOpen: false },
     appInfo,
     dashboard: snapshot({ limits: noLimits }),
     game: { ...freshGame(), retroDone: false },
@@ -506,7 +530,7 @@ const buildScenarios = () => ({
   },
   onboardingNoLogs: {
     label: "Onboarding, no logs",
-    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true },
+    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true, keepOpen: false },
     appInfo: { ...appInfo, logsFound: false },
     dashboard: noLogsSnapshot(),
     game: freshGame(),
@@ -570,6 +594,14 @@ const buildScenarios = () => ({
     dashboard: snapshot({}),
     game: maxGame,
     update: { kind: "checkFailed", checkedAt: NOW, detail: null },
+  },
+  updateDownloading: {
+    label: "Max it out, Update: downloading",
+    settings: maxSettings,
+    appInfo,
+    dashboard: snapshot({}),
+    game: maxGame,
+    update: { kind: "downloading", version: "0.4.1", percent: 42 },
   },
   updateInstalling: {
     label: "Max it out, Update: installing",

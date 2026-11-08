@@ -19,7 +19,8 @@ list and those documents disagree, the documents win and this list is fixed.
 
 - [ ] The draft release `v<version>` lists the four installers named in
       DECISIONS.md ("Release ownership"): `.dmg`, `.app.tar.gz`,
-      `-setup.exe`, `.msi`, plus their `.sig` files and `latest.json`.
+      `-setup.exe`, `.msi`, plus a `.sig` file for each except the
+      `.dmg`, and `latest.json`.
 - [ ] Downloaded from the draft (not built locally), so the OS treats it
       like a user download.
 - [ ] Test machine has Claude Code logs with some history, and no earlier
@@ -63,10 +64,13 @@ As documented in the README, "Install":
 
 ## Tray and halo
 
-- [ ] Tray icon: ring track plus centre dot in the mode accent.
+- [ ] Tray icon (Windows): grey ring track, monk head and sleeve grey; arc
+      and robe in the mode accent.
+- [ ] Tray icon (macOS): black template image tinted by the menu bar;
+      track at 40 %, arc and monk solid.
 - [ ] With limit data: the arc shows 5-hour percent left and drains as the
       window is used.
-- [ ] Without limit data: dotted track, no arc.
+- [ ] Without limit data: dotted track, no arc, the monk faded.
 - [ ] Right click opens the tray menu: "Open Tokenmonk" opens the popup,
       "Settings" opens Settings, "Quit" ends the app.
 - [ ] Icon is legible in light and dark system themes.

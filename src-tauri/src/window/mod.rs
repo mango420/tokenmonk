@@ -120,8 +120,13 @@ enum BlurAction {
     Ignore,
 }
 
-fn blur_action(visible: bool, focused: bool, since_move: Option<Duration>) -> BlurAction {
-    if !visible || focused {
+fn blur_action(
+    keep_open: bool,
+    visible: bool,
+    focused: bool,
+    since_move: Option<Duration>,
+) -> BlurAction {
+    if keep_open || !visible || focused {
         BlurAction::Ignore
     } else if since_move.is_some_and(|d| d < DRAG_WINDOW) {
         BlurAction::Refocus
@@ -149,9 +154,13 @@ fn settle_blur(handle: &WebviewWindow) {
             .lock()
             .ok()
             .and_then(|last| last.map(|t| t.elapsed()));
+        // Read live so a settings change applies without a restart.
+        let keep_open = handle
+            .try_state::<std::sync::Arc<crate::app::AppState>>()
+            .is_some_and(|s| s.settings().keep_open);
         let visible = handle.is_visible().unwrap_or(false);
         let focused = handle.is_focused().unwrap_or(false);
-        match blur_action(visible, focused, since_move) {
+        match blur_action(keep_open, visible, focused, since_move) {
             BlurAction::Hide => {
                 if let Ok(mut last) = LAST_BLUR_HIDE.lock() {
                     *last = Some(Instant::now());
@@ -300,15 +309,15 @@ mod tests {
 
     #[test]
     fn blur_without_recent_move_hides() {
-        assert_eq!(blur_action(true, false, None), BlurAction::Hide);
+        assert_eq!(blur_action(false, true, false, None), BlurAction::Hide);
         let old = Some(DRAG_WINDOW + Duration::from_millis(1));
-        assert_eq!(blur_action(true, false, old), BlurAction::Hide);
+        assert_eq!(blur_action(false, true, false, old), BlurAction::Hide);
     }
 
     #[test]
     fn blur_during_a_drag_refocuses() {
         let recent = Some(Duration::from_millis(20));
-        assert_eq!(blur_action(true, false, recent), BlurAction::Refocus);
+        assert_eq!(blur_action(false, true, false, recent), BlurAction::Refocus);
     }
 
     #[test]
@@ -317,7 +326,7 @@ mod tests {
         let mut since_move = Duration::from_millis(20);
         let mut rounds = 0;
         let last = loop {
-            let action = blur_action(true, false, Some(since_move));
+            let action = blur_action(false, true, false, Some(since_move));
             if action != BlurAction::Refocus {
                 break action;
             }
@@ -330,8 +339,17 @@ mod tests {
 
     #[test]
     fn settled_or_hidden_blur_is_ignored() {
-        assert_eq!(blur_action(true, true, None), BlurAction::Ignore);
-        assert_eq!(blur_action(false, false, None), BlurAction::Ignore);
+        assert_eq!(blur_action(false, true, true, None), BlurAction::Ignore);
+        assert_eq!(blur_action(false, false, false, None), BlurAction::Ignore);
+    }
+
+    #[test]
+    fn blur_with_keep_open_is_ignored() {
+        assert_eq!(blur_action(true, true, false, None), BlurAction::Ignore);
+        let old = Some(DRAG_WINDOW + Duration::from_millis(1));
+        assert_eq!(blur_action(true, true, false, old), BlurAction::Ignore);
+        let recent = Some(Duration::from_millis(20));
+        assert_eq!(blur_action(true, true, false, recent), BlurAction::Ignore);
     }
 
     #[test]

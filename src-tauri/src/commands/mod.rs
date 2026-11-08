@@ -21,7 +21,7 @@ use crate::contracts::{
 };
 use crate::db::DbError;
 use crate::game::{evaluate, Facts, GameStore};
-use crate::limits::setup::current_statusline_command;
+use crate::limits::setup::{current_statusline_command, current_statusline_file};
 use crate::watcher::IngestHandle;
 
 fn error(code: CommandErrorCode, message: impl Into<String>) -> CommandError {
@@ -187,6 +187,7 @@ pub fn get_app_info(state: State<'_, Arc<AppState>>) -> Result<AppInfo, CommandE
 pub fn get_limit_setup() -> Result<LimitSetup, CommandError> {
     Ok(LimitSetup {
         statusline_command: current_statusline_command(),
+        statusline_file: current_statusline_file(),
     })
 }
 
@@ -258,6 +259,7 @@ mod tests {
             sound: Some(false),
             autostart: None,
             update_check: None,
+            keep_open: None,
         };
         let (before, after) = apply_update(&s, &patch, |_| Ok(())).unwrap();
         assert_eq!(before.mode, Mode::NoneYet);

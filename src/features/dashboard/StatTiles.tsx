@@ -12,7 +12,7 @@ export function StatTiles({ stats }: StatTilesProps) {
         <div key={stat.label} className="stat">
           <span className="stat__label">{stat.label}</span>
           <span className="stat__value live-number">{stat.value}</span>
-          <span className="stat__unit">{stat.unit}</span>
+          <span className="stat__unit" title={stat.unitTitle}>{stat.unit}</span>
         </div>
       ))}
     </div>

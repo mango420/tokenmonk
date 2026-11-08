@@ -34,6 +34,9 @@ export interface Settings {
   /** "Check for updates automatically": check once at app start. Manual
    * checks ("Check now") work either way. Default true. */
   updateCheck: boolean;
+  /** "Keep popup open": no hide on blur, the popup closes only via the
+   * tray icon or its Close button. Default false. */
+  keepOpen: boolean;
 }
 
 /** Partial update for `update_settings`. `mode: "noneYet"` is rejected. */
@@ -42,6 +45,7 @@ export interface SettingsPatch {
   sound?: boolean;
   autostart?: boolean;
   updateCheck?: boolean;
+  keepOpen?: boolean;
 }
 
 // ------------------------------------------------------------------ limits
@@ -87,6 +91,21 @@ export interface LimitSetup {
    * `settings.json` (executable path plus `--statusline`); null if the
    * executable path is unknown. */
   statuslineCommand: string | null;
+  /** State of the bridge file `statusline.json` when the command ran. Lets
+   * Settings tell "never arrived" from "arrived, no current window". */
+  statuslineFile: StatuslineFileInfo;
+}
+
+/** What the app knows about the bridge file, without judging it. */
+export interface StatuslineFileInfo {
+  /** The file exists (false also when the app data directory is unknown). */
+  exists: boolean;
+  /** `receivedAt` from the file: when the bridge last ran. Null if the file
+   * is missing, unreadable or not a valid bridge file. */
+  receivedAt: EpochMs | null;
+  /** File modification time; useful when the file exists but
+   * `receivedAt` is null. Null if missing or not reported by the OS. */
+  modifiedAt: EpochMs | null;
 }
 
 // --------------------------------------------------------------- dashboard
@@ -245,6 +264,14 @@ export interface AppInfo {
   logsFound: boolean;
 }
 
+/** Public GitHub repository (Rust `app::REPO_URL`), the About screen's
+ * "Source" link. No trailing slash. */
+export const REPO_URL = "https://github.com/mango420/tokenmonk";
+
+/** GitHub issues (Rust `app::ISSUES_URL`), the About screen's "Ideas and
+ * bugs" link and the only contact channel. */
+export const ISSUES_URL = "https://github.com/mango420/tokenmonk/issues";
+
 /** Database schema version the app expects (Rust `schema::SCHEMA_VERSION`). */
 export const SCHEMA_VERSION = 1;
 
@@ -259,8 +286,14 @@ export const RELEASE_PAGE_BASE = "https://github.com/mango420/tokenmonk/releases
  * `idle`: no check since start. `unavailable`: this build cannot update
  * itself (empty updater key, as in development); no request is made.
  * `checkFailed`: offline, network error, timeout, 404 or invalid
- * `latest.json`. `installing`: on success the app exits or restarts, no
- * further status follows. `detail` is technical text for logs only.
+ * `latest.json`. `downloading` (TKM-212): `install_update` is fetching the
+ * package; `percent` is the whole percent 0 to 100 (Rust
+ * `update::download_percent`), `null` while the size is unknown or when the
+ * server sends no length. Emitted with `percent: null` first, then once per
+ * whole-percent change (at most 101 events); with an unknown size nothing
+ * more until `installing`. `installing`: download done, signature check and
+ * install running; on success the app exits or restarts, no further status
+ * follows. `detail` is technical text for logs only.
  */
 export type UpdateStatus =
   | { kind: "idle" }
@@ -276,6 +309,7 @@ export type UpdateStatus =
     }
   | { kind: "unavailable" }
   | { kind: "checkFailed"; checkedAt: EpochMs; detail: string | null }
+  | { kind: "downloading"; version: string; percent: number | null }
   | { kind: "installing"; version: string }
   | { kind: "installFailed"; version: string; url: string; detail: string | null };
 
@@ -365,7 +399,9 @@ export const Events = {
 
 export type EventName = (typeof Events)[keyof typeof Events];
 
-export type View = "dashboard" | "settings" | "onboarding" | "achievements";
+/** Popup views (Rust `View`, camelCase). `about`: version, licence and the
+ * GitHub links, opened from the Settings footer; Back returns to Settings. */
+export type View = "dashboard" | "settings" | "onboarding" | "achievements" | "about";
 
 export interface NavigateTo {
   view: View;

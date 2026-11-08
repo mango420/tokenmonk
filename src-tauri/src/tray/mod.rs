@@ -23,6 +23,7 @@ pub const TRAY_ID: &str = "main";
 
 const MENU_OPEN: &str = "open";
 const MENU_SETTINGS: &str = "settings";
+const MENU_CHECK_UPDATES: &str = "check-updates";
 const MENU_QUIT: &str = "quit";
 
 /// What a tray menu entry asks the app to do.
@@ -30,6 +31,7 @@ const MENU_QUIT: &str = "quit";
 enum MenuAction {
     Open,
     Settings,
+    CheckUpdates,
     Quit,
 }
 
@@ -38,6 +40,7 @@ impl MenuAction {
         match id {
             MENU_OPEN => Some(Self::Open),
             MENU_SETTINGS => Some(Self::Settings),
+            MENU_CHECK_UPDATES => Some(Self::CheckUpdates),
             MENU_QUIT => Some(Self::Quit),
             _ => None,
         }
@@ -52,9 +55,16 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
 
     let open = MenuItem::with_id(app, MENU_OPEN, "Open Tokenmonk", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, MENU_SETTINGS, "Settings", true, None::<&str>)?;
+    let check = MenuItem::with_id(
+        app,
+        MENU_CHECK_UPDATES,
+        "Check for updates",
+        true,
+        None::<&str>,
+    )?;
     let separator = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, MENU_QUIT, "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &settings, &separator, &quit])?;
+    let menu = Menu::with_items(app, &[&open, &settings, &check, &separator, &quit])?;
 
     let image = build_image(style, None, Mode::NoneYet)
         .map_err(|e| tauri::Error::Io(std::io::Error::other(e)))?;
@@ -68,7 +78,7 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
         .on_menu_event(
             |app, event| match MenuAction::from_id(event.id().as_ref()) {
                 Some(MenuAction::Open) => window::show(app),
-                Some(MenuAction::Settings) => {
+                Some(action @ (MenuAction::Settings | MenuAction::CheckUpdates)) => {
                     window::show(app);
                     if let Err(e) = app.emit(
                         NAVIGATE,
@@ -77,6 +87,13 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
                         },
                     ) {
                         log::warn!("could not emit navigate: {e}");
+                    }
+                    if action == MenuAction::CheckUpdates {
+                        // The result reaches the UI via update-status-changed.
+                        let app = app.clone();
+                        tauri::async_runtime::spawn(async move {
+                            crate::app::check_update(&app).await;
+                        });
                     }
                 }
                 Some(MenuAction::Quit) => app.exit(0),
@@ -139,6 +156,10 @@ mod tests {
     fn menu_ids_map_to_actions() {
         assert_eq!(MenuAction::from_id("open"), Some(MenuAction::Open));
         assert_eq!(MenuAction::from_id("settings"), Some(MenuAction::Settings));
+        assert_eq!(
+            MenuAction::from_id("check-updates"),
+            Some(MenuAction::CheckUpdates)
+        );
         assert_eq!(MenuAction::from_id("quit"), Some(MenuAction::Quit));
         assert_eq!(MenuAction::from_id("other"), None);
     }

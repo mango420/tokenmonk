@@ -280,8 +280,8 @@ Bridge file (camelCase, all timestamps `EpochMs`; invented values):
 
 ### Setup snippet
 
-- `get_limit_setup` returns `LimitSetup { statuslineCommand }`: the current
-  executable path (`std::env::current_exe()`) plus ` --statusline`. On
+- `get_limit_setup` returns `LimitSetup { statuslineCommand,
+  statuslineFile }`. `statuslineCommand` is the current executable path (`std::env::current_exe()`) plus ` --statusline`. On
   Windows the path uses forward slashes (Claude Code runs the command
   through Git Bash when installed, which drops unquoted backslashes, else
   through PowerShell). The path is wrapped in double quotes only if it
@@ -300,12 +300,39 @@ Bridge file (camelCase, all timestamps `EpochMs`; invented values):
 - The UI builds the snippet with `JSON.stringify`, so quotes are escaped:
   `{ "statusLine": { "type": "command", "command": <statuslineCommand> } }`,
   to be merged into the user settings file `~/.claude/settings.json`.
+  This makes Tokenmonk the whole status line command: it replaces any
+  existing `statusLine` value.
 - Chaining an existing status line: Tokenmonk does not run other commands
-  in v0.1. A user with their own script adds one line that pipes the same
-  input to the bridge and drops its output, for scripts that keep stdin in
-  `$input` as the official examples do:
-  `printf '%s' "$input" | <statuslineCommand> >/dev/null`. A built-in
-  chain flag and PowerShell scripts are out of scope for v0.1.
+  in v0.1. A user with their own script keeps their `statusLine` setting
+  as is and adds one line inside that script, not in `settings.json`. The
+  line pipes the same input to the bridge and drops its output, for
+  scripts that keep stdin in `$input` as the official examples do:
+  `printf '%s' "$input" | <statuslineCommand> >/dev/null`. It is a Bash
+  line, so the UI shows it only if `AppInfo.platform` is not `windows`; on
+  Windows the script language is unknown (Git Bash or PowerShell) and
+  Settings says chaining is not covered there (DESIGN.md, "Limit data").
+  A built-in chain flag and PowerShell scripts are out of scope for v0.1.
+- `statuslineFile: StatuslineFileInfo { exists, receivedAt, modifiedAt }`
+  is read on every `get_limit_setup` call from the same path as the file
+  source (`limits::bridge::statusline_path()`), independent of the limits
+  worker. It reports, it does not judge:
+
+  | File state | `exists` | `receivedAt` | `modifiedAt` |
+  |---|---|---|---|
+  | No app data directory, or file missing | `false` | `null` | `null` |
+  | Exists, unreadable, not JSON, unknown `version` | `true` | `null` | mtime or `null` |
+  | Valid bridge file | `true` | file's `receivedAt` | mtime or `null` |
+
+  `modifiedAt` is `std::fs::Metadata::modified()` as epoch ms, `null` if
+  the OS does not report it. It matters only when `receivedAt` is `null`
+  (something arrived but cannot be read); for a valid file the two are
+  about the same. Expired windows do not change this block: a valid file
+  whose windows are all past reset gives `receivedAt` set while
+  `DashboardSnapshot.limits` is `unavailable` with `noSource` ("arrived, no
+  current window"). Reading the file must not fail the command; any I/O
+  error lands in the second row. Rust and TS: `statuslineFile` is always
+  serialized; on input it defaults to the first row (`#[serde(default)]`),
+  so the change is additive.
 
 ### To verify during implementation
 
@@ -325,7 +352,8 @@ For backend-platform (and the orchestrator where marked):
 
 1. `commands`: add `get_limit_setup` returning `LimitSetup` (a stub
    returning `statuslineCommand: null` is fine until the path logic
-   lands); register it in `lib.rs` next to the other commands
+   lands; `statuslineFile` defaults to "missing" until the file check in
+   "Setup snippet" lands); register it in `lib.rs` next to the other commands
    (orchestrator, shared hotspot).
 2. `lib.rs::run` (orchestrator, shared hotspot): if the first argument is
    `--statusline`, run the bridge and return before the Tauri builder is
@@ -395,6 +423,8 @@ calls three commands. No new dependency.
   `idle`.
 - By hand: `check_for_updates` ("Check now" in Settings), whatever the
   setting says. Turning the setting on does not start a check by itself.
+- From the tray: the menu item "Check for updates" (Tray menu) runs the
+  same check as `check_for_updates`, whatever the setting says.
 - Install: only on `install_update` (the user clicked "Update"). Nothing
   installs silently.
 
@@ -406,8 +436,8 @@ emitted as `update-status-changed` with the full status.
 
 **Check** (`check_for_updates` and the start check):
 
-1. Busy (`UpdateStatus::is_busy`: `checking` or `installing`): return the
-   current status, start nothing.
+1. Busy (`UpdateStatus::is_busy`: `checking`, `downloading` or
+   `installing`): return the current status, start nothing.
 2. Read `plugins.updater.pubkey` from `app.config().plugins` (a map of
    plugin name to JSON). Missing or blank: status `unavailable`, no
    request. This is the dev case and every build without updater
@@ -424,7 +454,8 @@ emitted as `update-status-changed` with the full status.
      the remote version is not newer than the running one).
    - `Err(e)`: `checkFailed { checkedAt, detail: Some(e.to_string()) }`.
      Offline and timeouts surface as `Error::Reqwest`; a 404 on
-     `latest.json` (no updater artifacts published) as
+     `latest.json` (the latest published release has no updater
+     artifacts) as
      `Error::ReleaseNotFound`; invalid JSON as `Error::Serialization`; a
      release without this platform as `Error::TargetNotFound`. All map to
      `checkFailed`, logged, no popup, no notification.
@@ -435,11 +466,27 @@ emitted as `update-status-changed` with the full status.
 1. Busy: return the current status. No installable version
    (`UpdateStatus::installable_version` is `None`): reject with
    `CommandError { code: invalidArgument }`.
-2. Status `installing { version }` (emitted), then
-   `update.download_and_install(|_, _| {}, || {}).await`. Download
-   progress is not reported.
+2. Status `downloading { version, percent: null }` (emitted), then
+   `update.download_and_install(on_chunk, on_download_finish).await`
+   (TKM-212). Signature in tauri-plugin-updater 2.x (docs.rs,
+   `Update::download_and_install`):
+   `on_chunk: FnMut(usize, Option<u64>)` gets the length of each received
+   chunk and the response's `Content-Length` (`None` when missing or
+   unparsable); `on_download_finish: FnOnce()` runs once after the last
+   chunk, before the signature check and the install.
+   - `on_chunk`: add the chunk length to a running `u64` total, compute
+     `update::download_percent(total, content_length)` and, only if it
+     differs from the stored percent, store and emit
+     `downloading { version, percent }`. So at most 101 progress events
+     per download; with an unknown size the percent stays `null` and
+     nothing more is emitted. The callback is synchronous: store and emit
+     without awaiting, never block on the download.
+   - `on_download_finish`: status `installing { version }` (emitted). It
+     covers the signature check and the install.
 3. On error: `installFailed { version, url, detail }`, resolve with it.
-   The stored `Update` stays, so "Try again" repeats step 2.
+   The stored `Update` stays, so "Try again" repeats step 2 (from
+   `downloading`, percent `null`). A failed signature check arrives here
+   after `installing` was emitted, which is fine: `installFailed` follows.
 4. On success:
    - **Windows**: the plugin launches the installer and the process ends
      inside the install call (`std::process::exit(0)`); the command never
@@ -472,6 +519,47 @@ README "Privacy" states this for users.
 (`openUrl`; https URLs are allowed by `opener:default`). Copy and
 placement: DESIGN.md ("Update line", "Settings").
 
+## Tray menu
+
+Built in `tray::init` with `tauri::menu` items, handled in the tray's
+`on_menu_event`. Ids are internal to `tray` (not contracts):
+
+| Id | Label | Action |
+|---|---|---|
+| `open` | "Open Tokenmonk" | `window::show` |
+| `settings` | "Settings" | `window::show`, then emit `navigate` with `NavigateTo { view: settings }` |
+| `check-updates` | "Check for updates" | as `settings`, then spawn the update check on `tauri::async_runtime` |
+| (separator) | | |
+| `quit` | "Quit" | `app.exit(0)` |
+
+- `check-updates` calls the same function as the `check_for_updates`
+  command (`app::check_update`, Updates, "Check"), so the busy rule, the
+  missing-pubkey case and the status mapping are identical. The handler
+  does not wait for the result and shows nothing itself; every
+  transition goes out as `update-status-changed` and the Settings update
+  row renders it (DESIGN.md, "Tray menu").
+- Order: `navigate` is emitted before the check starts, so Settings is
+  the visible view when `checking` arrives. If the UI is not listening
+  yet it still gets the status from `get_update_status` on start.
+- No new command, event or payload; `View::Settings` and
+  `update-status-changed` already exist. No new dependency.
+- No "About" item (TKM-125): About is reached from the Settings footer
+  only, so `tray` needs no change. `View::About` exists for the UI's own
+  navigation; Rust never emits `navigate` with it.
+
+### Hide on blur vs. keep open
+
+- Default (`Settings.keep_open = false`): `window` hides the popup once a
+  blur has settled (`BLUR_SETTLE`); a tray click right after such a hide
+  (`BLUR_GRACE`) only dismisses, it does not reopen.
+- `keep_open = true`: blur is ignored, the popup stays visible (it is
+  `alwaysOnTop`) and hides only via the tray icon toggle or the title
+  bar "Close" (`CloseRequested`). Read from the
+  cached `Settings` on each blur, so a change via `update_settings`
+  applies at once without a restart.
+- Stored like the other switches; a stored settings set without the
+  field loads as `false` (`#[serde(default)]`). No new command or event.
+
 ## Commands and events
 
 Defined in the contracts (names as constants on both sides):
@@ -484,7 +572,7 @@ Defined in the contracts (names as constants on both sides):
 | `complete_onboarding { mode }` | `Settings` |
 | `get_game_state` | `GameState` |
 | `get_app_info` | `AppInfo` |
-| `get_limit_setup` | `LimitSetup` (status-line setup command, see Limits) |
+| `get_limit_setup` | `LimitSetup` (status-line setup command and bridge file state, see Limits) |
 | `get_update_status` | `UpdateStatus` |
 | `check_for_updates` | `UpdateStatus` after the check (see Updates) |
 | `install_update` | `UpdateStatus`, only on failure; success exits or restarts the app |
@@ -497,7 +585,7 @@ Defined in the contracts (names as constants on both sides):
 | `achievement-unlocked` | `AchievementUnlocked` |
 | `level-up` | `LevelUp` |
 | `app-info-changed` | `AppInfo` |
-| `navigate` | `NavigateTo` (tray menu opens settings etc.; views: dashboard, settings, onboarding, achievements) |
+| `navigate` | `NavigateTo` (tray menu opens settings etc.; views: dashboard, settings, onboarding, achievements, about) |
 | `update-status-changed` | `UpdateStatus` |
 
 Payloads are full state, never diffs. On start the UI calls the `get_*`

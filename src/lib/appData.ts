@@ -71,7 +71,7 @@ const EMPTY_TOKENS = { input: 0, output: 0, cacheCreation: 0, cacheRead: 0, tota
 
 function placeholders(): AppData {
   return {
-    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true },
+    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true, keepOpen: false },
     appInfo: {
       version: "",
       platform: "windows",
@@ -256,7 +256,7 @@ function useMockAppData(scenario: MockScenarioId): AppState {
     setUpdate({ kind: "upToDate", checkedAt: Date.now() });
   }, []);
   const installUpdate = useCallback(async () => {
-    setUpdate((u) => (u.kind === "available" || u.kind === "installFailed" ? { kind: "installing", version: u.version } : u));
+    setUpdate((u) => (u.kind === "available" || u.kind === "installFailed" ? { kind: "downloading", version: u.version, percent: null } : u));
   }, []);
 
   const loadLimitSetup = useCallback(
