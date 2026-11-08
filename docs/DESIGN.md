@@ -609,13 +609,26 @@ Fed by: `AppInfo.version` (`get_app_info`, `app-info-changed`),
    space-between, gap 12. Left: name (row style) over description
    (caption). Right: "Unlocked" or "Locked" (small, no wrap, padding top
    3). Locked rows show name and description at 50 % opacity.
+7. Other-mode hint: a locked row whose achievement only counts in the
+   other mode (`AchievementProgress.mode` is set and differs from
+   `GameState.mode`) gets one more line under the description: "Max it
+   out only. Not on this mode's menu." or "Do it yourself only. Not on
+   this mode's menu." (the mode name from Modes). Style: small, `ink-2`,
+   margin top 2, full opacity (not dimmed with the row), may wrap. The
+   right side still reads "Locked". No accent colour, no icon.
+
+Other-mode hint rules: no hint on unlocked rows (earned is earned, the XP
+stays in the one pool), none for achievements with `mode = null`, none
+while `GameState.mode` is `noneYet`. The hint follows `game-updated`, so
+a mode switch in Settings updates it. It does not change the heading
+count, the row order or the dimming.
 
 Listed: every achievement except secret ones that are still locked. Boo
 ("Halloween 2026") is a retired legacy badge: secret and no longer
 earnable, so it is listed only for players who already unlocked it.
 
-Fed by: `GameState` (`title`, `level`, `xpIntoLevel`, `xpForLevel`,
-`progress`, `achievements`).
+Fed by: `GameState` (`mode`, `title`, `level`, `xpIntoLevel`,
+`xpForLevel`, `progress`, `achievements`).
 
 ### Achievement toast
 
@@ -776,8 +789,9 @@ Open points:
   (WKWebView) is still unverified. If `writeText` rejects there, the
   fallback applies: the caption "Couldn’t copy. Select it and copy by hand."
   shows and the snippet text is selected.
-- The prototype lists all achievements regardless of mode; whether
-  mode-only achievements need a hint for the other mode is open.
+- The other-mode hint on the Achievements screen is not in the prototype
+  (it lists all achievements regardless of mode); decided in TKM-126
+  using existing styles only.
 - Update UI (update line, Settings update row and switch) is not in the
   prototype; it is derived from the TKM-41 decisions using existing
   styles only. Download progress (TKM-212) is text in the same line, no
