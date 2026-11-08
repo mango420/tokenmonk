@@ -33,6 +33,7 @@ export function AchievementsView({ game, onBack }: AchievementsViewProps) {
               <div className="ach__text">
                 <span className="ach__name">{row.name}</span>
                 <span className="ach__description">{row.description}</span>
+                {row.hint !== null && <span className="ach__hint">{row.hint}</span>}
               </div>
               <span className="ach__state">{row.unlocked ? "Unlocked" : "Locked"}</span>
             </li>
