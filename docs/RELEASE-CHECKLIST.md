@@ -69,8 +69,8 @@ As documented in the README, "Install":
 
 - [ ] Tray icon (Windows): grey ring track, monk head and sleeve grey; arc
       and robe in the mode accent.
-- [ ] Tray icon, macOS (community): black template image tinted by the menu bar;
-      track at 40 %, arc and monk solid.
+- [ ] Tray icon, macOS (community): black template image tinted by the
+      menu bar; track at 40 %, arc and monk solid.
 - [ ] With limit data: the arc shows 5-hour percent left and drains as the
       window is used.
 - [ ] Without limit data: dotted track, no arc, the monk faded.

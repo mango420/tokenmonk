@@ -181,9 +181,14 @@ promotion.
 
 1. Branch `hotfix/TKM-<n>-<short>` from `origin/main`, commit as `fix(...)`.
 2. PR with base `main`, squash, normal title
-   `fix(<scope>): <short> (TKM-<n>)`. Before merging, the maintainer tests
-   the fix on Windows as far as possible (at least the affected items plus
-   first start and tray).
+   `fix(<scope>): <short> (TKM-<n>)`. Before merging, start a test build
+   on the hotfix branch and test its Windows installer (at least the
+   affected items plus first start and tray). That test is the hotfix gate:
+
+   ```bash
+   gh workflow run test-build.yml --ref hotfix/TKM-<n>-<short>
+   ```
+
 3. Merge the release PR that release-please now proposes (patch bump).
 4. Draft check and publish as in [Draft check](#draft-check) and
    [Publish](#publish).
