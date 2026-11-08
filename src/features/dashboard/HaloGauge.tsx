@@ -17,21 +17,18 @@ let ringDrawn = false;
 /** Hand-drawn wobble (docs/DESIGN.md, "Dashboard", ring). */
 const ROUGH_FILTER = "tokenmonk-rough";
 
-/** Inner arc length relative to the main arc. */
-const INNER_RATIO = 0.93;
-
 interface HaloGaugeProps {
   model: RingModel;
 }
 
 /**
- * The ring: dotted track, a main arc and an inner arc that drain as the window
+ * The ring: dotted track, a main arc that drains as the window
  * is used, the hero number in the centre. Never changes colour.
  */
 export function HaloGauge({ model }: HaloGaugeProps) {
   const size = useTokenPx("--ring-size");
   const radius = useTokenPx("--ring-radius");
-  const innerRadius = useTokenPx("--ring-inner-radius");
+  const wobble = useTokenPx("--ring-wobble-scale");
   const centre = size / 2;
   const circumference = 2 * Math.PI * radius;
 
@@ -53,7 +50,7 @@ export function HaloGauge({ model }: HaloGaugeProps) {
         <defs>
           <filter id={ROUGH_FILTER} x="-10%" y="-10%" width="120%" height="120%">
             <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="4" result="noise" />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale={wobble} />
           </filter>
         </defs>
         <circle className="ring__track" cx={centre} cy={centre} r={radius} />
@@ -67,13 +64,6 @@ export function HaloGauge({ model }: HaloGaugeProps) {
                 r={radius}
                 strokeDasharray={`${length.toFixed(1)} ${gap}`}
                 onAnimationEnd={() => setAnimate(false)}
-              />
-              <circle
-                className={`${arcClass} ring__arc--inner`}
-                cx={centre}
-                cy={centre}
-                r={innerRadius}
-                strokeDasharray={`${(length * INNER_RATIO).toFixed(1)} ${gap}`}
               />
             </g>
           </g>

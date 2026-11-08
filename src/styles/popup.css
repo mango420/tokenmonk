@@ -405,12 +405,6 @@ html[data-maximized] .popup {
   stroke-width: var(--ring-stroke);
 }
 
-.ring__arc--inner {
-  stroke: var(--accent);
-  stroke-opacity: var(--ring-inner-opacity);
-  stroke-width: var(--ring-inner-stroke);
-}
-
 .ring__arc--draw {
   animation: ring-draw var(--motion-ring-draw) var(--ease-ring-draw);
 }
