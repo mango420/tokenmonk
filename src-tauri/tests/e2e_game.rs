@@ -420,8 +420,9 @@ fn the_title_follows_the_mode_at_every_level() {
     let game = rig.state.game().unwrap();
     assert_eq!((game.level, game.title.as_str()), (3, "Token Tourist"));
 
-    // Do it yourself: the other title set. The five finished days have no
-    // budget (50 XP each) plus the 60 XP of achievements: 310 XP, level 2.
+    // Do it yourself: the other title set. Days are paid by the budget they
+    // used (150 XP up to 50 %, 0 above 100 %, 50 unmeasured), plus 160 XP of
+    // achievements.
     let (_dir, _file, rig) = replayed(Mode::Diy);
     let game = rig.state.game().unwrap();
     assert!(game.retro_done);
@@ -453,4 +454,84 @@ fn night_owl_covers_midnight_to_four() {
     rig.scan(std::slice::from_ref(&file), at + 1_000, true);
     rig.snap(at + 1_000, SnapshotCause::Files);
     assert_eq!(rig.rec.achievements(), ["firstBlood"]);
+}
+
+#[test]
+fn an_old_ledger_is_recounted_once_keeping_achievements() {
+    use chrono::{NaiveDate, Utc};
+    use tokenmonk_lib::game::{
+        recount_if_outdated, run_evaluation, AchievementRecord, DayFacts, Facts, LedgerEntry,
+        MemoryStore,
+    };
+
+    let day = |d: u32| NaiveDate::from_ymd_opt(2026, 10, d).unwrap();
+    let usage = |d: u32, tokens: u64| {
+        DayFacts::from_usage(
+            day(d),
+            [(utc_ms(2026, 10, d, 10, 0, 0), tokens)],
+            None,
+            &Utc,
+        )
+    };
+    let facts = Facts {
+        days: vec![usage(20, 250_000), usage(21, 2_500_000), usage(22, 0)],
+        ..Facts::default()
+    };
+    let now = utc_ms(2026, 10, 22, 12, 0, 0);
+    let row = |kind: &str, reference: String, amount: u32| LedgerEntry {
+        earned_at: utc_ms(2026, 10, 20, 10, 0, 0),
+        mode: Mode::Max,
+        kind: kind.into(),
+        reference,
+        amount,
+        retroactive: true,
+    };
+
+    // The ledger as the old rules left it: 10 XP a block capped at 20 a day,
+    // no day rows, First Blood unlocked (10 XP).
+    let mut old = vec![row("achievement", "firstBlood".into(), 10)];
+    old.extend((1..=2).map(|k| row("tokens", format!("2026-10-20/{k}"), 10)));
+    old.extend((1..=20).map(|k| row("tokens", format!("2026-10-21/{k}"), 10)));
+    let old_total: u64 = old.iter().map(|e| u64::from(e.amount)).sum();
+    assert_eq!(old_total, 230);
+    let mut store = MemoryStore::default();
+    store.data.ledger = old;
+    store.data.achievements = vec![AchievementRecord {
+        id: AchievementId::FirstBlood,
+        unlocked_at: Some(utc_ms(2026, 10, 20, 10, 0, 0)),
+        retroactive: true,
+        current: None,
+        target: None,
+        updated_at: utc_ms(2026, 10, 20, 10, 0, 0),
+    }];
+    store.data.retro_done = true;
+    store.rules_version = Some(1);
+    let achievements = store.data.achievements.clone();
+
+    // Recounted exactly once.
+    assert!(recount_if_outdated(&mut store).unwrap());
+    assert!(!store.data.retro_done, "the next evaluation is a replay");
+    assert_eq!(store.data.achievements, achievements);
+    let after = store.data.clone();
+    assert!(!recount_if_outdated(&mut store).unwrap());
+    assert_eq!(store.data, after, "idempotent");
+
+    // The replay under the new rules: retroactive, no unlock, no level-up
+    // announcement.
+    let ev = run_evaluation(&mut store, &facts, Mode::Max, now, &Utc, true).unwrap();
+    assert!(ev.unlocks.is_empty(), "achievements are kept, not re-won");
+    assert!(ev.ledger.iter().all(|e| e.retroactive));
+    assert!(store.data.retro_done);
+    // 20 + 10 (the 20th), 210 + 10 (the 21st), plus First Blood.
+    assert_eq!(ev.state.xp_total, 30 + 220 + 10);
+    assert!(ev.state.xp_total >= old_total, "never lowers the total");
+    assert_eq!((ev.state.level, ev.state.xp_into_level), (2, 60));
+    assert!(ev.state.retro_done);
+
+    // A second replay, and a second recount, change nothing.
+    let settled = store.data.clone();
+    let again = run_evaluation(&mut store, &facts, Mode::Max, now, &Utc, true).unwrap();
+    assert!(again.ledger.is_empty() && again.unlocks.is_empty());
+    assert!(!recount_if_outdated(&mut store).unwrap());
+    assert_eq!(store.data, settled);
 }
