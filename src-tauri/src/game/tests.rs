@@ -124,34 +124,62 @@ fn old_history() -> Facts {
     ])
 }
 
-#[test]
-fn recount_runs_once_and_matches_a_fresh_replay() {
-    let now = ms(2026, 10, 28, 12, 0);
+fn legacy_row(mode: Mode, kind: &str, reference: &str, amount: u32) -> LedgerEntry {
+    LedgerEntry {
+        earned_at: 1,
+        mode,
+        kind: kind.into(),
+        reference: reference.into(),
+        amount,
+        retroactive: true,
+    }
+}
+
+/// A store built under the old rules: day 20 earned in Max (20 token rows),
+/// day 21 earned in Diy (one `day` row), plus First Blood.
+fn legacy_store() -> MemoryStore {
     let mut store = MemoryStore::default();
-    apply(&mut store, &old_history(), Mode::Max, now, true);
-    // Build the legacy state: old-rules rows, achievements, outdated version.
-    let kept: Vec<_> = store
+    store.data.achievements.push(AchievementRecord {
+        id: AchievementId::FirstBlood,
+        unlocked_at: Some(1),
+        retroactive: true,
+        current: None,
+        target: None,
+        updated_at: 1,
+    });
+    store
         .data
         .ledger
-        .iter()
-        .filter(|e| e.kind == KIND_ACHIEVEMENT)
-        .cloned()
-        .collect();
-    assert!(!kept.is_empty());
-    store.data.ledger.retain(|e| e.kind == KIND_ACHIEVEMENT);
-    for (d, n) in [("2026-10-20", 20), ("2026-10-21", 4)] {
-        for k in 1..=n {
-            store.data.ledger.push(LedgerEntry {
-                earned_at: 1,
-                mode: Mode::Diy,
-                kind: KIND_TOKENS.into(),
-                reference: format!("{d}/{k}"),
-                amount: 10,
-                retroactive: true,
-            });
-        }
+        .push(legacy_row(Mode::Max, KIND_ACHIEVEMENT, "first_blood", 10));
+    for k in 1..=20 {
+        store.data.ledger.push(legacy_row(
+            Mode::Max,
+            KIND_TOKENS,
+            &format!("2026-10-20/{k}"),
+            10,
+        ));
     }
+    store
+        .data
+        .ledger
+        .push(legacy_row(Mode::Diy, KIND_DAY, "2026-10-21", 40));
+    store.data.retro_done = true;
     store.rules_version = Some(1);
+    store
+}
+
+fn mixed_history() -> Facts {
+    facts(vec![
+        day(date(2026, 10, 20), 3_000_000, None),
+        day(date(2026, 10, 21), 400_000, Some(30.0)),
+    ])
+}
+
+#[test]
+fn recount_keeps_modes_and_never_lowers_the_total() {
+    let now = ms(2026, 10, 28, 12, 0);
+    let mut store = legacy_store();
+    let old_total: u64 = store.data.ledger.iter().map(|e| u64::from(e.amount)).sum();
 
     assert!(recount_if_outdated(&mut store).unwrap());
     assert!(!store.data.retro_done);
@@ -165,42 +193,74 @@ fn recount_runs_once_and_matches_a_fresh_replay() {
     assert!(!recount_if_outdated(&mut store).unwrap(), "runs once");
     assert_eq!(store.data, snapshot);
 
-    // Replay under the new rules; the days keep the mode they were earned in,
-    // so a Max-mode run does not take them over from Diy.
-    let ev = apply(&mut store, &old_history(), Mode::Max, now, true);
-    assert!(
+    // The user is in Max now; the Diy day is still paid by Diy rules.
+    let ev = apply(&mut store, &mixed_history(), Mode::Max, now, true);
+    let row = |kind: &str, r: &str| {
         ev.ledger
             .iter()
-            .all(|e| e.kind != KIND_TOKENS && e.kind != KIND_DAY),
-        "days belong to the recorded mode"
-    );
+            .find(|e| e.kind == kind && e.reference == r)
+            .cloned()
+    };
+    let diy = row(KIND_DAY, "2026-10-21").expect("diy day paid");
+    assert_eq!((diy.mode, diy.amount), (Mode::Diy, 150));
+    let max = row(KIND_DAY, "2026-10-20").expect("max bonus");
+    assert_eq!((max.mode, max.amount), (Mode::Max, MAX_ACTIVE_DAY_XP));
+    assert_eq!(row(KIND_TOKENS, "2026-10-20/21").unwrap().amount, 2);
+    assert!(ev.unlocks.is_empty() && ev.level_up.is_none_or(|l| l.retroactive));
+    let total = ev.state.xp_total;
+    assert_eq!(total, 10 + (200 + 20 + 10) + 150);
+    assert!(total >= old_total);
+    assert!(level_info(total).level >= level_info(old_total).level);
 
-    let ach: u32 = kept.iter().map(|e| e.amount).sum();
-    let xp: u64 = store.data.ledger.iter().map(|e| u64::from(e.amount)).sum();
-    assert_eq!(xp, u64::from(ach));
+    // Evaluating again changes nothing.
+    let again = apply(&mut store, &mixed_history(), Mode::Max, now, true);
+    assert!(again.ledger.is_empty());
 }
 
 #[test]
 fn recount_replay_equals_live_levelling() {
-    let now = ms(2026, 10, 28, 12, 0);
-    let mut recounted = MemoryStore::default();
-    recounted.data.ledger.push(LedgerEntry {
-        earned_at: 1,
-        mode: Mode::Max,
-        kind: KIND_TOKENS.into(),
-        reference: "2026-10-20/1".into(),
-        amount: 10,
-        retroactive: true,
-    });
-    recounted.data.retro_done = true;
-    recounted.rules_version = Some(0);
-    recount_if_outdated(&mut recounted).unwrap();
-    let ev = apply(&mut recounted, &old_history(), Mode::Max, now, true);
-    assert!(ev.state.retro_done);
+    // Live: one evaluation after every change, growing facts, not retroactive.
+    let steps = [
+        (ms(2026, 10, 20, 10, 0), vec![(20, 300_000, None)]),
+        (ms(2026, 10, 20, 18, 0), vec![(20, 1_200_000, None)]),
+        (
+            ms(2026, 10, 21, 12, 0),
+            vec![(20, 3_000_000, None), (21, 400_000, Some(30.0))],
+        ),
+        (
+            ms(2026, 10, 22, 9, 0),
+            vec![(20, 3_000_000, None), (21, 900_000, Some(30.0))],
+        ),
+    ];
+    let mut live = MemoryStore::default();
+    let mut last = None;
+    for (now, days) in steps {
+        let f = facts(
+            days.into_iter()
+                .map(|(d, tokens, pct)| day(date(2026, 10, d), tokens, pct))
+                .collect(),
+        );
+        last = Some(apply(&mut live, &f, Mode::Max, now, false));
+    }
+    let live_total = last.unwrap().state.xp_total;
 
-    let mut fresh = MemoryStore::default();
-    let live = apply(&mut fresh, &old_history(), Mode::Max, now, false);
-    assert_eq!(ev.state.xp_total, live.state.xp_total);
+    // Recounted: a legacy ledger of the same days, then one retroactive run.
+    let mut recounted = legacy_store();
+    recounted.data.achievements.clear();
+    recounted.data.ledger.retain(|e| e.kind != KIND_ACHIEVEMENT);
+    recounted
+        .data
+        .ledger
+        .iter_mut()
+        .for_each(|e| e.mode = Mode::Max);
+    recount_if_outdated(&mut recounted).unwrap();
+    let f = facts(vec![
+        day(date(2026, 10, 20), 3_000_000, None),
+        day(date(2026, 10, 21), 900_000, Some(30.0)),
+    ]);
+    let ev = apply(&mut recounted, &f, Mode::Max, ms(2026, 10, 22, 9, 0), true);
+    assert!(ev.state.retro_done);
+    assert_eq!(ev.state.xp_total, live_total);
 }
 
 #[test]

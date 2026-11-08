@@ -47,34 +47,43 @@ pub fn evaluate<Tz: TimeZone>(
     let earn_mode = (mode != Mode::NoneYet).then_some(mode);
 
     let xp_before: u64 = prev.ledger.iter().map(|e| u64::from(e.amount)).sum();
-    let mut awards = Awards::new(prev, earn_mode, retroactive);
+    let mut awards = Awards::new(prev, retroactive);
 
     // XP for burning (Max it out) or holding back (Do it yourself).
     if let Some(m) = earn_mode {
         let day_modes = day_modes(prev);
+        let marker_only = marker_only_days(prev);
         let mut days: Vec<&DayFacts> = facts.days.iter().filter(|d| d.tokens > 0).collect();
         days.sort_by_key(|d| d.day);
         for d in days {
             let key = d.day.to_string();
-            // A day already awarded under the other mode stays with it.
-            if day_modes.get(&key).is_some_and(|dm| *dm != m) {
-                continue;
-            }
+            // A recounted day (marker only) is paid under the mode it was
+            // earned in. Otherwise a day already awarded under the other mode
+            // stays with it.
+            let m = match marker_only.get(&key) {
+                Some(marked) => *marked,
+                None => {
+                    if day_modes.get(&key).is_some_and(|dm| *dm != m) {
+                        continue;
+                    }
+                    m
+                }
+            };
             let at = day_start_ms(d.day, tz);
             match m {
                 Mode::Max => {
                     let blocks = (d.tokens / TOKENS_PER_BLOCK).min(SOFT_BAND_END_BLOCK);
                     for k in 1..=blocks {
-                        awards.add(at, KIND_TOKENS, format!("{key}/{k}"), max_block_xp(k));
+                        awards.add(m, at, KIND_TOKENS, format!("{key}/{k}"), max_block_xp(k));
                     }
-                    awards.add(at, KIND_DAY, key, MAX_ACTIVE_DAY_XP);
+                    awards.add(m, at, KIND_DAY, key, MAX_ACTIVE_DAY_XP);
                 }
                 Mode::Diy if d.day < today => {
                     let xp = d
                         .budget_used_percent
                         .map_or(DIY_UNMEASURED_DAY_XP, diy_day_xp);
                     if xp > 0 {
-                        awards.add(at, KIND_DAY, key, xp);
+                        awards.add(m, at, KIND_DAY, key, xp);
                     }
                 }
                 _ => {}
@@ -117,7 +126,9 @@ pub fn evaluate<Tz: TimeZone>(
     let mut changed: Vec<AchievementRecord> = Vec::new();
     let mut unlocks: Vec<AchievementUnlocked> = Vec::new();
     for (at, _, def) in candidates {
-        awards.add(at, KIND_ACHIEVEMENT, def.id.as_str().to_string(), def.xp);
+        if let Some(m) = earn_mode {
+            awards.add(m, at, KIND_ACHIEVEMENT, def.id.as_str().to_string(), def.xp);
+        }
         let record = AchievementRecord {
             id: def.id,
             unlocked_at: Some(at),
@@ -229,12 +240,11 @@ pub fn day_start_ms<Tz: TimeZone>(day: NaiveDate, tz: &Tz) -> EpochMs {
 struct Awards {
     seen: HashSet<(String, String)>,
     new: Vec<LedgerEntry>,
-    mode: Option<Mode>,
     retroactive: bool,
 }
 
 impl Awards {
-    fn new(prev: &GameData, mode: Option<Mode>, retroactive: bool) -> Self {
+    fn new(prev: &GameData, retroactive: bool) -> Self {
         Self {
             seen: prev
                 .ledger
@@ -242,13 +252,11 @@ impl Awards {
                 .map(|e| (e.kind.clone(), e.reference.clone()))
                 .collect(),
             new: Vec::new(),
-            mode,
             retroactive,
         }
     }
 
-    fn add(&mut self, earned_at: EpochMs, kind: &str, reference: String, amount: u32) {
-        let Some(mode) = self.mode else { return };
+    fn add(&mut self, mode: Mode, earned_at: EpochMs, kind: &str, reference: String, amount: u32) {
         if amount == 0 || !self.seen.insert((kind.to_string(), reference.clone())) {
             return;
         }
@@ -273,6 +281,22 @@ pub(super) fn day_modes(prev: &GameData) -> HashMap<String, Mode> {
             let day = e.reference.split('/').next()?;
             Some((day.to_string(), e.mode))
         })
+        .collect()
+}
+
+/// Days that only carry a recount `daymode` marker (no XP rows yet), with the
+/// mode they were earned in.
+fn marker_only_days(prev: &GameData) -> HashMap<String, Mode> {
+    let paid: HashSet<&str> = prev
+        .ledger
+        .iter()
+        .filter(|e| e.kind == KIND_TOKENS || e.kind == KIND_DAY)
+        .filter_map(|e| e.reference.split('/').next())
+        .collect();
+    prev.ledger
+        .iter()
+        .filter(|e| e.kind == KIND_DAY_MODE && !paid.contains(e.reference.as_str()))
+        .map(|e| (e.reference.clone(), e.mode))
         .collect()
 }
 
