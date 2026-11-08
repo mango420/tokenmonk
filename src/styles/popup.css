@@ -331,6 +331,10 @@ html[data-maximized] .popup {
   margin-left: var(--space-2);
 }
 
+.note__action--wide {
+  margin-left: var(--space-3);
+}
+
 .link--small {
   padding: 0;
   font-size: inherit;
@@ -922,4 +926,9 @@ html[data-maximized] .popup {
 
 .about__end {
   border-top: var(--hair) solid var(--line);
+}
+
+.about__label {
+  font-size: var(--text-row-size);
+  font-weight: var(--weight-medium);
 }

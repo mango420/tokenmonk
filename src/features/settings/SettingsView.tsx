@@ -143,8 +143,14 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false, on
             onInstall={actions.installUpdate}
           />
           <p className="note">
-            {version === "" ? "Tokenmonk, MIT." : `Tokenmonk ${version}, MIT.`}
-            <span className="note__action">
+            {version === "" ? (
+              "Tokenmonk, MIT."
+            ) : (
+              <>
+                Tokenmonk <span className="live-number">{version}</span>, MIT.
+              </>
+            )}
+            <span className="note__action note__action--wide">
               <TextLink small onClick={onOpenAbout}>
                 About
               </TextLink>

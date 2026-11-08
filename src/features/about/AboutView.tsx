@@ -28,18 +28,21 @@ export function AboutView({ version, onBack }: AboutViewProps) {
         <p className="about__version live-number">{version === "" ? "n/a" : version}</p>
         <p className="caption about__caption">Installed version. Updates live in Settings.</p>
         <div className="about__row">
-          <span>Licence</span>
+          <span className="about__label">Licence</span>
           <span className="muted">MIT</span>
         </div>
         <div className="about__row">
-          <span>Source</span>
+          <span className="about__label">Source</span>
           <TextLink onClick={() => void openExternal(REPO_URL)}>GitHub</TextLink>
         </div>
         <div className="about__row">
-          <span>Ideas and bugs</span>
+          <span className="about__label">Ideas and bugs</span>
           <TextLink onClick={() => void openExternal(ISSUES_URL)}>GitHub issues</TextLink>
         </div>
         <div className="about__end" />
+        <div className="bottom-group">
+          <p className="note">Made by Tokenmonk contributors. No account, no telemetry.</p>
+        </div>
       </div>
     </div>
   );
