@@ -12,10 +12,13 @@ is done. Until then PRs still target `main` as before.
 ## Principles
 
 - Two long-lived branches. `dev` takes all day-to-day work. `main` only ever
-  contains code the maintainer has tested as an installed build.
-- Two gates: the `dev` test build is tested before a promotion, the draft
-  release is tested before it is published. Both use
-  [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md).
+  contains code the maintainer has tested as an installed Windows build.
+- One gate: the maintainer's Windows test of the `dev` test build, before a
+  promotion, with [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md). The draft
+  release gets no install test; it is published once both builds and all
+  assets are on it.
+- macOS ships untested by the maintainer. The community tests it after
+  publishing; macOS reports become `bug` issues and are fixed forward.
 - release-please runs on `main` only. Nothing on `dev` bumps a version,
   creates a tag or a release.
 - Never edit the release files on `dev`: version fields in `package.json`,
@@ -52,9 +55,12 @@ The feature register refresh PR targets `dev` as well.
   repositories.
 - Planned as a reusable build (`workflow_call`) shared with `release.yml`,
   so the test build and the release build cannot drift apart.
-- The maintainer downloads the artifacts from the run, installs them and
-  works through [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) (or the items
-  the change touches) on macOS and Windows.
+- The maintainer downloads the Windows artifact from the run, installs it
+  and works through [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) on Windows
+  (for pushes that are not promoted, the items the change touches are
+  enough). The full list on the `dev` head to be promoted is the release
+  gate. The macOS artifact is still built, for anyone who wants to try it;
+  it is not part of the gate.
 - Caveat for testers: the test installer carries the same version as the
   last release. A Windows `.msi` with an equal version may not install over
   the existing installation, so uninstall first or use the NSIS installer
@@ -62,8 +68,11 @@ The feature register refresh PR targets `dev` as well.
 
 ## Promotion PR
 
-When the test build of `dev` has passed, the maintainer promotes it.
+When the test build of `dev` has passed the maintainer's Windows test, the
+maintainer promotes it.
 
+- The promoted head must be the tested head. If `dev` has moved since the
+  test, the new head is tested first.
 - Head `dev`, base `main`, title `chore(release): promote dev to main`.
 - Merged with a **merge commit**, never squashed. A release-please dry-run
   on scratch branches showed: with a merge commit every `feat` and `fix`
@@ -102,43 +111,46 @@ When the test build of `dev` has passed, the maintainer promotes it.
   on the tag (directly, or through the `dispatch-release` job when no
   `RELEASE_PLEASE_TOKEN` is set), builds macOS universal and Windows and
   uploads the installers to that draft.
-- CI on the release PR: events created by the built-in `GITHUB_TOKEN` start
-  no workflow runs, so without the secret `RELEASE_PLEASE_TOKEN` the release
-  PR has no CI checks. Start its required checks by hand on the release
-  branch:
+- CI on the release PR is **required before merging**. Events created by
+  the built-in `GITHUB_TOKEN` start no workflow runs, so without the secret
+  `RELEASE_PLEASE_TOKEN` the release PR has no CI checks, and the `main`
+  ruleset refuses the merge ("base branch policy prohibits the merge", as
+  on the v0.5.0 release PR, #245). Start its required checks by hand on the
+  release branch and merge only when they are green:
 
   ```bash
   gh workflow run ci.yml --ref <release branch>
   gh workflow run pr-key.yml --ref <release branch>
   ```
 
-  That is how the v0.4.0 release PR (#177) got its checks. Otherwise the
-  gate is a reviewer check of the version and changelog diff. Setting the
-  secret (fine-grained token, this repository only) fixes that without a
-  workflow change.
+  That is how the v0.4.0 (#177) and v0.5.0 (#245) release PRs got their
+  checks. Setting the secret (fine-grained token, this repository only)
+  makes the checks start by themselves, without a workflow change.
 
-## Draft test
+## Draft check
 
-1. Wait until both `release.yml` build jobs have finished. Publishing
+No install test of the draft: it holds the code tested on Windows before
+the promotion, plus the version bump and changelog.
+
+1. Wait until both `release.yml` build jobs have finished green. Publishing
    earlier makes `tauri-action` create a second release.
-2. Check the draft lists the four installers, the three `.sig` files and
-   `latest.json` named in DECISIONS.md ("Release ownership").
-3. Download them from the draft, install on a Mac and a Windows machine
-   and work through [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md). Review and,
-   if needed, edit the notes on the draft.
+2. Check the asset list of the draft: the four installers, the three `.sig`
+   files and `latest.json` named in DECISIONS.md ("Release ownership").
 
-If the draft test fails, the draft stays unpublished and the fix goes
+If a build job fails or an asset is missing, the draft stays unpublished.
+A CI-only failure is rebuilt with the `tag` input, a code defect is fixed
 forward (see [Fix-forward](#fix-forward)).
 
 ## Publish
 
-Only when every item passes on both platforms does the maintainer publish
-the draft by hand. It then becomes "latest", which is where the README
-download link points.
+When the draft check passes, the orchestrator publishes the draft; the
+maintainer no longer publishes by hand. It then becomes "latest", which is
+where the README download link points. The generated changelog notes are
+used as they are; the maintainer may review them, but that is not a gate.
 
 Auto-update is on: releases carry `.sig` files and `latest.json`
-(`UPDATER_ARTIFACTS` is `'true'` in `release.yml`). Check `latest.json` on
-the draft before publishing. Publishing is what turns the in-app update
+(`UPDATER_ARTIFACTS` is `'true'` in `release.yml`). The draft check covers
+`latest.json` before publishing. Publishing is what turns the in-app update
 check on for that version: the endpoint
 `releases/latest/download/latest.json` resolves to the latest published
 release only, so while a release is a draft, installed builds still see
@@ -169,26 +181,30 @@ promotion.
 
 1. Branch `hotfix/TKM-<n>-<short>` from `origin/main`, commit as `fix(...)`.
 2. PR with base `main`, squash, normal title
-   `fix(<scope>): <short> (TKM-<n>)`.
+   `fix(<scope>): <short> (TKM-<n>)`. Before merging, the maintainer tests
+   the fix on Windows as far as possible (at least the affected items plus
+   first start and tray).
 3. Merge the release PR that release-please now proposes (patch bump).
-4. Install the draft, run the checklist (at least the affected items plus
-   first start and tray), publish.
+4. Draft check and publish as in [Draft check](#draft-check) and
+   [Publish](#publish).
 5. Back-merge `main` into `dev` as above.
 
 A hotfix while a promotion's release PR is still open is accepted. The
 patch release then also ships the promoted content. That content was
-already tested as the `dev` test installer before the promotion (`main`
-only holds tested code), and the draft is tested as usual before
-publishing.
+already tested on Windows as the `dev` test installer before the promotion
+(`main` only holds tested code), and the draft goes through the usual
+draft check before publishing.
 
 ## Fix-forward
 
 - A defect found in a draft or a published release is fixed through a
   normal `fix` PR into `dev`, tested in the test build, promoted, and
   shipped as the next patch release. Urgent cases use the hotfix path.
+- macOS reports from the community after publishing are handled the same
+  way: a `bug` issue, then a fix forward.
 - Tags are never moved, deleted or recreated. A version number that was
   tagged is spent, even if its draft is never published.
-- An unpublished draft whose build or test failed may be deleted as a
+- An unpublished draft whose build or draft check failed may be deleted as a
   GitHub release; its tag stays. A published release stays as it is; its
   notes may point to the fix release.
 - Rebuilding an existing tag (for example after a CI-only failure) uses
