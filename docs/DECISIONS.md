@@ -242,3 +242,12 @@ Maintainer moved the About screen into v0.1 scope; architect design (TKM-125). D
 - Content: version (`AppInfo.version`), MIT licence, links to the GitHub repository and its issues. No personal data, no other links. The Settings note drops "Ideas and bugs go to GitHub issues."; About carries it.
 - Back and Esc on About return to Settings, where it was opened from.
 - No new design token.
+
+## Update download progress (2026-11-08)
+
+Maintainer moved download progress into v0.1 (TKM-212); contract and design by the architect. Details: [ARCHITECTURE.md](ARCHITECTURE.md), "Updates"; [DESIGN.md](DESIGN.md), "Update line" and Settings item 6.
+
+- New `UpdateStatus` variant `downloading { version, percent }` between `available` and `installing`; `percent` is a whole number 0 to 100 or `null` (unknown size). Same `kind` tag and camelCase rules as the other variants; no new event, it rides on `update-status-changed`.
+- Source: tauri-plugin-updater 2.x on docs.rs (`Update::download_and_install`, `on_chunk: FnMut(usize, Option<u64>)`, `on_download_finish: FnOnce()`) and https://v2.tauri.app/plugin/updater/, checked 2026-11-08. The content length is `None` when the server sends no `Content-Length`.
+- Throttle: Rust emits only when the whole percent changes, so at most 101 progress events per download. The UI adds no throttle of its own.
+- Copy: "Downloading 0.4.1, 42%." with the percent as a live number; without a percent "Downloading 0.4.1.". No progress bar, no spinner.

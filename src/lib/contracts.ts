@@ -286,8 +286,14 @@ export const RELEASE_PAGE_BASE = "https://github.com/mango420/tokenmonk/releases
  * `idle`: no check since start. `unavailable`: this build cannot update
  * itself (empty updater key, as in development); no request is made.
  * `checkFailed`: offline, network error, timeout, 404 or invalid
- * `latest.json`. `installing`: on success the app exits or restarts, no
- * further status follows. `detail` is technical text for logs only.
+ * `latest.json`. `downloading` (TKM-212): `install_update` is fetching the
+ * package; `percent` is the whole percent 0 to 100 (Rust
+ * `update::download_percent`), `null` while the size is unknown or when the
+ * server sends no length. Emitted with `percent: null` first, then once per
+ * whole-percent change (at most 101 events); with an unknown size nothing
+ * more until `installing`. `installing`: download done, signature check and
+ * install running; on success the app exits or restarts, no further status
+ * follows. `detail` is technical text for logs only.
  */
 export type UpdateStatus =
   | { kind: "idle" }
@@ -303,6 +309,7 @@ export type UpdateStatus =
     }
   | { kind: "unavailable" }
   | { kind: "checkFailed"; checkedAt: EpochMs; detail: string | null }
+  | { kind: "downloading"; version: string; percent: number | null }
   | { kind: "installing"; version: string }
   | { kind: "installFailed"; version: string; url: string; detail: string | null };
 

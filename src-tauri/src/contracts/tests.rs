@@ -132,6 +132,34 @@ fn update_status_is_tagged_by_kind() {
         to_value(&installing).unwrap(),
         json!({ "kind": "installing", "version": "0.4.1" })
     );
+    let downloading = UpdateStatus::Downloading {
+        version: "0.4.1".into(),
+        percent: Some(42),
+    };
+    assert!(downloading.is_busy());
+    assert_eq!(downloading.installable_version(), None);
+    assert_eq!(
+        to_value(&downloading).unwrap(),
+        json!({ "kind": "downloading", "version": "0.4.1", "percent": 42 })
+    );
+    assert_eq!(
+        to_value(UpdateStatus::Downloading {
+            version: "0.4.1".into(),
+            percent: None
+        })
+        .unwrap(),
+        json!({ "kind": "downloading", "version": "0.4.1", "percent": null })
+    );
+    assert_eq!(update::download_percent(0, Some(200)), Some(0));
+    assert_eq!(update::download_percent(85, Some(200)), Some(42));
+    assert_eq!(update::download_percent(200, Some(200)), Some(100));
+    assert_eq!(update::download_percent(300, Some(200)), Some(100));
+    assert_eq!(
+        update::download_percent(u64::MAX, Some(u64::MAX)),
+        Some(100)
+    );
+    assert_eq!(update::download_percent(85, None), None);
+    assert_eq!(update::download_percent(85, Some(0)), None);
     let failed: UpdateStatus = serde_json::from_value(json!({
         "kind": "installFailed",
         "version": "0.4.1",
