@@ -27,7 +27,7 @@ even with 1 % left.
 - **Number first.** The dashboard leads with one big number: percent left.
 - English UI copy, real typographic quotes and apostrophes (’), no em
   dashes, no emoji. Separators in running copy are commas ("Level 7, 340
-  of 500 XP"), not dots.
+  of 920 XP"), not dots.
 - Numbers: in running text percent is written with a space (`72 %`) and
   thousands with a comma (`184,230`). Stat values are compact (see
   "Number formats").
@@ -110,7 +110,7 @@ offline.
   "~25 min"); the `~` uses the number's own style.
 - Limit ETA: `burnRate.limitEtaMinutes` rounded to 5, at least 5, as
   "~N min" (same rule as the OS notification, "While hidden").
-- XP: full numbers with thousands commas ("1,240 / 1,850 XP").
+- XP: full numbers with thousands commas ("1,240 / 1,880 XP").
 
 ## Spacing, radius, motion
 
@@ -251,7 +251,7 @@ Top to bottom:
      null` (idle): value "n/a", unit "no active session".
 7. **Level block**, pushed to the bottom (margin top auto): a full-width
    button, 1 px `line` on top, padding 14 0 6. Row (space-between,
-   baseline): `GameState.title` (row style) and "340 / 500 XP" (small,
+   baseline): `GameState.title` (row style) and "340 / 920 XP" (small,
    mono, `xpIntoLevel / xpForLevel`); below "Level 7" (small); then the
    level bar (3 px, margin top 10). Opens the achievements screen.
 8. **Note** (margin top 10): see "Note line" below.
@@ -600,7 +600,7 @@ Fed by: `AppInfo.version` (`get_app_info`, `app-info-changed`),
 
 1. Top row: "Back".
 2. `GameState.title` (ach-title, margin top 16, margin bottom 0).
-3. "Level 7, 340 of 500 XP" (mono-sm, margin top 2).
+3. "Level 7, 340 of 920 XP" (mono-sm, margin top 2).
 4. Level bar, 4 px, margin 12 0 24.
 5. "Achievements, 2 of 5" (`ink-2`, margin bottom 6): unlocked count of
    the listed rows, then the listed count.
@@ -688,14 +688,14 @@ Top to bottom: the monk mark at 52 px (`--mark-lg-size`), robe in
 `--accent` of the current mode, head and sleeve `--ink`; "Level 8"
 (onboard-title); the
 mode line (status style): Max it out "Keep burning.", Do it yourself
-"Well earned. Breathe."; "Level 8, 0 of 2,100 XP" (mono-sm); the level bar
+"Well earned. Breathe."; "Level 8, 0 of 1,040 XP" (mono-sm); the level bar
 (4 px); the text link "Back to work". Several levels at once (`level -
 previousLevel > 1`): "+2 levels" (mono-sm) under the title. Esc and the
 link close it. Tone only with `Settings.sound` on.
 
 Retro summary: when `retroDone` turns from false to true in this run, the
 screen shows once with "Level 6", the line "Straight from your history."
-and "4 achievements, 3,420 XP" (unlocked count, `xpTotal`). Skipped at
+and "4 achievements, 2,640 XP" (unlocked count, `xpTotal`). Skipped at
 level 1 with no unlocks. No toasts for retroactive unlocks.
 
 Fed by: `LevelUp`, `GameState`, `Settings.sound`.

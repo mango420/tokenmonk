@@ -270,3 +270,14 @@ Architect design for TKM-126. Details: [DESIGN.md](DESIGN.md), "Achievements", i
 - Locked achievements that only count in the other mode get one extra line under the description: "Max it out only. Not on this mode's menu." (or "Do it yourself only. ..."). Small style, `ink-2`, full opacity; the state stays "Locked". No accent, no icon, no new token.
 - No hint on unlocked rows, on achievements that count in both modes, or before onboarding (`noneYet`).
 - Contracts unchanged: `AchievementProgress.mode` (Rust `Option<Mode>`, TS `Mode | null`) and `GameState.mode` already carry the scope, and the game module already fills it.
+
+## XP and level rework (2026-11-09)
+
+Maintainer decision (TKM-255, docs TKM-259). Supersedes the titles and "Level curve ... unchanged" of "Design refresh", and its "not rewritten" rule for this one recount. Details: [ARCHITECTURE.md](ARCHITECTURE.md), "Game".
+
+- Max it out: soft ceiling instead of the hard daily cap. 10 XP per 100k headline tokens up to 2M, 2 XP per 100k from 2M to 5M, nothing above; plus 10 XP per active day. At most 270 XP per day.
+- Do it yourself: per finished active day 150 XP up to 50 % of the daily budget, linear down to 30 XP at 100 %, 0 over budget, 50 XP without a budget. The active-day bonus is Max it out only; the per-day row already covers DIY.
+- Level curve: span `200 + 120 * (n - 1)` for levels 1 to 25, then a flat 3,080 XP per level, no cap. Target: first level-up on day 1 or 2, level 10 after about two months, a level roughly every three weeks later on.
+- Titles in six tiers per mode (1 to 4, 5 to 9, 10 to 14, 15 to 19, 20 to 29, 30+), final copy as in the TKM-255 table. No contract change: `GameState.title` and `LevelUp.title` already carry the title.
+- One-time recount: ledgers built with an older rules version drop their `tokens` and `day` XP rows and replay history under the new rules, as a silent retroactive run with one summary screen. Achievement unlocks and their XP stay. Every new rule pays at least the old one for the same day, so no level goes down.
+- Why: the hard cap stalled the bar on busy days, small days earned nothing, DIY levelled about 2.5 times slower and rewarded idling, and late levels took more than a month each.
