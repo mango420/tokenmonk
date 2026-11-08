@@ -4,6 +4,14 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Public GitHub repository, linked as "Source" on the About screen
+/// (TKM-125). No trailing slash.
+pub const REPO_URL: &str = "https://github.com/mango420/tokenmonk";
+
+/// GitHub issues of [`REPO_URL`], linked as "Ideas and bugs" on the About
+/// screen. The only contact channel.
+pub const ISSUES_URL: &str = "https://github.com/mango420/tokenmonk/issues";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Platform {

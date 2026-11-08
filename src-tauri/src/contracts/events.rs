@@ -50,6 +50,9 @@ pub enum View {
     /// `"achievements"`: title, level and the achievement list, opened from
     /// the dashboard's level block.
     Achievements,
+    /// `"about"`: version, licence and the GitHub links, opened from the
+    /// Settings footer (TKM-125). Back returns to Settings.
+    About,
 }
 
 /// Payload of `navigate`.

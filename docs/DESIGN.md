@@ -412,9 +412,11 @@ vertically when taller than the popup; the top row stays.
      the app. On a `CommandError` from `check_for_updates` the row reads
      "Couldn’t check." (derived). The tray item "Check for updates"
      (Tray menu) lands here and fills the row the same way.
-   - Note: "Tokenmonk 0.3.1, MIT. Ideas and bugs go to GitHub issues."
-     The version is `AppInfo.version` ("0.3.1" is a sample); while it is
-     still empty: "Tokenmonk, MIT. Ideas and bugs go to GitHub issues."
+   - Note: "Tokenmonk 0.3.1, MIT." followed by the text link "About"
+     (styled like the `noSource` note link, gap 12), which opens About.
+     The version is `AppInfo.version` ("0.3.1" is a sample, mono
+     `tabular-nums`); while it is still empty: "Tokenmonk, MIT." and the
+     same link. The issues hint moved to About (TKM-125).
 
 Every change applies at once through `update_settings { patch }`, no save
 button. While a call runs the control stays in its new position; on
@@ -528,6 +530,50 @@ Fed by: `LimitSetup` (`get_limit_setup`, called once when the view opens
 and again on "Check again"; `statuslineCommand`, `statuslineFile`),
 `DashboardSnapshot.limits` (`status`, `reason`, `fetchedAt`),
 `AppInfo.platform`.
+
+### About
+
+Not in the prototype: derived from the Settings and Achievements parts,
+so all of its copy is derived. `View = about` (TKM-125), opened by the "About" link in the Settings
+footer note (Settings, item 6). No other entry point: no tray item, no
+link on the dashboard. Back: the "Back" link or Esc, both return to
+Settings (not the dashboard); Settings opens at the top as usual. A
+`navigate` event while About is open switches views like on any other
+screen. Scrolls vertically when taller than the popup; the top row stays.
+
+1. Top row: "Back".
+2. Monk mark at 52 px (`--mark-lg-size`), margin top 16.
+3. Title "Tokenmonk" (title style, margin 12 0 2).
+4. Version, the screen's number: `AppInfo.version` as is, for example
+   "0.4.0" (stat style, mono `tabular-nums`). While it is still empty:
+   "n/a" in the same style (derived).
+5. Caption under it (margin top 2, margin bottom 18): "Installed
+   version. Updates live in Settings."
+6. Hairline rows (space-between, 1 px `line` on top, padding 14 0):
+   label left (row style), value right; a final empty hairline row closes
+   the list.
+
+   | Label | Value |
+   |---|---|
+   | "Licence" | "MIT" (`ink-2`, plain text, no link) |
+   | "Source" | text link "GitHub", opens `REPO_URL` |
+   | "Ideas and bugs" | text link "GitHub issues", opens `ISSUES_URL` |
+
+   Text links as everywhere (`ink-2`, hover `ink`, padding 6 px
+   vertical). They open in the browser through the opener plugin like
+   "Release notes"; a failed open shows nothing.
+7. Note, pushed to the bottom: "Made by Tokenmonk contributors. No
+   account, no telemetry."
+
+Nothing else: no author, no email, no website, no credits list, no
+changelog, no update controls (those stay in Settings). Only the two
+GitHub links above leave the app.
+
+Tokens: existing ones only (`--mark-lg-size`, title, stat, row, caption
+and note text tokens, `line`, `ink`, `ink-2`). No new token.
+
+Fed by: `AppInfo.version` (`get_app_info`, `app-info-changed`),
+`REPO_URL`, `ISSUES_URL`.
 
 ### Achievements
 
@@ -703,8 +749,6 @@ Platform icons are generated from these files by `node scripts/icons.mjs`
 (desktop sets only).
 
 ## Not covered by the design / out of scope
-
-Out of scope for v0.1: the about screen (no `View` in the contracts).
 
 Open points:
 
