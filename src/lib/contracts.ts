@@ -264,6 +264,14 @@ export interface AppInfo {
   logsFound: boolean;
 }
 
+/** Public GitHub repository (Rust `app::REPO_URL`), the About screen's
+ * "Source" link. No trailing slash. */
+export const REPO_URL = "https://github.com/mango420/tokenmonk";
+
+/** GitHub issues (Rust `app::ISSUES_URL`), the About screen's "Ideas and
+ * bugs" link and the only contact channel. */
+export const ISSUES_URL = "https://github.com/mango420/tokenmonk/issues";
+
 /** Database schema version the app expects (Rust `schema::SCHEMA_VERSION`). */
 export const SCHEMA_VERSION = 1;
 
@@ -384,7 +392,9 @@ export const Events = {
 
 export type EventName = (typeof Events)[keyof typeof Events];
 
-export type View = "dashboard" | "settings" | "onboarding" | "achievements";
+/** Popup views (Rust `View`, camelCase). `about`: version, licence and the
+ * GitHub links, opened from the Settings footer; Back returns to Settings. */
+export type View = "dashboard" | "settings" | "onboarding" | "achievements" | "about";
 
 export interface NavigateTo {
   view: View;

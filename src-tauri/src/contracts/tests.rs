@@ -252,6 +252,19 @@ fn app_info_and_errors_shape() {
         json!({ "view": "settings" })
     );
     assert_eq!(to_value(View::Achievements).unwrap(), json!("achievements"));
+    assert_eq!(to_value(View::About).unwrap(), json!("about"));
+    assert_eq!(
+        serde_json::from_value::<NavigateTo>(json!({ "view": "about" })).unwrap(),
+        NavigateTo { view: View::About }
+    );
+}
+
+#[test]
+fn github_links_share_one_repo() {
+    use super::app::{ISSUES_URL, REPO_URL};
+    use super::update::RELEASE_PAGE_BASE;
+    assert_eq!(ISSUES_URL, format!("{REPO_URL}/issues"));
+    assert_eq!(RELEASE_PAGE_BASE, format!("{REPO_URL}/releases/tag/"));
 }
 
 #[test]

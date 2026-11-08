@@ -527,6 +527,9 @@ Built in `tray::init` with `tauri::menu` items, handled in the tray's
   yet it still gets the status from `get_update_status` on start.
 - No new command, event or payload; `View::Settings` and
   `update-status-changed` already exist. No new dependency.
+- No "About" item (TKM-125): About is reached from the Settings footer
+  only, so `tray` needs no change. `View::About` exists for the UI's own
+  navigation; Rust never emits `navigate` with it.
 
 ### Hide on blur vs. keep open
 
@@ -566,7 +569,7 @@ Defined in the contracts (names as constants on both sides):
 | `achievement-unlocked` | `AchievementUnlocked` |
 | `level-up` | `LevelUp` |
 | `app-info-changed` | `AppInfo` |
-| `navigate` | `NavigateTo` (tray menu opens settings etc.; views: dashboard, settings, onboarding, achievements) |
+| `navigate` | `NavigateTo` (tray menu opens settings etc.; views: dashboard, settings, onboarding, achievements, about) |
 | `update-status-changed` | `UpdateStatus` |
 
 Payloads are full state, never diffs. On start the UI calls the `get_*`

@@ -232,3 +232,13 @@ Architect decision (TKM-228, part of TKM-180). Details: [DESIGN.md](DESIGN.md), 
 - The limit ETA shows in the reset line on the "5 hours" tab while limits are `ok`, only if it comes before the window reset: "Limit in ~25 min, resets in 2h 14m". Same rounding as the OS notification.
 - `tokensLeftPerDay` is shown with a `~` prefix: it is an estimate, the weekly limit also counts claude.ai chats.
 - Status line placement: the official docs (https://code.claude.com/docs/en/statusline, checked 2026-11-07) call it "a customizable bar at the bottom of Claude Code" that "appears at the bottom of the interface". They do not say "terminal" and say nothing about the desktop app. "Terminal only" is an inference, not a documented fact. Observed on one machine, not verified: the status line did not run while Claude Code was used from the desktop app. Copy therefore names neither the terminal nor the desktop app as certain and says "may not run".
+
+## About screen in v0.1 (2026-11-08)
+
+Maintainer moved the About screen into v0.1 scope; architect design (TKM-125). Details: [DESIGN.md](DESIGN.md), "About"; [ARCHITECTURE.md](ARCHITECTURE.md), "Tray menu".
+
+- Contracts: `View` gains `about` (Rust `View::About`, camelCase like the other variants). New constants `REPO_URL` and `ISSUES_URL` in `src/lib/contracts.ts` and `contracts::app`; a test ties them and `RELEASE_PAGE_BASE` to one repository. No new command, event or payload field.
+- Entry point: an "About" text link in the Settings footer note only. No tray item, so `tray` and `commands` stay unchanged; the tray menu stays short and About is a rare visit.
+- Content: version (`AppInfo.version`), MIT licence, links to the GitHub repository and its issues. No personal data, no other links. The Settings note drops "Ideas and bugs go to GitHub issues."; About carries it.
+- Back and Esc on About return to Settings, where it was opened from.
+- No new design token.
