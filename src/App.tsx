@@ -2,6 +2,7 @@ import { useCallback, useLayoutEffect, useState } from "react";
 import { TextLink } from "./components/TextLink";
 import { Popup } from "./components/Popup";
 import { ScenarioSwitch } from "./dev/ScenarioSwitch";
+import { AboutView } from "./features/about/AboutView";
 import { AchievementsView } from "./features/achievements/AchievementsView";
 import { Dashboard } from "./features/dashboard/Dashboard";
 import { useGameNotices } from "./features/game";
@@ -78,8 +79,11 @@ export default function App() {
         actions={actions}
         onBack={backToDashboard}
         scrollToLimits={limitsTarget}
+        onOpenAbout={() => open("about")}
       />
     );
+  } else if (view === "about") {
+    screen = <AboutView version={data.appInfo.version} onBack={() => open("settings")} />;
   } else if (view === "achievements") {
     screen = <AchievementsView game={data.game} onBack={backToDashboard} />;
   } else {

@@ -16,6 +16,7 @@ interface SettingsViewProps {
   onBack: () => void;
   /** Scroll to "Limit data" on open (the dashboard's setup hint asks for it). */
   scrollToLimits?: boolean;
+  onOpenAbout: () => void;
 }
 
 const MODES: readonly PopupMode[] = ["max", "diy"];
@@ -24,7 +25,7 @@ const MODES: readonly PopupMode[] = ["max", "diy"];
  * Settings: every change applies at once through `update_settings`. While the
  * call runs the control stays in its new position; a rejected call flips it back.
  */
-export function SettingsView({ data, actions, onBack, scrollToLimits = false }: SettingsViewProps) {
+export function SettingsView({ data, actions, onBack, scrollToLimits = false, onOpenAbout }: SettingsViewProps) {
   const limitsRef = useRef<HTMLElement>(null);
   useEffect(() => {
     if (scrollToLimits) limitsRef.current?.scrollIntoView({ block: "start" });
@@ -142,8 +143,12 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false }: 
             onInstall={actions.installUpdate}
           />
           <p className="note">
-            {version === "" ? "Tokenmonk, MIT." : `Tokenmonk ${version}, MIT.`} Ideas and bugs go to GitHub
-            issues.
+            {version === "" ? "Tokenmonk, MIT." : `Tokenmonk ${version}, MIT.`}
+            <span className="note__action">
+              <TextLink small onClick={onOpenAbout}>
+                About
+              </TextLink>
+            </span>
           </p>
         </div>
       </div>
