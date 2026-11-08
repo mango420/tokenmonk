@@ -331,6 +331,10 @@ html[data-maximized] .popup {
   margin-left: var(--space-2);
 }
 
+.note__action--wide {
+  margin-left: var(--space-3);
+}
+
 .link--small {
   padding: 0;
   font-size: inherit;
@@ -884,4 +888,47 @@ html[data-maximized] .popup {
 
 .onboard-choice--diy {
   --accent: var(--jade);
+}
+
+/* ------------------------------------------------------------------- about */
+
+.about__mark {
+  margin-top: var(--space-4);
+}
+
+.about__title {
+  margin: var(--space-3) 0 var(--half);
+}
+
+.about__version {
+  margin: 0;
+  font-size: var(--text-stat-size);
+  line-height: var(--text-stat-line);
+  font-weight: var(--weight-regular);
+  letter-spacing: var(--text-stat-tracking);
+}
+
+.about__caption {
+  margin: var(--half) 0 var(--gap-18);
+}
+
+.about__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--gap-14) 0;
+  border-top: var(--hair) solid var(--line);
+}
+
+.about__row .link {
+  padding: var(--gap-6) 0;
+}
+
+.about__end {
+  border-top: var(--hair) solid var(--line);
+}
+
+.about__label {
+  font-size: var(--text-row-size);
+  font-weight: var(--weight-medium);
 }
