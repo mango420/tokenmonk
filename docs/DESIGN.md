@@ -194,15 +194,15 @@ Top to bottom:
 3. **Ring** (248 x 248, centred, margin top 8):
    - Track: circle r 104, stroke `ink` at 22 %, width 2, round caps,
      dotted (`stroke-dasharray 1.5 7`).
-   - Main arc: r 104, `--accent`, width 14, round caps, from 12 o'clock
-     clockwise, length = percent left of the selected window. It drains as
-     the window is used.
-   - Inner arc: r 96, `--accent` at 35 %, width 4, round caps, length =
-     0.93 x the main arc.
-   - Both arcs share a hand-drawn wobble: an SVG filter (region -10 %,
-     120 %) of `feTurbulence` `fractalNoise`, base frequency 0.045, 2
-     octaves, seed 4, into `feDisplacementMap` scale 5. The track is not
-     filtered.
+   - Main arc: r 104, `--accent`, width 10 (`--ring-stroke`), round caps,
+     from 12 o'clock clockwise, length = percent left of the selected
+     window. It drains as the window is used. It is the only arc; there is
+     no inner arc.
+   - The main arc has a light hand-drawn wobble: an SVG filter (region
+     -10 %, 120 %) of `feTurbulence` `fractalNoise`, base frequency 0.045,
+     2 octaves, seed 4, into `feDisplacementMap` with scale 2
+     (`--ring-wobble-scale`, unitless; the component reads it like the
+     other ring tokens). The track is not filtered.
    - Centre: hero number plus `%` (hero-unit), caption "left" (margin top
      6) below.
 4. **Status line** (status style, centred, margin top 8), from percent
@@ -317,8 +317,8 @@ Version numbers come from `UpdateStatus.version` ("0.4.1" is a sample).
   basis; derived, TKM-228): segment hidden, its height kept.
   - Ring: track as usual. Main arc from 12 o'clock clockwise, length =
     `min(usedPercent, 100)` % of the circle: it fills over the day with
-    tokens today against the average active day (`allowance`). Inner arc
-    0.93 x the main arc, same wobble. At 0 % only the track shows; from
+    tokens today against the average active day (`allowance`), same
+    width and wobble as above. At 0 % only the track shows; from
     100 % the arc is a closed circle and stays there. No colour change.
   - Centre: hero-sm with `today.total` (compact), caption "tokens today".
   - Status line: budget left = `max(0, round(100 - usedPercent))` through

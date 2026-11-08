@@ -32,7 +32,6 @@
 
   /* Ring track and arc */
   --ring-track-opacity: 0.22;
-  --ring-inner-opacity: 0.35;
 
   /* Tray icon (rendered in Rust; mirrored here for docs and previews) */
   --tray-track: #8a8d8b; /* track, monk head and sleeve */
@@ -109,10 +108,9 @@
   --mark-lg-size: 52px; /* monk mark, onboarding rows and level-up */
   --ring-size: 248px; /* viewBox 248 x 248 */
   --ring-radius: 104px;
-  --ring-stroke: 14px;
-  --ring-inner-radius: 96px;
-  --ring-inner-stroke: 4px;
+  --ring-stroke: 10px;
   --ring-track-stroke: 2px;
+  --ring-wobble-scale: 2; /* feDisplacementMap scale, unitless */
   --bar-height: 3px; /* level bar, dashboard */
   --bar-height-lg: 4px; /* level bar, achievements screen */
   --accent-rule: 3px; /* selected settings row, toast edge */
