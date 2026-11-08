@@ -5,20 +5,22 @@
 //!
 //! The history (Max it out, UTC, one message per line unless noted). Every
 //! message also carries 5,000,000 cache-read tokens, which must never count.
+//! Max bands per 100k block: 10 XP up to 2M tokens a day, 2 XP up to 5M, 0
+//! above; plus 10 XP for every active day (a `day` row).
 //!
-//! | day   | at    | headline  | blocks (100k, max 20 a day) | XP |
-//! |-------|-------|-----------|-----------------------------|----|
-//! | 10-20 | 03:10 |   250,000 | 2                           | 20 |
-//! | 10-21 | 10:00 | 2,500,000 | 25, capped at 20            | 200 |
-//! | 10-22 | 10:00 | 1,000,000 |                             |    |
-//! | 10-22 | 15:00 | 1,100,000 | 21, capped at 20            | 200 |
-//! | 10-24 | 11:00 |    99,999 | 0 (one token short)         | 0 |
-//! | 10-25 | 11:00 |   100,000 | 1 (exactly one block)       | 10 |
-//! | 10-28 | 09:00 |   350,000 | 3 (today counts in Max)     | 30 |
+//! | day   | at    | headline  | blocks | block XP | day XP |
+//! |-------|-------|-----------|--------|----------|--------|
+//! | 10-20 | 03:10 |   250,000 | 2      | 20       | 10     |
+//! | 10-21 | 10:00 | 2,500,000 | 25     | 200 + 10 | 10     |
+//! | 10-22 | 10:00 | 1,000,000 |        |          |        |
+//! | 10-22 | 15:00 | 1,100,000 | 21     | 200 + 2  | 10     |
+//! | 10-24 | 11:00 |    99,999 | 0      | 0        | 10     |
+//! | 10-25 | 11:00 |   100,000 | 1      | 10       | 10     |
+//! | 10-28 | 09:00 |   350,000 | 3      | 30       | 10     |
 //!
-//! Token XP 460. First Blood (10 XP) and Night Owl (50 XP, the 03:10 message)
-//! unlock at that message: 60 XP. Total 520. Level 1 spans 470 XP, level 2
-//! spans 700, so the player is level 2 with 50 XP into it.
+//! Token XP 472, day XP 60. First Blood (10 XP) and Night Owl (50 XP, the
+//! 03:10 message) unlock at that message: 60 XP. Total 592. Level spans are
+//! 200, 320, 440: level 3 starts at 520, so 72 XP into a span of 440.
 
 mod common;
 
@@ -40,7 +42,7 @@ const HISTORY: [(u32, u32, u32, u64); 7] = [
     (28, 9, 0, 350_000),
 ];
 
-const XP_TOTAL: u64 = 520;
+const XP_TOTAL: u64 = 592;
 
 fn replay_now() -> i64 {
     utc_ms(2026, 10, 28, 12, 0, 0)
@@ -97,11 +99,11 @@ fn replay_awards_the_expected_xp_and_level() {
     assert!(game.retro_done);
     assert_eq!(game.mode, Mode::Max);
     assert_eq!(game.xp_total, XP_TOTAL);
-    assert_eq!(game.level, 2);
-    assert_eq!(game.xp_into_level, 50);
-    assert_eq!(game.xp_for_level, 700);
-    assert!((game.progress - 50.0 / 700.0).abs() < 1e-12);
-    assert_eq!(game.title, "Limit Chaser");
+    assert_eq!(game.level, 3);
+    assert_eq!(game.xp_into_level, 72);
+    assert_eq!(game.xp_for_level, 440);
+    assert!((game.progress - 72.0 / 440.0).abs() < 1e-12);
+    assert_eq!(game.title, "Token Tourist");
     assert_eq!(game.daily_xp_preview, None, "Max it out has no preview");
 
     // The achievements unlock at the 03:10 message (not at replay time).
@@ -114,22 +116,40 @@ fn replay_awards_the_expected_xp_and_level() {
         ]
     );
 
-    // The ledger: 2 + 20 + 20 + 0 + 1 + 3 token blocks and two bonuses.
+    // The ledger: 2 + 25 + 21 + 0 + 1 + 3 token blocks, six day bonuses.
     let ledger = rig.ledger();
     let tokens: Vec<_> = ledger.iter().filter(|(k, ..)| k == "tokens").collect();
-    assert_eq!(tokens.len(), 46);
-    assert!(tokens.iter().all(|(_, _, amount)| *amount == 10));
+    assert_eq!(tokens.len(), 52);
+    assert_eq!(tokens.iter().map(|(_, _, a)| *a).sum::<i64>(), 472);
     let has =
         |kind: &str, reference: &str| ledger.iter().any(|(k, r, _)| k == kind && r == reference);
+    let amount = |kind: &str, reference: &str| {
+        ledger
+            .iter()
+            .find(|(k, r, _)| k == kind && r == reference)
+            .map(|(_, _, a)| *a)
+    };
     assert!(has("tokens", "2026-10-20/2") && !has("tokens", "2026-10-20/3"));
-    assert!(has("tokens", "2026-10-21/20") && !has("tokens", "2026-10-21/21"));
-    assert!(has("tokens", "2026-10-22/20") && !has("tokens", "2026-10-22/21"));
-    assert!(!ledger.iter().any(|(_, r, _)| r.starts_with("2026-10-24")));
+    assert_eq!(amount("tokens", "2026-10-21/20"), Some(10));
+    assert_eq!(amount("tokens", "2026-10-21/21"), Some(2));
+    assert_eq!(amount("tokens", "2026-10-21/25"), Some(2));
+    assert!(!has("tokens", "2026-10-21/26"));
+    assert_eq!(amount("tokens", "2026-10-22/21"), Some(2));
+    assert!(!has("tokens", "2026-10-22/22"));
+    assert!(!ledger
+        .iter()
+        .any(|(k, r, _)| k == "tokens" && r.starts_with("2026-10-24")));
     assert!(has("tokens", "2026-10-25/1") && !has("tokens", "2026-10-25/2"));
     assert!(has("tokens", "2026-10-28/3") && !has("tokens", "2026-10-28/4"));
+    // The active-day bonus: one `day` row per day with a counted reply, even
+    // the one token short of a block.
+    for day in [20, 21, 22, 24, 25, 28] {
+        assert_eq!(amount("day", &format!("2026-10-{day}")), Some(10));
+    }
+    assert_eq!(ledger.iter().filter(|(k, ..)| k == "day").count(), 6);
     assert!(ledger.contains(&("achievement".into(), "firstBlood".into(), 10)));
     assert!(ledger.contains(&("achievement".into(), "nightOwl".into(), 50)));
-    assert_eq!(ledger.len(), 48);
+    assert_eq!(ledger.len(), 60);
     assert_eq!(rig.xp_total(), XP_TOTAL as i64);
 }
 
@@ -150,7 +170,7 @@ fn replay_is_marked_retroactive_and_quiet() {
     );
     assert!(rig.rec.events().contains(&Event::Game {
         retro_done: true,
-        level: 2
+        level: 3
     }));
 
     // Stored as retroactive, shown as retroactive.
@@ -198,7 +218,7 @@ fn history_waits_for_the_mode_and_is_then_replayed_quietly() {
     let game = rig.state.game().unwrap();
     assert!(game.retro_done);
     assert_eq!(game.xp_total, XP_TOTAL);
-    assert_eq!(game.level, 2);
+    assert_eq!(game.level, 3);
     assert!(rig.rec.achievements().is_empty());
     assert!(rig.rec.level_ups().is_empty());
     assert!(rig.db.xp_events().unwrap().iter().all(|e| e.retroactive));
@@ -230,12 +250,12 @@ fn live_unlocks_are_emitted_once_and_never_repeated() {
     assert_eq!(
         xp_after,
         [
-            (20, 80),
-            (21, 280),
-            (22, 480),
-            (24, 480),
-            (25, 490),
-            (28, 520)
+            (20, 90),
+            (21, 310),
+            (22, 522),
+            (24, 532),
+            (25, 552),
+            (28, 592)
         ]
     );
 
@@ -260,14 +280,22 @@ fn live_unlocks_are_emitted_once_and_never_repeated() {
         .iter()
         .any(|e| matches!(e, Event::Game { .. })));
 
-    // One level-up: 480 XP on the 22nd crosses 470.
+    // Two level-ups: 310 XP on the 21st crosses 200, 522 XP on the 22nd
+    // crosses 520.
     assert_eq!(
         rig.rec.level_ups(),
-        [Event::LevelUp {
-            level: 2,
-            previous: 1,
-            retroactive: false
-        }]
+        [
+            Event::LevelUp {
+                level: 2,
+                previous: 1,
+                retroactive: false
+            },
+            Event::LevelUp {
+                level: 3,
+                previous: 2,
+                retroactive: false
+            }
+        ]
     );
 
     // More snapshots of every kind add nothing.
@@ -284,7 +312,7 @@ fn live_unlocks_are_emitted_once_and_never_repeated() {
         rig.snap(replay_now() + 60_000 * (i as i64 + 1), cause);
     }
     assert_eq!(rig.rec.achievements().len(), 2);
-    assert_eq!(rig.rec.level_ups().len(), 1);
+    assert_eq!(rig.rec.level_ups().len(), 2);
     assert_eq!(rig.xp_total(), XP_TOTAL as i64);
     assert!(rig.rec.events()[before..]
         .iter()
@@ -333,10 +361,10 @@ fn step_by_step_play_ends_where_the_replay_does() {
 }
 
 #[test]
-fn a_busy_day_stops_paying_at_twenty_blocks_and_the_cap_is_idempotent() {
+fn a_busy_day_pays_a_soft_rate_up_to_five_million_and_nothing_above() {
     let (_dir, file, mut rig) = replayed(Mode::Max);
 
-    // 3,000,000 more tokens today on top of 350,000: far past 2,000,000.
+    // 3,000,000 more tokens today on top of 350,000: 3.35M, 33 blocks.
     append_lines(
         &file,
         &[heavy_line(100, utc_ms(2026, 10, 28, 10, 0, 0), 3_000_000)],
@@ -344,47 +372,61 @@ fn a_busy_day_stops_paying_at_twenty_blocks_and_the_cap_is_idempotent() {
     let now = utc_ms(2026, 10, 28, 10, 30, 0);
     rig.scan(std::slice::from_ref(&file), now, true);
     rig.snap(now, SnapshotCause::Files);
-    // Blocks 4 to 20 of the 28th are new: 17 x 10 XP.
-    assert_eq!(rig.xp_total(), XP_TOTAL as i64 + 170);
+    // Blocks 4 to 20 are new at 10 XP, blocks 21 to 33 at 2 XP; the day
+    // bonus was paid already.
+    assert_eq!(rig.xp_total(), XP_TOTAL as i64 + 170 + 26);
     assert!(rig.rec.achievements().is_empty());
 
-    // Even more tokens, same day: nothing further.
+    // 5,000,000 more, same day: 8.35M. Blocks 34 to 50 pay 2 XP, above 5M
+    // (block 50) nothing.
     append_lines(
         &file,
         &[heavy_line(101, utc_ms(2026, 10, 28, 11, 0, 0), 5_000_000)],
     );
     rig.scan(std::slice::from_ref(&file), now + 1_800_000, true);
     rig.snap(now + 1_800_000, SnapshotCause::Files);
-    assert_eq!(rig.xp_total(), XP_TOTAL as i64 + 170);
-    let day_rows = rig
+    assert_eq!(rig.xp_total(), XP_TOTAL as i64 + 170 + 26 + 34);
+
+    // Still more: the day is at its ceiling (270 XP) and stays there.
+    append_lines(
+        &file,
+        &[heavy_line(102, utc_ms(2026, 10, 28, 12, 0, 0), 4_000_000)],
+    );
+    rig.scan(std::slice::from_ref(&file), now + 3_600_000, true);
+    rig.snap(now + 3_600_000, SnapshotCause::Files);
+    assert_eq!(rig.xp_total(), XP_TOTAL as i64 + 170 + 26 + 34);
+    let day_xp: i64 = rig
         .ledger()
         .into_iter()
-        .filter(|(k, r, _)| k == "tokens" && r.starts_with("2026-10-28/"))
-        .count();
-    assert_eq!(day_rows, 20);
+        .filter(|(k, r, _)| (k == "tokens" || k == "day") && r.starts_with("2026-10-28"))
+        .map(|(.., a)| a)
+        .sum();
+    assert_eq!(day_xp, 270);
 }
 
 #[test]
 fn the_title_follows_the_mode_at_every_level() {
-    // Pre-onboarding: level 1, no history read yet, still the Max title.
+    // Pre-onboarding: level 1, no history read yet, the first Max title.
     let (_dir, file) = full_history();
     let mut rig = Rig::new(Mode::NoneYet);
     rig.scan(std::slice::from_ref(&file), replay_now(), false);
     rig.snap(replay_now(), SnapshotCause::ImportDone);
     let game = rig.state.game().unwrap();
-    assert_eq!((game.level, game.title.as_str()), (1, "Limit Chaser"));
+    assert_eq!((game.level, game.title.as_str()), (1, "Token Tourist"));
 
-    // Max it out, level 2 after the replay.
+    // Max it out, level 3 after the replay (tier 1 to 4).
     rig.set_mode(Mode::Max);
     rig.snap(replay_now() + 1_000, SnapshotCause::Requested);
     let game = rig.state.game().unwrap();
-    assert_eq!((game.level, game.title.as_str()), (2, "Limit Chaser"));
+    assert_eq!((game.level, game.title.as_str()), (3, "Token Tourist"));
 
-    // Do it yourself: the other title, never "Token Sprout".
+    // Do it yourself: the other title set. The five finished days have no
+    // budget (50 XP each) plus the 60 XP of achievements: 310 XP, level 2.
     let (_dir, _file, rig) = replayed(Mode::Diy);
     let game = rig.state.game().unwrap();
     assert!(game.retro_done);
-    assert_eq!(game.title, "Quiet Spender");
+    assert_eq!(game.xp_total, 510);
+    assert_eq!((game.level, game.title.as_str()), (2, "Budget Curious"));
 }
 
 #[test]
