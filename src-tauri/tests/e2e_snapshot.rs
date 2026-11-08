@@ -212,11 +212,11 @@ fn the_do_it_yourself_budget_does_not_drive_the_halo() {
 #[test]
 fn fixtures_alone_earn_first_blood_and_nothing_else() {
     // 10628 and 2008 headline tokens are both under one 100k block, there is
-    // no message between 02:00 and 04:00 and no limit reading.
+    // no message between 02:00 and 04:00 and no limit reading. XP: First Blood (10) plus 10 for each of the two active days.
     let (rig, _) = loaded(Mode::Max, now());
     let game = rig.state.game().expect("evaluated at import done");
     assert!(game.retro_done);
-    assert_eq!(game.xp_total, 10);
+    assert_eq!(game.xp_total, 30);
     let unlocked: Vec<_> = game
         .achievements
         .iter()
@@ -228,5 +228,5 @@ fn fixtures_alone_earn_first_blood_and_nothing_else() {
         unlocked[0].unlocked_at,
         Some(utc_ms(2026, 10, 27, 9, 0, 5) + 100)
     );
-    assert_eq!(rig.xp_total(), 10);
+    assert_eq!(rig.xp_total(), 30);
 }
