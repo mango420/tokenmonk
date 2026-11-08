@@ -116,6 +116,7 @@ impl<S: Sink> AppPublisher<S> {
     ) -> Result<(Evaluation, bool), DbError> {
         let now = snapshot.generated_at;
         let mut store = DbGameStore::new(db);
+        store.recount_if_outdated()?;
         let retroactive = mode != Mode::NoneYet && !store.load()?.retro_done;
         let facts = if mode == Mode::NoneYet {
             Facts::default()
