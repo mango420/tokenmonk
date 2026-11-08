@@ -109,7 +109,8 @@ pub struct LevelUp {
 pub struct GameState {
     pub mode: Mode,
     pub level: u32,
-    /// For example "Limit Chaser".
+    /// Tier title for the current mode and level, for example "Token
+    /// Tourist" (Max it out, levels 1 to 4).
     pub title: String,
     /// All XP ever earned (one pool for both modes).
     pub xp_total: u64,
@@ -120,7 +121,7 @@ pub struct GameState {
     /// `xp_into_level / xp_for_level`, `0.0..=1.0`.
     pub progress: f64,
     /// Do it yourself only: XP today's usage would earn if it stopped now
-    /// ("+77 XP if you stop now"). `Some(0)` when over budget, `None` in
+    /// ("+78 XP if you stop now"). `Some(0)` when over budget, `None` in
     /// Max it out or without a daily budget.
     pub daily_xp_preview: Option<u32>,
     /// Newest first, at most a handful.
