@@ -270,6 +270,22 @@ export function buildNote(snap: DashboardSnapshot, update: UpdateStatus): NoteMo
       action: "Update",
     };
   }
+  if (update.kind === "downloading") {
+    return {
+      kind: "update",
+      segments:
+        update.percent === null
+          ? [{ text: "Downloading " }, { text: update.version, mono: true }, { text: "." }]
+          : [
+              { text: "Downloading " },
+              { text: update.version, mono: true },
+              { text: ", " },
+              { text: `${Math.round(update.percent)}%`, mono: true },
+              { text: "." },
+            ],
+      action: null,
+    };
+  }
   if (update.kind === "installing") {
     return {
       kind: "update",

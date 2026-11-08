@@ -217,6 +217,19 @@ function UpdateRow({ status, onCheck, onInstall }: UpdateRowProps) {
         </>
       );
       break;
+    case "downloading":
+      content = (
+        <span>
+          Downloading {version(status.version)}
+          {status.percent === null ? null : (
+            <>
+              , <span className="live-number">{Math.round(status.percent)}%</span>
+            </>
+          )}
+          .
+        </span>
+      );
+      break;
     case "installing":
       content = (
         <span>Installing {version(status.version)}. Back in a moment.</span>
