@@ -267,7 +267,7 @@ data, so the line is never empty:
 | `data.state = importing` | "Reading logs, 24 of 38 files." (derived; numbers mono) |
 | `data.state = noLogs` | "No Claude Code logs yet. Start a session." (derived) |
 | `data.state = error` | "Can’t read the logs. Retrying in the background." (derived) |
-| `UpdateStatus.kind` is `available`, `installing` or `installFailed` | the update line, see "Update line" below |
+| `UpdateStatus.kind` is `available`, `downloading`, `installing` or `installFailed` | the update line, see "Update line" below |
 | `limits.reason = noSource` | "No limit data. It comes from the status line, see Settings." as a text link to Settings, scrolled to "Limit data" (derived, TKM-228; see DECISIONS.md) |
 | otherwise (limit note) | "Limit % includes claude.ai chats. Token stats are Claude Code only." |
 
@@ -283,13 +283,27 @@ popup, no toast.
 | `UpdateStatus.kind` | Text | Action |
 |---|---|---|
 | `available` | "0.4.1 is out. Update" | "Update" calls `install_update` |
+| `downloading`, `percent` set | "Downloading 0.4.1, 42%." | none |
+| `downloading`, `percent` null | "Downloading 0.4.1." | none |
 | `installing` | "Installing 0.4.1. Back in a moment." | none |
 | `installFailed` | "0.4.1 didn’t install. Try again" | "Try again" calls `install_update` |
 
 All other kinds (`idle`, `checking`, `upToDate`, `unavailable`,
 `checkFailed`) show nothing here; the note line falls through to the next
 row. "Couldn’t check" lives in Settings only. While `install_update` runs
-the link is disabled. Windows: the installer's own small progress window
+the link is disabled.
+
+Download progress (TKM-212, derived; the prototype has no update UI): after
+"Update" the line goes `downloading` (percent null, then 0 to 100), then
+`installing`. The percent is a live number: mono, `tabular-nums`, the "%"
+inside the same mono span, last in the line so nothing after it shifts as
+it grows from 1 to 3 digits. It is the whole percent from Rust, shown as
+is: no decimals, no rounding in the UI, no animation between values, no
+progress bar, no spinner. Percent null (size not known yet, or the server
+sends no length) drops the number and the comma: "Downloading 0.4.1."
+stays until `installing`, no fake percent, no ellipsis animation. Rust
+emits only on whole-percent changes (see `UpdateStatus` in the contracts),
+so the UI renders every event as it comes, no extra throttle. Windows: the installer's own small progress window
 appears and Tokenmonk quits, then starts again. macOS: the app restarts by
 itself. If `install_update` rejects (`CommandError`, for example a stale
 status), re-read `get_update_status`; no copy for it.
@@ -401,6 +415,8 @@ vertically when taller than the popup; the top row stays.
      | `checking` | "Checking for updates." | none |
      | `upToDate` | "Up to date, checked at 14:05." (`checkedAt`) | "Check now" |
      | `available` | "0.4.1 is out." | "Update", "Release notes" |
+     | `downloading`, `percent` set | "Downloading 0.4.1, 42%." (`percent` mono) | none |
+     | `downloading`, `percent` null | "Downloading 0.4.1." | none |
      | `installing` | "Installing 0.4.1. Back in a moment." | none |
      | `installFailed` | "0.4.1 didn’t install." | "Try again", "Release notes" |
      | `checkFailed` | "Couldn’t check." | "Check now" |
@@ -409,7 +425,9 @@ vertically when taller than the popup; the top row stays.
      "Check now" calls `check_for_updates`, "Update" and "Try again" call
      `install_update`, "Release notes" opens `UpdateStatus.url` (the
      version's GitHub release page) in the browser. No release notes in
-     the app. On a `CommandError` from `check_for_updates` the row reads
+     the app. `downloading` follows the dashboard's update line rules
+     (Update line above): same copy, same null fallback, no bar. On a
+     `CommandError` from `check_for_updates` the row reads
      "Couldn’t check." (derived). The tray item "Check for updates"
      (Tray menu) lands here and fills the row the same way.
    - Note: "Tokenmonk 0.3.1, MIT." followed by the text link "About"
@@ -762,4 +780,5 @@ Open points:
   mode-only achievements need a hint for the other mode is open.
 - Update UI (update line, Settings update row and switch) is not in the
   prototype; it is derived from the TKM-41 decisions using existing
-  styles only. Download progress is not shown.
+  styles only. Download progress (TKM-212) is text in the same line, no
+  bar.

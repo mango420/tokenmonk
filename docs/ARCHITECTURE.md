@@ -436,8 +436,8 @@ emitted as `update-status-changed` with the full status.
 
 **Check** (`check_for_updates` and the start check):
 
-1. Busy (`UpdateStatus::is_busy`: `checking` or `installing`): return the
-   current status, start nothing.
+1. Busy (`UpdateStatus::is_busy`: `checking`, `downloading` or
+   `installing`): return the current status, start nothing.
 2. Read `plugins.updater.pubkey` from `app.config().plugins` (a map of
    plugin name to JSON). Missing or blank: status `unavailable`, no
    request. This is the dev case and every build without updater
@@ -466,11 +466,27 @@ emitted as `update-status-changed` with the full status.
 1. Busy: return the current status. No installable version
    (`UpdateStatus::installable_version` is `None`): reject with
    `CommandError { code: invalidArgument }`.
-2. Status `installing { version }` (emitted), then
-   `update.download_and_install(|_, _| {}, || {}).await`. Download
-   progress is not reported.
+2. Status `downloading { version, percent: null }` (emitted), then
+   `update.download_and_install(on_chunk, on_download_finish).await`
+   (TKM-212). Signature in tauri-plugin-updater 2.x (docs.rs,
+   `Update::download_and_install`):
+   `on_chunk: FnMut(usize, Option<u64>)` gets the length of each received
+   chunk and the response's `Content-Length` (`None` when missing or
+   unparsable); `on_download_finish: FnOnce()` runs once after the last
+   chunk, before the signature check and the install.
+   - `on_chunk`: add the chunk length to a running `u64` total, compute
+     `update::download_percent(total, content_length)` and, only if it
+     differs from the stored percent, store and emit
+     `downloading { version, percent }`. So at most 101 progress events
+     per download; with an unknown size the percent stays `null` and
+     nothing more is emitted. The callback is synchronous: store and emit
+     without awaiting, never block on the download.
+   - `on_download_finish`: status `installing { version }` (emitted). It
+     covers the signature check and the install.
 3. On error: `installFailed { version, url, detail }`, resolve with it.
-   The stored `Update` stays, so "Try again" repeats step 2.
+   The stored `Update` stays, so "Try again" repeats step 2 (from
+   `downloading`, percent `null`). A failed signature check arrives here
+   after `installing` was emitted, which is fine: `installFailed` follows.
 4. On success:
    - **Windows**: the plugin launches the installer and the process ends
      inside the install call (`std::process::exit(0)`); the command never

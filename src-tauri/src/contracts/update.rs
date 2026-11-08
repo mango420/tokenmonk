@@ -54,9 +54,23 @@ pub enum UpdateStatus {
         /// Technical message for logs; the UI shows its own copy.
         detail: Option<String>,
     },
-    /// `{ "kind": "installing", "version" }`: download and install running.
-    /// On success the app exits (Windows installer) or restarts (macOS), so
-    /// no further status follows.
+    /// `{ "kind": "downloading", "version", "percent" }`: `install_update`
+    /// is downloading the package (TKM-212). `percent` is the whole percent
+    /// downloaded, 0 to 100 ([`download_percent`]); `null` while the size is
+    /// not known yet or when the server sends no `Content-Length`.
+    ///
+    /// Emit rule: `install_update` emits `percent: null` first, then one
+    /// event per change of the whole percent, so at most 101 progress events
+    /// per download. With an unknown size `percent` stays `null` and nothing
+    /// more is emitted until `installing`.
+    #[serde(rename_all = "camelCase")]
+    Downloading {
+        version: String,
+        percent: Option<u8>,
+    },
+    /// `{ "kind": "installing", "version" }`: download finished; signature
+    /// check and install running. On success the app exits (Windows
+    /// installer) or restarts (macOS), so no further status follows.
     #[serde(rename_all = "camelCase")]
     Installing { version: String },
     /// `{ "kind": "installFailed", "version", "url", "detail" }`: download,
@@ -71,11 +85,14 @@ pub enum UpdateStatus {
 }
 
 impl UpdateStatus {
-    /// Whether a check or an install is running; `check_for_updates` and
-    /// `install_update` then return the current status without starting
-    /// anything.
+    /// Whether a check, a download or an install is running;
+    /// `check_for_updates` and `install_update` then return the current
+    /// status without starting anything.
     pub fn is_busy(&self) -> bool {
-        matches!(self, Self::Checking | Self::Installing { .. })
+        matches!(
+            self,
+            Self::Checking | Self::Downloading { .. } | Self::Installing { .. }
+        )
     }
 
     /// The version `install_update` would install, if any.
@@ -91,4 +108,14 @@ impl UpdateStatus {
 pub fn release_page_url(version: &str) -> String {
     let bare = version.strip_prefix('v').unwrap_or(version);
     format!("{RELEASE_PAGE_BASE}v{bare}")
+}
+
+/// Whole percent of a download for [`UpdateStatus::Downloading`]:
+/// `floor(downloaded * 100 / content_length)`, capped at 100. `None` when
+/// the size is unknown (`content_length` is `None` or 0), matching the
+/// `Option<u64>` the updater plugin passes to its `on_chunk` callback.
+pub fn download_percent(downloaded: u64, content_length: Option<u64>) -> Option<u8> {
+    let total = content_length.filter(|&t| t > 0)?;
+    let percent = (u128::from(downloaded) * 100 / u128::from(total)).min(100);
+    Some(u8::try_from(percent).unwrap_or(100))
 }
