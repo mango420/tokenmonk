@@ -53,8 +53,11 @@ The feature register refresh PR targets `dev` as well.
 - Artifacts are kept for 1 day (`retention-days: 1`, the platform
   minimum). Standard GitHub-hosted runners are free for public
   repositories.
-- Planned as a reusable build (`workflow_call`) shared with `release.yml`,
-  so the test build and the release build cannot drift apart.
+- In place as a reusable build: `.github/workflows/build.yml`
+  (`workflow_call`, inputs `ref`, `publish`, `updater-artifacts`; signing
+  secrets are passed explicitly by the caller). `release.yml` calls it with
+  `publish: true`, `test-build.yml` with `publish: false`, so the test build
+  and the release build share one path and cannot drift apart.
 - The maintainer downloads the Windows artifact from the run, installs it
   and works through [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) on Windows
   (for pushes that are not promoted, the items the change touches are
