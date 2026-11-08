@@ -595,6 +595,14 @@ const buildScenarios = () => ({
     game: maxGame,
     update: { kind: "checkFailed", checkedAt: NOW, detail: null },
   },
+  updateDownloading: {
+    label: "Max it out, Update: downloading",
+    settings: maxSettings,
+    appInfo,
+    dashboard: snapshot({}),
+    game: maxGame,
+    update: { kind: "downloading", version: "0.4.1", percent: 42 },
+  },
   updateInstalling: {
     label: "Max it out, Update: installing",
     settings: maxSettings,

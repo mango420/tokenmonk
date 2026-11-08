@@ -256,7 +256,7 @@ function useMockAppData(scenario: MockScenarioId): AppState {
     setUpdate({ kind: "upToDate", checkedAt: Date.now() });
   }, []);
   const installUpdate = useCallback(async () => {
-    setUpdate((u) => (u.kind === "available" || u.kind === "installFailed" ? { kind: "installing", version: u.version } : u));
+    setUpdate((u) => (u.kind === "available" || u.kind === "installFailed" ? { kind: "downloading", version: u.version, percent: null } : u));
   }, []);
 
   const loadLimitSetup = useCallback(
