@@ -262,3 +262,11 @@ Maintainer decision after the v0.5.0 release (TKM-247). Supersedes the draft tes
 - Release notes: the generated changelog notes are used as they are. A review by the maintainer is optional, not a gate.
 - Release PR: without `RELEASE_PLEASE_TOKEN`, dispatching `ci.yml` and `pr-key.yml` on the release branch is required before merging. Without those checks the `main` ruleset refuses the merge ("base branch policy prohibits the merge"), as on the v0.5.0 release PR (#245).
 - Why: the maintainer can only test on Windows, and the draft test repeated the test-build test of the same code.
+
+## Other-mode achievement hint (2026-11-09)
+
+Architect design for TKM-126. Details: [DESIGN.md](DESIGN.md), "Achievements", item 7.
+
+- Locked achievements that only count in the other mode get one extra line under the description: "Max it out only. Not on this mode's menu." (or "Do it yourself only. ..."). Small style, `ink-2`, full opacity; the state stays "Locked". No accent, no icon, no new token.
+- No hint on unlocked rows, on achievements that count in both modes, or before onboarding (`noneYet`).
+- Contracts unchanged: `AchievementProgress.mode` (Rust `Option<Mode>`, TS `Mode | null`) and `GameState.mode` already carry the scope, and the game module already fills it.
