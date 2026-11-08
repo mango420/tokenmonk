@@ -12,7 +12,7 @@ use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::contracts::events::UPDATE_STATUS_CHANGED;
-use crate::contracts::update::release_page_url;
+use crate::contracts::update::{download_percent, release_page_url};
 use crate::contracts::{CommandError, CommandErrorCode, EpochMs, UpdateStatus};
 
 /// Network timeout of one check, in seconds.
@@ -192,13 +192,40 @@ async fn install_pending(
     let Some(update) = pending else {
         return Err(nothing_to_install());
     };
-    let installing = UpdateStatus::Installing {
+    let downloading = UpdateStatus::Downloading {
         version: version.clone(),
+        percent: None,
     };
-    if let Err(current) = state.begin(app, installing) {
+    if let Err(current) = state.begin(app, downloading) {
         return Ok(current);
     }
-    match update.download_and_install(|_, _| {}, || {}).await {
+    let mut downloaded: u64 = 0;
+    let mut last: Option<u8> = None;
+    let on_chunk = |chunk: usize, total: Option<u64>| {
+        downloaded = downloaded.saturating_add(chunk as u64);
+        let Some(percent) = download_percent(downloaded, total) else {
+            return;
+        };
+        if last != Some(percent) {
+            last = Some(percent);
+            state.set(
+                app,
+                UpdateStatus::Downloading {
+                    version: version.clone(),
+                    percent: Some(percent),
+                },
+            );
+        }
+    };
+    let on_finish = || {
+        state.set(
+            app,
+            UpdateStatus::Installing {
+                version: version.clone(),
+            },
+        );
+    };
+    match update.download_and_install(on_chunk, on_finish).await {
         // Windows never gets here (the plugin exits); macOS and Linux need
         // a relaunch of the replaced bundle.
         Ok(()) => app.restart(),
