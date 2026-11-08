@@ -273,7 +273,7 @@ Architect design for TKM-126. Details: [DESIGN.md](DESIGN.md), "Achievements", i
 
 ## XP and level rework (2026-11-09)
 
-Maintainer decision (TKM-255, docs TKM-259). Supersedes the game titles, the daily XP rules and the "not rewritten" rule of "Design refresh" for this one recount. Details: [ARCHITECTURE.md](ARCHITECTURE.md), "Game".
+Maintainer decision (TKM-255, docs TKM-259). Supersedes the titles and "Level curve ... unchanged" of "Design refresh", and its "not rewritten" rule for this one recount. Details: [ARCHITECTURE.md](ARCHITECTURE.md), "Game".
 
 - Max it out: soft ceiling instead of the hard daily cap. 10 XP per 100k headline tokens up to 2M, 2 XP per 100k from 2M to 5M, nothing above; plus 10 XP per active day. At most 270 XP per day.
 - Do it yourself: per finished active day 150 XP up to 50 % of the daily budget, linear down to 30 XP at 100 %, 0 over budget, 50 XP without a budget. The active-day bonus is Max it out only; the per-day row already covers DIY.
