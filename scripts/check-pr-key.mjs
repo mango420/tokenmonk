@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 // Verifies that a pull request carries an issue key.
 //   title:  Conventional Commit "<type>(<scope>)?!?: <short> (TKM-<n>)"
-//   branch: "<prefix>/TKM-<n>-<kebab>", same <n> as the title
+//   branch: exactly "TKM-<n>", same <n> as the title
 // Bot and release branches are skipped.
 // Branch flow (docs/RELEASE-FLOW.md): dev -> main is the promotion PR, main -> dev the
-// back-merge; both have fixed titles and need no key. Into main only dev, hotfix/TKM-<n>-*
-// and release-please branches are accepted.
+// back-merge; both have fixed titles and need no key. Into main only dev, release-please
+// branches and hotfixes (a TKM-<n> branch with title type fix or revert) are accepted.
 //
 // Usage: node scripts/check-pr-key.mjs --title <t> --branch <b> [--base <b>] [--default-branch <b>] [--author <login>]
 // --base defaults to dev. The source rule for PRs into main applies only when --default-branch
 // is not main (missing: main, rule off), so it activates once dev is the default branch.
 
-const PREFIXES = ['feature', 'bugfix', 'hotfix', 'refactor', 'chore', 'docs', 'test', 'ci'];
-const BRANCH_RE = new RegExp(`^(?:${PREFIXES.join('|')})/TKM-(\\d+)-[a-z0-9]+(?:-[a-z0-9]+)*$`);
+const BRANCH_RE = /^TKM-(\d+)$/;
+// A hotfix into main is a TKM-<n> branch whose title type is fix or revert.
+const HOTFIX_TITLE_RE = /^(?:fix|revert)[(!:]/;
 const TYPES = [
   'feat', 'fix', 'docs', 'style', 'refactor', 'perf', 'test', 'build', 'ci', 'chore', 'revert',
 ];
@@ -47,10 +48,11 @@ const fail = (...problems) => {
 if (
   defaultBranch !== 'main' &&
   base === 'main' &&
-  !/^(?:dev|hotfix\/TKM-\d+-.+|release-please--.+)$/.test(branch)
+  !/^(?:dev|release-please--.+)$/.test(branch) &&
+  !(BRANCH_RE.test(branch) && HOTFIX_TITLE_RE.test(title))
 ) {
   fail(
-    `PRs into main must come from dev (title "${PROMOTE_TITLE}"), a hotfix/TKM-<n>-<kebab> branch or a release-please branch; got ${JSON.stringify(branch)}`,
+    `PRs into main must come from dev (title "${PROMOTE_TITLE}"), a TKM-<n> hotfix branch (title type fix or revert) or a release-please branch; got ${JSON.stringify(branch)}`,
   );
 }
 
@@ -83,7 +85,7 @@ if (!t) {
 }
 if (!b) {
   problems.push(
-    `branch must match "<${PREFIXES.join('|')}>/TKM-<n>-<kebab>": ${JSON.stringify(branch)}`,
+    `branch must be exactly "TKM-<n>": ${JSON.stringify(branch)}`,
   );
 }
 if (t && b && t[1] !== b[1]) {

@@ -32,7 +32,7 @@ is done. Until then PRs still target `main` as before.
 
 ## Daily flow
 
-1. Branch `<prefix>/TKM-<n>-<short-kebab>` from `origin/dev`.
+1. Branch `TKM-<n>` (exactly the issue key) from `origin/dev`.
 2. PR with base `dev`, title `<type>(<scope>): <short> (TKM-<n>)`, body
    ending in `Closes #<n>`. CI, guard and PR-key checks run as on `main`
    today.
@@ -182,14 +182,16 @@ Merge it with a merge commit (`gh pr merge <n> --merge`), never squash.
 Maintainer-triggered only, for a defect that cannot wait for the next
 promotion.
 
-1. Branch `hotfix/TKM-<n>-<short>` from `origin/main`, commit as `fix(...)`.
+1. Branch `TKM-<n>` from `origin/main`, commit as `fix(...)`. The PR-key
+   check accepts a `TKM-<n>` head into `main` only with title type `fix`
+   or `revert`.
 2. PR with base `main`, squash, normal title
    `fix(<scope>): <short> (TKM-<n>)`. Before merging, start a test build
    on the hotfix branch and test its Windows installer (at least the
    affected items plus first start and tray). That test is the hotfix gate:
 
    ```bash
-   gh workflow run test-build.yml --ref hotfix/TKM-<n>-<short>
+   gh workflow run test-build.yml --ref TKM-<n>
    ```
 
 3. Merge the release PR that release-please now proposes (patch bump).
@@ -227,7 +229,7 @@ A promotion turns out bad when the release PR or its draft shows a problem.
   stays unmerged. release-please updates the release PR; users are
   unaffected until a draft is published.
 - If `main` itself must be reverted: branch
-  `hotfix/TKM-<n>-revert-promotion` from `origin/main`, run
+  `TKM-<n>` from `origin/main`, run
   `git revert -m 1 <merge commit>` of the promotion, and open a PR into
   `main` titled `revert: <short> (TKM-<n>)`, squash-merged like a hotfix.
 - Warning: the next back-merge carries the revert into `dev` as well, so
