@@ -126,7 +126,7 @@ Superseded: releases are cut through the release PR, see "Automatic versioning w
 
 - Every issue has the key `TKM-<n>`, where `<n>` is its GitHub issue number. Issues and PRs share one number sequence, so keys have gaps where a PR took the number; that is accepted.
 - Issue title: `TKM-<n>: <short>`. Each issue carries exactly one type label: `feature`, `bug` or `chore`.
-- Branch: `<prefix>/TKM-<n>-<short-kebab>` with the usual prefixes (feature/ bugfix/ hotfix/ refactor/ chore/ docs/ test/ ci/).
+- Branch: `<prefix>/TKM-<n>-<short-kebab>` with the usual prefixes (feature/ bugfix/ hotfix/ refactor/ chore/ docs/ test/ ci/). Superseded by "Branch name is the issue key" below.
 - PR title and squash subject: `<type>(<scope>): <short> (TKM-<n>)`; the PR body still ends in `Closes #<n>`. The PR key check in CI (`scripts/check-pr-key.mjs`) requires the `(TKM-<n>)` title suffix and the branch format, with the same key in both; dependabot and release branches are skipped.
 - `docs/FEATURES.md` is the feature register, generated from the issue tracker by `node scripts/features.mjs` (needs an authenticated `gh`). It is never edited by hand; regenerate and commit it when issues change.
 
@@ -281,3 +281,9 @@ Maintainer decision (TKM-255, docs TKM-259). Supersedes the titles and "Level cu
 - Titles in six tiers per mode (1 to 4, 5 to 9, 10 to 14, 15 to 19, 20 to 29, 30+), final copy as in the TKM-255 table. No contract change: `GameState.title` and `LevelUp.title` already carry the title.
 - One-time recount: ledgers built with an older rules version drop their `tokens` and `day` XP rows and replay history under the new rules, as a silent retroactive run with one summary screen. Achievement unlocks and their XP stay. Every new rule pays at least the old one for the same day, so no level goes down.
 - Why: the hard cap stalled the bar on busy days, small days earned nothing, DIY levelled about 2.5 times slower and rewarded idling, and late levels took more than a month each.
+
+## Branch name is the issue key (2026-11-09, TKM-267)
+
+- A branch is named exactly `TKM-<n>`: no type prefix, no kebab suffix. The type lives in the PR title and the label, the topic in the issue.
+- One open PR per issue at a time; a follow-up PR for the same issue reuses the name after the first one is merged and its branch deleted.
+- Hotfixes into `main` have no prefix to tell them apart any more: `scripts/check-pr-key.mjs` accepts a `TKM-<n>` head into `main` only when the title type is `fix` or `revert`. `dev` and `release-please--*` heads stay allowed as before.
