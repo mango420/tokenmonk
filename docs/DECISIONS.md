@@ -287,3 +287,13 @@ Maintainer decision (TKM-255, docs TKM-259). Supersedes the titles and "Level cu
 - A branch is named exactly `TKM-<n>`: no type prefix, no kebab suffix. The type lives in the PR title and the label, the topic in the issue.
 - One open PR per issue at a time; a follow-up PR for the same issue reuses the name after the first one is merged and its branch deleted.
 - Hotfixes into `main` have no prefix to tell them apart any more: `scripts/check-pr-key.mjs` accepts a `TKM-<n>` head into `main` only when the title type is `fix` or `revert`. `dev` and `release-please--*` heads stay allowed as before.
+
+## Prayer-bead popup, dark mode and new monk (2026-11-11, TKM-269)
+
+Owner decision (TKM-269, TKM-270, TKM-271); supersedes "Icon system (2026-11-04, final)" and the ring of the earlier dashboard. Details: [DESIGN.md](DESIGN.md).
+
+- `src/styles/tokens.css` is the single source of truth for design values; DESIGN.md describes the rules and names the tokens.
+- The dashboard ring becomes a string of 20 beads for the 5-hour window only; the "5 hours / Week" segment and the stat tiles are gone. The week is a 6 px bar below; when it runs out first it turns into the one card style with an extra line. Ring tokens and the wobble filter are removed.
+- Exactly one card style (1 px `line` outline, radius 12, no fill), only for clickable or highlighted blocks. Popup padding 20 on all sides, column gap 14. The 8 px mode dot is the only icon besides the monk.
+- Dark mode follows the OS live. New tokens: dark jade #2FA57A, monk face, monk line, head stroke, empty bead stroke and fill, one stale opacity.
+- New monk (closed smiling eyes, sash, hands) replaces the old one in the popup, the brand files, the app icon and the tray, where 5 beads replace the arc. `tokenmonk-mark-mono.svg` stays only until the popup (TKM-273) and the tray (TKM-275) no longer read it; transitional token aliases in `tokens.css` go with TKM-273 and TKM-274.
