@@ -378,6 +378,24 @@ const buildScenarios = () => ({
     game: maxGame,
     update: idle,
   },
+  maxWeekLow: {
+    label: "Max it out, week runs out first",
+    settings: maxSettings,
+    appInfo,
+    dashboard: snapshot({
+      limits: {
+        status: "ok",
+        reason: null,
+        detail: null,
+        source: "mock",
+        fiveHour: { utilization: 30, resetsAt: NOW + 134 * MIN },
+        weekly: { utilization: 88, resetsAt: WEEKLY_RESET },
+        fetchedAt: NOW,
+      },
+    }),
+    game: maxGame,
+    update: idle,
+  },
   maxStale: {
     label: "Max it out, stale",
     settings: maxSettings,

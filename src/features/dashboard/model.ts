@@ -5,7 +5,6 @@
  * snapshot.
  */
 import type {
-  DailyBudget,
   DashboardSnapshot,
   GameState,
   LimitWindow,
@@ -15,13 +14,15 @@ import type {
 } from "../../lib/contracts";
 import {
   clamp01,
+  DAY_MS,
   formatClock,
   formatCompact,
   formatInt,
   formatResetIn,
+  formatWeekday,
   percentLeft,
 } from "../../lib/format";
-import { limitEtaText, roundEtaMinutes } from "../notifications/limitWarnings";
+import { roundEtaMinutes } from "../notifications/limitWarnings";
 
 export type PopupMode = "max" | "diy";
 
@@ -40,46 +41,73 @@ export const MODE_DESCRIPTION: Record<PopupMode, string> = {
   diy: "Use less. Keep it calm.",
 };
 
-/** The 5 hours / Week segment. */
-export type WindowChoice = "fiveHour" | "weekly";
+// ------------------------------------------------------------------ gauge
 
-export const WINDOW_LABEL: Record<WindowChoice, string> = {
-  fiveHour: "5 hours",
-  weekly: "Week",
-};
+const WEEK_FIRST_STATUS = "The week runs out first.";
+const WEEK_LOW_LINE = "Less left here than in the 5 hours. This one stops you.";
 
-// -------------------------------------------------------------------- ring
-
-export interface RingModel {
-  /** Hero text in the ring centre. */
-  hero: string;
-  /** `%` after the hero; only with a percent hero. */
-  unit: string | null;
+export interface GaugeModel {
   caption: string;
-  /** Percent left 0..100 for the arcs; `null` shows the track only. */
+  /** Percent left 0..100 for the beads; `null` shows all beads empty. */
   percentLeft: number | null;
-  /** Last-known value: the hero is `ink-2`. */
+  /** Last-known value: the hero is `ink-2`, full beads are dimmed. */
   stale: boolean;
+  /** Hero text: "73%" or the compact tokens today. */
+  hero: string;
   /** Smaller hero (tokens today instead of percent). */
   small: boolean;
+  heroLabel: string;
   status: string;
-  /** Reset line; empty string keeps its height. */
-  reset: string;
+  /** Meta row, left; empty string keeps the row's height. */
+  metaLeft: string;
+  metaRight: string;
 }
 
-const STATUS: Record<PopupMode, readonly [string, string, string, string]> = {
-  // 60 and more, 30 to 59, 10 to 29, below 10
-  max: ["Barely touched. Use it.", "Good pace.", "Nearly there. As planned.", "Almost gone. Make it count."],
-  diy: ["Light day. Nicely done.", "Mid-range. Breathe.", "Getting thin. Slow down.", "Nearly out. Go for a walk."],
+export interface WeekModel {
+  /** Week bar width, percent. */
+  percentLeft: number;
+  /** "81% left · resets Thu" */
+  figure: string;
+  /** The week runs out first: the block becomes a card with one more line. */
+  low: boolean;
+  lowLine: string;
+  stale: boolean;
+}
+
+export interface DashboardModel {
+  gauge: GaugeModel;
+  /** `null` leaves the week block out. */
+  week: WeekModel | null;
+}
+
+type StatusRows = readonly [string, string, string, string, string];
+
+const STATUS: Record<PopupMode, StatusRows> = {
+  // 60 and more, 30 to 59, 10 to 29, 1 to 9, exactly 0
+  max: [
+    "Barely touched. Use it.",
+    "Good pace.",
+    "Nearly there. As planned.",
+    "Almost gone. Make it count.",
+    "Limit reached. Breathe.",
+  ],
+  diy: [
+    "Light day. Nicely done.",
+    "Mid-range. Breathe.",
+    "Getting thin. Slow down.",
+    "Nearly out. Go for a walk.",
+    "All out. Good time for a walk.",
+  ],
 };
 
-/** Status line under the ring from percent left and the mode. */
+/** Status line under the hero from percent left and the mode. */
 export function statusLine(mode: PopupMode, left: number): string {
   const lines = STATUS[mode];
   if (left >= 60) return lines[0];
   if (left >= 30) return lines[1];
   if (left >= 10) return lines[2];
-  return lines[3];
+  if (left >= 1) return lines[3];
+  return lines[4];
 }
 
 /** `limits.status = unavailable`: no limit data at all. */
@@ -87,146 +115,150 @@ export function hasNoLimitData(limits: LimitsView): boolean {
   return limits.status === "unavailable";
 }
 
-export function selectedWindow(limits: LimitsView, choice: WindowChoice): LimitWindow | null {
-  return choice === "fiveHour" ? limits.fiveHour : limits.weekly;
+const tokensPerMinute = (snap: DashboardSnapshot) => `${formatCompact(snap.burnRate.tokensPerMinute)} tokens/min`;
+
+/** Meta row, right: tokens per minute; in Do it yourself the daily budget replaces it. */
+function metaRight(mode: PopupMode, snap: DashboardSnapshot): string {
+  const budget = snap.dailyBudget;
+  if (mode === "diy" && budget !== null) {
+    if (budget.basis === "tokenHistory") {
+      return `${formatCompact(Math.max(budget.allowance - budget.usedToday, 0))} left today`;
+    }
+    if (budget.tokensLeftPerDay !== null) return `~${formatCompact(budget.tokensLeftPerDay)} left today`;
+  }
+  return tokensPerMinute(snap);
 }
 
-function tokensRing(snap: DashboardSnapshot, status: string, fill: number | null = null, reset = ""): RingModel {
+/** Meta row, left: the limit ETA when it applies, else the reset. */
+function metaLeft(snap: DashboardSnapshot, window: LimitWindow): string {
+  const { limits, burnRate } = snap;
+  const toReset = window.resetsAt === null ? null : window.resetsAt - snap.generatedAt;
+  const eta = burnRate.limitEtaMinutes;
+  if (limits.status === "ok" && eta !== null && eta >= 1) {
+    const n = roundEtaMinutes(eta);
+    const minutesToReset = toReset === null ? null : Math.floor(Math.max(0, toReset) / 60_000);
+    if (minutesToReset === null || n < minutesToReset) return `Limit in ~${n} min`;
+  }
+  return toReset === null ? "" : `resets in ${formatResetIn(toReset)}`;
+}
+
+function tokensGauge(
+  snap: DashboardSnapshot,
+  caption: string,
+  status: string,
+  left: string,
+  right: string,
+): GaugeModel {
   return {
-    hero: formatCompact(snap.today.total),
-    unit: null,
-    caption: "tokens today",
-    // Token-budget ring: the arc fills with usage (0..100), not drains.
-    percentLeft: fill,
+    caption,
+    percentLeft: null,
     stale: false,
+    hero: formatCompact(snap.today.total),
     small: true,
+    heroLabel: "tokens today",
     status,
-    reset,
+    metaLeft: left,
+    metaRight: right,
   };
 }
 
-/** Do it yourself without limit data: the ring fills against the average active day. */
-function budgetRing(mode: PopupMode, snap: DashboardSnapshot, budget: DailyBudget): RingModel {
-  const fill = Math.min(Math.max(budget.usedPercent, 0), 100);
-  const status =
-    budget.usedPercent > 100
-      ? "Over budget. The AI wins today."
-      : statusLine(mode, Math.max(0, Math.round(100 - budget.usedPercent)));
-  return tokensRing(snap, status, fill, `Average day ${formatCompact(budget.allowance)}`);
+function weekModel(snap: DashboardSnapshot): WeekModel | null {
+  const { limits } = snap;
+  if (hasNoLimitData(limits) || limits.weekly === null) return null;
+  const weekly = limits.weekly;
+  const left = percentLeft(weekly.utilization);
+  let figure = `${left}% left`;
+  if (weekly.resetsAt !== null) {
+    const ms = weekly.resetsAt - snap.generatedAt;
+    figure += ` · resets ${ms < DAY_MS ? `in ${formatResetIn(ms)}` : formatWeekday(weekly.resetsAt)}`;
+  }
+  const five = limits.fiveHour === null ? null : percentLeft(limits.fiveHour.utilization);
+  return {
+    percentLeft: left,
+    figure,
+    low: five !== null && left < five && left < 20,
+    lowLine: WEEK_LOW_LINE,
+    stale: limits.status === "stale",
+  };
 }
 
-/** Reset line with the limit ETA in front, or `null` when the ETA does not apply. */
-function etaResetLine(snap: DashboardSnapshot, window: LimitWindow): string | null {
-  const { limits, burnRate } = snap;
-  const eta = burnRate.limitEtaMinutes;
-  if (limits.status !== "ok" || eta === null || eta < 1) return null;
-  const n = roundEtaMinutes(eta);
-  if (window.resetsAt === null) return limitEtaText(eta);
-  const minutesToReset = Math.floor(Math.max(0, window.resetsAt - snap.generatedAt) / 60_000);
-  if (n >= minutesToReset) return null;
-  return `Limit in ~${n} min, resets in ${formatResetIn(window.resetsAt - snap.generatedAt)}`;
-}
-
-export function buildRing(mode: PopupMode, snap: DashboardSnapshot, choice: WindowChoice): RingModel {
+export function buildDashboard(mode: PopupMode, snap: DashboardSnapshot): DashboardModel {
   const { limits } = snap;
   if (hasNoLimitData(limits)) {
     const budget = snap.dailyBudget;
-    if (budget !== null && budget.basis === "tokenHistory") return budgetRing(mode, snap, budget);
-    return tokensRing(snap, "No limit data. Showing tokens only.");
+    if (budget !== null && budget.basis === "tokenHistory") {
+      const left = Math.max(0, Math.round(100 - budget.usedPercent));
+      const status = budget.usedPercent > 100 ? "Over budget. The AI wins today." : statusLine(mode, left);
+      const average = `average day ${formatCompact(budget.allowance)}`;
+      return {
+        gauge: {
+          ...tokensGauge(snap, "Your token budget, today", status, average, metaRight(mode, snap)),
+          percentLeft: left,
+        },
+        week: null,
+      };
+    }
+    return {
+      gauge: tokensGauge(
+        snap,
+        "Your Claude Code tokens, today",
+        "No limit data. Showing tokens only.",
+        "",
+        tokensPerMinute(snap),
+      ),
+      week: null,
+    };
   }
-  const window = selectedWindow(limits, choice);
-  if (window === null) return tokensRing(snap, "Fresh window. Numbers on your next reply.");
+
+  const week = weekModel(snap);
+  const caption = "Your Claude Code limit, this 5-hour window";
+  const window = limits.fiveHour;
+  if (window === null) {
+    const status = "Fresh window. Numbers on your next reply.";
+    return { gauge: tokensGauge(snap, caption, status, "", metaRight(mode, snap)), week };
+  }
 
   const left = percentLeft(window.utilization);
   const stale = limits.status === "stale";
-  let reset = "";
-  if (stale) {
-    if (limits.fetchedAt !== null) {
-      reset = `As of ${formatClock(limits.fetchedAt)}. Updates on your next reply.`;
-    }
-  } else {
-    const eta = choice === "fiveHour" ? etaResetLine(snap, window) : null;
-    if (eta !== null) reset = eta;
-    else if (window.resetsAt !== null) reset = `Resets in ${formatResetIn(window.resetsAt - snap.generatedAt)}`;
-  }
+  let metaLeftText = metaLeft(snap, window);
+  if (stale) metaLeftText = limits.fetchedAt === null ? "" : `as of ${formatClock(limits.fetchedAt)}`;
   return {
-    hero: String(left),
-    unit: "%",
-    caption: "left",
-    percentLeft: left,
-    stale,
-    small: false,
-    status: statusLine(mode, left),
-    reset,
-  };
-}
-
-// ------------------------------------------------------------------- stats
-
-export interface StatModel {
-  label: string;
-  value: string;
-  unit: string;
-  /** Full text for the `title` attribute when the unit may be cut. */
-  unitTitle?: string;
-}
-
-export function buildStats(snap: DashboardSnapshot): StatModel[] {
-  return [
-    {
-      label: "Burn rate",
-      value: formatCompact(snap.burnRate.tokensPerMinute),
-      unit: "tokens per minute",
+    gauge: {
+      caption,
+      percentLeft: left,
+      stale,
+      hero: `${left}%`,
+      small: false,
+      heroLabel: "of your limit left",
+      status: week !== null && week.low ? WEEK_FIRST_STATUS : statusLine(mode, left),
+      metaLeft: metaLeftText,
+      metaRight: metaRight(mode, snap),
     },
-    snap.dailyBudget === null ? sessionStat(snap) : budgetStat(snap.dailyBudget),
-  ];
-}
-
-/** "This session" tile, shown while there is no daily budget. */
-function sessionStat(snap: DashboardSnapshot): StatModel {
-  const label = "This session";
-  const { session } = snap;
-  if (session === null) return { label, value: "n/a", unit: "no active session" };
-  const name = session.projectName;
-  return {
-    label,
-    value: formatCompact(session.tokens.total),
-    unit: name === "" ? "tokens" : name,
-    unitTitle: name === "" ? undefined : name,
+    week,
   };
 }
 
-function budgetStat(budget: DailyBudget): StatModel {
-  const label = "Daily budget";
-  if (budget.basis === "tokenHistory") {
-    // Allowance is in tokens: the average active day of the past week.
-    const left = Math.max(budget.allowance - budget.usedToday, 0);
-    return { label, value: formatCompact(left), unit: "tokens left today" };
-  }
-  if (budget.tokensLeftPerDay === null) return { label, value: "n/a", unit: "no pace yet" };
-  return { label, value: `~${formatCompact(budget.tokensLeftPerDay)}`, unit: "tokens left per day" };
-}
-
-// ------------------------------------------------------------- level block
+// ------------------------------------------------------------- level card
 
 export interface LevelModel {
+  /** Left of the card row: the title, or the replay line. */
   title: string;
+  /** " · Level N" follows the title; `null` while old XP is being counted. */
+  level: number | null;
   /** "340 / 500 XP"; `null` while old XP is being counted. */
   xp: string | null;
-  /** "Level 7", or the replay line. */
-  line: string;
   /** `null` shows the track only. */
   ratio: number | null;
 }
 
 export function buildLevel(game: GameState): LevelModel {
   if (!game.retroDone) {
-    return { title: game.title, xp: null, line: "Counting old XP. Hold still.", ratio: null };
+    return { title: "Counting old XP. Hold still.", level: null, xp: null, ratio: null };
   }
   return {
     title: game.title,
+    level: game.level,
     xp: `${formatInt(game.xpIntoLevel)} / ${formatInt(game.xpForLevel)} XP`,
-    line: `Level ${game.level}`,
     ratio: clamp01(game.progress),
   };
 }

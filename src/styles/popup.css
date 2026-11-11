@@ -50,7 +50,6 @@ button {
   --gap-18: calc(var(--space-4) + var(--half));
   --gap-22: calc(var(--space-5) + var(--half));
   --gap-30: calc(var(--space-6) + var(--gap-6));
-  --segment-height: var(--gap-30);
 }
 
 /* ---------------------------------------------------------------- frame */
@@ -92,7 +91,7 @@ html[data-maximized] .popup {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: var(--popup-padding-top) var(--popup-padding-x) var(--popup-padding-bottom);
+  padding: var(--popup-padding);
 }
 
 .screen__status {
@@ -110,8 +109,8 @@ html[data-maximized] .popup {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  margin: 0 calc(-1 * var(--popup-padding-x));
-  padding: 0 var(--popup-padding-x);
+  margin: 0 calc(-1 * var(--popup-padding));
+  padding: 0 var(--popup-padding);
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--line) transparent;
@@ -235,11 +234,6 @@ html[data-maximized] .popup {
   height: var(--mark-lg-size);
 }
 
-.logo-mark--brand {
-  width: var(--brand-mark-size);
-  height: var(--brand-mark-size);
-}
-
 .logo-mark__svg {
   width: 100%;
   height: 100%;
@@ -253,7 +247,7 @@ html[data-maximized] .popup {
   top: 0;
   left: 0;
   right: 0;
-  height: var(--popup-padding-top);
+  height: var(--popup-padding);
   z-index: 1;
 }
 
@@ -300,12 +294,9 @@ html[data-maximized] .popup {
 }
 
 .brand {
-  display: flex;
-  align-items: center;
-  gap: var(--gap-10);
   font-size: var(--text-brand-size);
   line-height: var(--text-body-line);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-semibold);
   letter-spacing: var(--text-brand-tracking);
 }
 
@@ -344,124 +335,155 @@ html[data-maximized] .popup {
 
 /* --------------------------------------------------------------- dashboard */
 
-.segment {
+.screen--dashboard {
+  gap: var(--popup-gap);
+}
+
+.screen--dashboard .note {
+  margin-top: 0;
+}
+
+.dash-caption {
   flex: none;
-  display: flex;
-  gap: var(--space-5);
-  height: var(--segment-height);
-  margin-top: var(--space-4);
+  text-align: center;
 }
 
-/* No limit data: invisible, the height stays. */
-.segment--hidden {
-  visibility: hidden;
+/* Monk parts, in gauge coordinates (Monk.tsx). */
+.monk__robe {
+  fill: var(--accent);
+  stroke: var(--ink);
+  stroke-width: var(--monk-stroke);
 }
 
-.segment__button {
-  padding: var(--space-1) 0;
-  border: 0;
-  border-bottom: var(--segment-rule) solid transparent;
-  border-radius: 0;
-  background: none;
-  font-weight: var(--weight-medium);
-  color: var(--ink-2);
-}
-
-.segment__button[aria-pressed="true"] {
-  color: var(--ink);
-  border-bottom-color: var(--accent);
-}
-
-.ring {
-  position: relative;
-  flex: none;
-  width: var(--ring-size);
-  height: var(--ring-size);
-  margin: var(--space-2) auto 0;
-}
-
-.ring svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.ring__track,
-.ring__arc {
+.monk__line {
   fill: none;
+  stroke: var(--monk-line);
+  stroke-width: var(--monk-stroke);
   stroke-linecap: round;
 }
 
-.ring__track {
+.monk__head {
+  fill: var(--monk-face);
+  stroke: var(--monk-head-stroke);
+  stroke-width: var(--monk-stroke);
+}
+
+/* Bead gauge. */
+.bead-gauge {
+  flex: none;
+  display: block;
+  width: var(--gauge-size);
+  height: var(--gauge-size);
+  margin: 0 auto;
+}
+
+.bead-gauge--lg {
+  width: var(--gauge-size-lg);
+  height: var(--gauge-size-lg);
+}
+
+.bead-gauge__track {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: var(--gauge-track-stroke);
+}
+
+.bead {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.bead--full {
+  fill: var(--accent);
   stroke: var(--ink);
-  stroke-opacity: var(--ring-track-opacity);
-  stroke-width: var(--ring-track-stroke);
-  /* Dotted: 1.5 on, 7 off. */
-  stroke-dasharray: 1.5 7;
+  stroke-width: var(--bead-stroke);
+  transform: scale(1);
 }
 
-.ring__arc--main {
-  stroke: var(--accent);
-  stroke-width: var(--ring-stroke);
+.bead--empty {
+  fill: var(--bead-empty-fill);
+  stroke: var(--bead-empty-stroke);
+  stroke-width: var(--bead-stroke);
+  transform: scale(var(--bead-empty-scale));
+  /* A lost bead shrinks to empty; a gained one jumps to full. */
+  transition:
+    transform var(--motion-bead) var(--ease-bead),
+    fill var(--motion-bead) var(--ease-bead),
+    stroke var(--motion-bead) var(--ease-bead);
 }
 
-.ring__arc--draw {
-  animation: ring-draw var(--motion-ring-draw) var(--ease-ring-draw);
+/* First render after start: bead after bead, clockwise from bead 1. */
+.bead-gauge--intro .bead--full {
+  transition:
+    transform var(--motion-bead) var(--ease-bead),
+    fill var(--motion-bead) var(--ease-bead),
+    stroke var(--motion-bead) var(--ease-bead);
+  transition-delay: calc(var(--bead-index) * var(--motion-bead-stagger));
 }
 
-/* Ends at the arc's own dash length (the stroke-dasharray attribute). */
-@keyframes ring-draw {
-  from {
-    stroke-dasharray: 0 var(--ring-gap);
-  }
+.bead-gauge--stale .bead--full {
+  fill-opacity: var(--stale-opacity);
 }
 
-.ring__centre {
-  position: absolute;
-  inset: 0;
+/* Mode dot and name (top row, settings rows). */
+.mode-name {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  gap: var(--gap-6);
+  font-size: var(--text-small-size);
+  color: var(--ink-2);
 }
 
-.ring__hero-row {
+.mode-dot {
+  flex: none;
+  width: var(--mode-dot-size);
+  height: var(--mode-dot-size);
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.mode-dot--max {
+  background: var(--saffron);
+}
+
+.mode-dot--diy {
+  background: var(--jade);
+}
+
+.hero-block {
+  flex: none;
+  text-align: center;
+}
+
+.hero-row {
   display: flex;
+  justify-content: center;
   align-items: baseline;
+  gap: var(--space-2);
 }
 
-.ring__hero {
+.hero {
   font-size: var(--text-hero-size);
   line-height: var(--text-hero-line);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-medium);
   letter-spacing: var(--text-hero-tracking);
 }
 
-.ring__hero--sm {
+.hero--sm {
   font-size: var(--text-hero-sm-size);
 }
 
-.ring__hero--stale {
+.hero--stale {
   color: var(--ink-2);
 }
 
-.ring__unit {
-  margin-left: var(--half);
-  font-size: var(--text-hero-unit-size);
-  font-weight: var(--weight-light);
-  color: var(--ink-2);
-}
-
-.ring__caption {
-  margin-top: var(--gap-6);
-  font-size: var(--text-caption-size);
-  color: var(--ink-2);
+.hero-label {
+  font-size: var(--text-hero-label-size);
+  font-weight: var(--weight-medium);
 }
 
 .status {
-  flex: none;
-  margin: var(--space-2) 0 0;
-  text-align: center;
+  margin: var(--space-1) 0 0;
   font-size: var(--text-status-size);
   line-height: var(--text-body-line);
   font-weight: var(--weight-medium);
@@ -469,105 +491,111 @@ html[data-maximized] .popup {
 }
 
 .status--left {
-  margin-top: 0;
   text-align: left;
 }
 
-.reset {
-  flex: none;
-  min-height: var(--space-5);
-  margin: var(--space-1) 0 0;
-  text-align: center;
-  font-size: var(--text-mono-sm-size);
+.meta {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-meta-size);
   line-height: var(--text-body-line);
   color: var(--ink-2);
 }
 
-.stats {
+.meta-row {
   flex: none;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-6);
-  margin-top: var(--space-6);
-}
-
-.stat {
   display: flex;
-  flex-direction: column;
-}
-
-.stat__label {
-  font-size: var(--text-caption-size);
-  color: var(--ink-2);
-}
-
-.stat__value {
-  margin-top: var(--half);
-  font-size: var(--text-stat-size);
-  line-height: var(--text-stat-line);
-  font-weight: var(--weight-regular);
-  letter-spacing: var(--text-stat-tracking);
-}
-
-.stat__unit {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-size: var(--text-small-size);
-  color: var(--ink-2);
-}
-
-.level-block {
-  flex: none;
-  display: block;
-  width: 100%;
-  margin-top: auto;
-  padding: var(--gap-14) 0 var(--gap-6);
-  border: 0;
+  justify-content: space-between;
+  align-items: baseline;
+  min-height: calc(var(--space-3) + var(--space-4));
+  padding-top: var(--space-3);
   border-top: var(--hair) solid var(--line);
-  border-radius: 0;
-  background: none;
-  text-align: left;
 }
 
-.level-block__row {
+.small {
+  margin: 0;
+  font-size: var(--text-small-size);
+  line-height: var(--text-body-line);
+  color: var(--ink-2);
+}
+
+.week {
+  flex: none;
+}
+
+.week__row {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
 }
 
-.level-block__title {
-  font-size: var(--text-row-size);
-  font-weight: var(--weight-medium);
+.week__low {
+  margin-top: var(--space-2);
 }
 
-.level-block__xp {
-  font-size: var(--text-small-size);
-  color: var(--ink-2);
+.spacer {
+  flex: 1;
+  min-height: 0;
 }
 
-.level-block__line {
+/* The one card style: outline only. */
+.card {
+  border: var(--hair) solid var(--line);
+  border-radius: var(--radius-card);
+  background: none;
+  padding: var(--card-padding);
+}
+
+.level-card {
+  flex: none;
   display: block;
-  font-size: var(--text-small-size);
-  color: var(--ink-2);
+  width: 100%;
+  text-align: left;
 }
 
+.level-card__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.level-card__title {
+  font-size: var(--text-caption-size);
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+/* Bars: radius 2, track `line`, fill `--accent`. */
+.bar,
 .level-bar {
-  height: var(--bar-height);
-  margin-top: var(--gap-10);
   border-radius: var(--radius-bar);
   background: var(--line);
   overflow: hidden;
 }
 
-.level-bar--lg {
-  height: var(--bar-height-lg);
-  margin-top: 0;
+.level-bar {
+  height: var(--bar-height);
+  margin-top: var(--space-2);
 }
 
+.bar--week {
+  height: var(--bar-week-height);
+  margin-top: var(--space-2);
+}
+
+.bar__fill,
 .level-bar__fill {
   height: 100%;
   background: var(--accent);
+}
+
+.bar__fill--stale {
+  opacity: var(--stale-opacity);
+}
+
+.ach-bar .level-bar {
+  margin-top: 0;
 }
 
 /* -------------------------------------------------------------- onboarding */
@@ -642,7 +670,7 @@ html[data-maximized] .popup {
   position: absolute;
   top: calc(-1 * var(--hair));
   bottom: 0;
-  left: calc(-1 * var(--popup-padding-x));
+  left: calc(-1 * var(--popup-padding));
   width: var(--accent-rule);
   background: var(--accent);
   opacity: 0;
@@ -653,7 +681,9 @@ html[data-maximized] .popup {
 }
 
 .mode-row__name {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: var(--gap-6);
   font-size: var(--text-choice-size);
   font-weight: var(--weight-medium);
 }
@@ -872,10 +902,7 @@ html[data-maximized] .popup {
 /* ------------------------------------------------------------------ motion */
 
 @media (prefers-reduced-motion: reduce) {
-  .ring__arc--draw {
-    animation: none;
-  }
-
+  .bead,
   .switch::after,
   .titlebar__bar {
     transition: none;

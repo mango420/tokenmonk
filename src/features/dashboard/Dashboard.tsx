@@ -1,20 +1,10 @@
 import { useState } from "react";
+import { BeadGauge } from "../../components/BeadGauge";
 import { TextLink } from "../../components/TextLink";
 import type { AppActions, AppData } from "../../lib/appData";
 import { Header } from "./Header";
-import { HaloGauge } from "./HaloGauge";
 import { LevelBlock } from "./LevelBlock";
-import { Segment } from "./Segment";
-import { StatTiles } from "./StatTiles";
-import {
-  buildLevel,
-  buildNote,
-  buildRing,
-  buildStats,
-  hasNoLimitData,
-  toPopupMode,
-  type WindowChoice,
-} from "./model";
+import { buildDashboard, buildLevel, buildNote, toPopupMode } from "./model";
 
 interface DashboardProps {
   data: AppData;
@@ -25,12 +15,11 @@ interface DashboardProps {
   onOpenAchievements: () => void;
 }
 
-/** The popup's dashboard: one big number, two stats, the level block at the bottom. */
+/** The popup's dashboard: bead gauge, one big number, meta row, week bar, level card. */
 export function Dashboard({ data, actions, onOpenSettings, onOpenLimitSetup, onOpenAchievements }: DashboardProps) {
   const { settings, dashboard, game } = data;
-  // Local UI state: starts at "5 hours" and is not saved.
-  const [choice, setChoice] = useState<WindowChoice>("fiveHour");
-  const ring = buildRing(toPopupMode(settings.mode), dashboard, choice);
+  const mode = toPopupMode(settings.mode);
+  const { gauge, week } = buildDashboard(mode, dashboard);
   const note = buildNote(dashboard, data.update);
   const [installing, setInstalling] = useState(false);
   const install = () => {
@@ -39,13 +28,39 @@ export function Dashboard({ data, actions, onOpenSettings, onOpenLimitSetup, onO
   };
 
   return (
-    <div className="screen">
-      <Header onOpenSettings={onOpenSettings} />
-      <Segment value={choice} onChange={setChoice} hidden={hasNoLimitData(dashboard.limits)} />
-      <HaloGauge model={ring} />
-      <p className="status">{ring.status}</p>
-      <p className="reset live-number">{ring.reset}</p>
-      <StatTiles stats={buildStats(dashboard)} />
+    <div className="screen screen--dashboard">
+      <Header mode={mode} onOpenSettings={onOpenSettings} />
+      <p className="caption dash-caption">{gauge.caption}</p>
+      <BeadGauge percentLeft={gauge.percentLeft} stale={gauge.stale} />
+      <div className="hero-block">
+        <div className="hero-row">
+          <span className={`hero live-number${gauge.small ? " hero--sm" : ""}${gauge.stale ? " hero--stale" : ""}`}>
+            {gauge.hero}
+          </span>
+          <span className="hero-label">{gauge.heroLabel}</span>
+        </div>
+        <p className="status">{gauge.status}</p>
+      </div>
+      <div className="meta-row meta live-number">
+        <span>{gauge.metaLeft}</span>
+        <span>{gauge.metaRight}</span>
+      </div>
+      {week === null ? null : (
+        <section className={week.low ? "week card" : "week"}>
+          <div className="week__row">
+            <span className="caption">This week</span>
+            <span className="meta live-number">{week.figure}</span>
+          </div>
+          <div className="bar bar--week" aria-hidden="true">
+            <div
+              className={week.stale ? "bar__fill bar__fill--stale" : "bar__fill"}
+              style={{ width: `${week.percentLeft}%` }}
+            />
+          </div>
+          {week.low ? <p className="small week__low">{week.lowLine}</p> : null}
+        </section>
+      )}
+      <div className="spacer" />
       <LevelBlock model={buildLevel(game)} onOpen={onOpenAchievements} />
       <p className="note">
         {note.kind === "limitSetup" ? (
