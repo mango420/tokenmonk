@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
-import { LogoMark } from "../../components/LogoMark";
 import type { GameState } from "../../lib/contracts";
+import { BeadString } from "./BeadString";
 import { fadeStyle, useFadeShown } from "./motion";
 import { levelScreenCopy, type LevelScreenModel } from "./model";
 import "./game.css";
@@ -48,15 +48,10 @@ export function LevelUpScreen({ model, game, open, onClose }: LevelUpScreenProps
       aria-label={copy.display}
       style={{ ...fadeStyle(shown), pointerEvents: shown ? "auto" : "none" }}
     >
-      <LogoMark />
+      <BeadString />
       <h2 className="game-overlay__title">{copy.display}</h2>
       {copy.extra !== null ? <span className="game-overlay__mono game-overlay__extra">{copy.extra}</span> : null}
-      {copy.newTitle !== null ? (
-        <>
-          <span className="game-overlay__caption">New title</span>
-          <span className="game-overlay__status">{copy.newTitle}</span>
-        </>
-      ) : null}
+      {copy.titleLine !== null ? <span className="game-overlay__caption">{copy.titleLine}</span> : null}
       {copy.heading !== null ? <span className="game-overlay__status">{copy.heading}</span> : null}
       {copy.detail !== null ? (
         <span className="game-overlay__mono game-overlay__xp">{copy.detail}</span>
