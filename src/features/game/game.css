@@ -93,7 +93,7 @@
 }
 
 .game-beads__bead {
-  r: var(--bead-radius);
+  r: calc(var(--bead-radius) * 1px);
   fill: var(--accent);
   stroke: var(--ink);
   stroke-width: var(--bead-stroke);
