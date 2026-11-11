@@ -808,9 +808,10 @@ Top to bottom:
    `tabular-nums`).
 3. Several levels at once (`level - previousLevel > 1`): "+2 levels"
    (mono-sm).
-4. Title line (caption: 13 px, `ink-2`) from `LevelUp.title`, sample
-   "Still a Quiet Spender.". The copy rule around the title (article,
-   `titleChanged`) is an open point (see the end of this document).
+4. Title line (caption: 13 px, `ink-2`) from `LevelUp.title`:
+   `titleChanged = false` "Still a <title>." ("Still a Quiet
+   Spender."), `titleChanged = true` "Now a <title>.". The article is
+   "an" before a vowel sound ("Now an Abbot of Restraint.").
 5. Mode line (status style): Max it out "Keep burning.", Do it yourself
    "Well earned. Breathe.".
 6. "Level 8, 0 of 1,040 XP" (mono 12, small style).
@@ -932,8 +933,6 @@ marked "derived" above and stands until the maintainer decides otherwise:
 - Text styles and spacing inside the week block ("This week" caption,
   figure in meta style, margins 8), the week-low card padding (12, as the
   level card) and the week reset copy under 24 h.
-- Level-up title line: only the sample "Still a Quiet Spender." is
-  signed off; the copy rule (article, `LevelUp.titleChanged`) is open.
 - Dashboard without limit data: captions, beads on the token budget,
   "average day" and "as of 14:05" in the meta row.
 - Monk strokes: widths of sash, hands, eyes and mouth (1.5) and the
