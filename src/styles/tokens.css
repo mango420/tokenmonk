@@ -1,6 +1,7 @@
 /*
- * Tokenmonk design tokens. The only place design values live.
- * Source of truth: docs/DESIGN.md.
+ * Tokenmonk design tokens. The only place design values live: this file is
+ * the source of truth, docs/DESIGN.md describes the rules and names these
+ * tokens.
  *
  * State lives in data attributes on <html>:
  *   data-theme  = absent (follow the OS) | "light" | "dark" (forced)
@@ -8,6 +9,9 @@
  *
  * Fonts are bundled from the @fontsource packages (Schibsted Grotesk,
  * Martian Mono); this file only defines the family stacks.
+ *
+ * Unitless values (gauge, bead, monk) are SVG user units inside the gauge
+ * viewBox, not CSS pixels.
  */
 
 :root {
@@ -20,23 +24,33 @@
   --ink-2: #5a5e5c;
   --line: #bab9b1;
 
-  /* Mode accents, the same in both themes */
+  /* Mode accents (saffron is the same in both themes, jade is lifted in dark) */
   --saffron: #e39a0b;
   --jade: #1f8a64;
 
   /* Mode-neutral accent (overridden below by data-mode) */
   --accent: var(--saffron);
 
+  /* Monk figure */
+  --monk-face: #f4f3ef;
+  --monk-line: var(--ink); /* sash, hands, eyes, mouth */
+  --monk-head-stroke: var(--ink); /* head outline; none in dark */
+
+  /* Beads */
+  --bead-empty-stroke: #8a8d88;
+  --bead-empty-fill: var(--pop);
+
+  /* Stale limit values: beads and week bar are --accent at this opacity */
+  --stale-opacity: 0.45;
+
   /* Popup shadow: hairline ring in --line plus a soft drop */
   --shadow-popup: 0 0 0 1px var(--line), 0 28px 60px -24px rgba(0, 0, 0, 0.4);
 
-  /* Ring track and arc */
-  --ring-track-opacity: 0.22;
-
   /* Tray icon (rendered in Rust; mirrored here for docs and previews) */
-  --tray-track: #8a8d8b; /* track, monk head and sleeve */
-  --tray-track-opacity: 0.6;
-  --tray-track-opacity-template: 0.4; /* macOS black template track */
+  --tray-track: #8a8d8b; /* monk head and empty beads */
+  --tray-bead-empty-opacity: 0.35;
+  --tray-bead-empty-opacity-template: 0.3; /* macOS black template */
+  --tray-head-opacity-template: 0.4; /* macOS black template */
   --tray-monk-nodata-opacity: 0.45; /* whole monk without limit data */
 
   /* Type families */
@@ -47,15 +61,16 @@
   --weight-light: 300;
   --weight-regular: 400;
   --weight-medium: 500;
+  --weight-semibold: 600;
 
   /* Type scale: size, line height, letter spacing */
   --text-body-size: 14px;
   --text-body-line: 1.4;
-  --text-hero-size: 70px; /* mono light, ring centre */
-  --text-hero-sm-size: 46px; /* mono light, ring centre without limit data */
+  --text-hero-size: 52px; /* mono 500, percent left under the gauge */
+  --text-hero-sm-size: 46px; /* mono 500, tokens today without limit data */
   --text-hero-line: 1;
-  --text-hero-tracking: -0.05em;
-  --text-hero-unit-size: 22px; /* mono light, the % after the hero */
+  --text-hero-tracking: -2px;
+  --text-hero-label-size: 18px; /* sans 500, "of your limit left" */
   --text-onboard-title-size: 32px;
   --text-onboard-title-line: 1.08;
   --text-onboard-title-tracking: -0.025em;
@@ -66,17 +81,18 @@
   --text-choice-lg-tracking: -0.015em;
   --text-status-size: 17px;
   --text-status-tracking: -0.01em;
-  --text-stat-size: 26px; /* mono, stat values */
+  --text-stat-size: 26px; /* mono, version on About */
   --text-stat-line: 1.2;
   --text-stat-tracking: -0.03em;
   --text-choice-size: 15.5px; /* settings mode row name */
   --text-brand-size: 15px;
   --text-brand-tracking: -0.01em;
-  --text-row-size: 15px; /* level title, achievement name */
+  --text-row-size: 15px; /* achievement name, About rows */
   --text-toast-title-size: 14.5px;
   --text-caption-size: 13px;
-  --text-mono-sm-size: 12.5px; /* reset line, level line on achievements */
+  --text-mono-sm-size: 12.5px; /* level line on achievements */
   --text-small-size: 12px;
+  --text-meta-size: 11.5px; /* mono, meta row and XP on the level card */
   --text-note-size: 11.5px;
   --toast-line-opacity: 0.75;
   --locked-opacity: 0.5;
@@ -92,6 +108,7 @@
 
   /* Radius */
   --radius-popup: 18px;
+  --radius-card: 12px;
   --radius-switch: 12px;
   --radius-toast: 8px;
   --radius-focus: 4px;
@@ -100,34 +117,65 @@
   /* Popup layout */
   --popup-width: 360px;
   --popup-height: 680px;
-  --popup-padding-top: 20px;
-  --popup-padding-x: 24px;
-  --popup-padding-bottom: 18px;
+  --popup-padding: 20px; /* all four sides */
+  --popup-gap: 14px; /* column gap between dashboard blocks */
   --top-row-height: 32px;
-  --brand-mark-size: 26px; /* monk mark, top row */
-  --mark-lg-size: 52px; /* monk mark, onboarding rows and level-up */
-  --ring-size: 248px; /* viewBox 248 x 248 */
-  --ring-radius: 104px;
-  --ring-stroke: 10px;
-  --ring-track-stroke: 2px;
-  --ring-wobble-scale: 2; /* feDisplacementMap scale, unitless */
-  --bar-height: 3px; /* level bar, dashboard */
-  --bar-height-lg: 4px; /* level bar, achievements screen */
+  --mode-dot-size: 8px;
+  --mark-lg-size: 52px; /* monk, onboarding rows and About */
+  --card-padding: 12px;
+  --bar-height: 4px; /* level bar everywhere */
+  --bar-week-height: 6px; /* week bar, dashboard */
   --accent-rule: 3px; /* selected settings row, toast edge */
-  --segment-rule: 2px; /* selected segment underline */
   --focus-ring: 2px;
   --switch-width: 42px;
   --switch-height: 24px;
   --switch-knob: 18px;
   --switch-inset: 3px;
 
+  /* Bead gauge: 20 beads on a circle, the monk inside */
+  --gauge-size: 240px; /* dashboard */
+  --gauge-size-lg: 200px; /* level-up screen */
+  --gauge-viewbox: 280; /* viewBox 0 0 280 280, centre 140 140 */
+  --gauge-radius: 112;
+  --gauge-track-stroke: 1.5; /* track circle in --line */
+  --bead-count: 20;
+  --bead-start-angle: -90deg; /* bead 1 at 12 o'clock */
+  --bead-step-angle: 18deg; /* clockwise */
+  --bead-radius: 10;
+  --bead-stroke: 1.5;
+  --bead-empty-scale: 0.6;
+  --monk-stroke: 1.5; /* robe, head and line strokes */
+  --mark-sash-stroke: 3; /* single-colour mark */
+
   /* Motion (all off under prefers-reduced-motion: reduce) */
-  --motion-ring-draw: 1100ms;
-  --ease-ring-draw: cubic-bezier(0.3, 0.7, 0.2, 1);
+  --motion-bead: 260ms; /* one bead filling or emptying */
+  --motion-bead-stagger: 45ms; /* first render, bead after bead */
+  --ease-bead: cubic-bezier(0.2, 0.8, 0.2, 1);
   --motion-toast: 280ms;
   --ease-toast: cubic-bezier(0.2, 0.8, 0.2, 1);
   --motion-switch: 150ms;
   --toast-visible: 3400ms;
+
+  /*
+   * Transitional aliases: old names still read by the current components.
+   * Removed once TKM-273 and TKM-274 have moved to the names above (ring
+   * and segment names by TKM-273).
+   */
+  --popup-padding-top: var(--popup-padding);
+  --popup-padding-x: var(--popup-padding);
+  --popup-padding-bottom: var(--popup-padding);
+  --bar-height-lg: var(--bar-height);
+  --brand-mark-size: 26px;
+  --text-hero-unit-size: 22px;
+  --segment-rule: 2px;
+  --ring-size: 248px;
+  --ring-radius: 104px;
+  --ring-stroke: 10px;
+  --ring-track-stroke: 2px;
+  --ring-track-opacity: 0.22;
+  --ring-wobble-scale: 2;
+  --motion-ring-draw: 1100ms;
+  --ease-ring-draw: cubic-bezier(0.3, 0.7, 0.2, 1);
 }
 
 /* Dark theme: follows the OS unless data-theme="light" forces light */
@@ -139,6 +187,11 @@
     --ink: #e8e7e0;
     --ink-2: #98a09b;
     --line: #363e3a;
+    --jade: #2fa57a;
+    --monk-face: var(--ink);
+    --monk-line: var(--pop);
+    --monk-head-stroke: none;
+    --bead-empty-stroke: #7b847f;
   }
 }
 
@@ -149,6 +202,11 @@
   --ink: #e8e7e0;
   --ink-2: #98a09b;
   --line: #363e3a;
+  --jade: #2fa57a;
+  --monk-face: var(--ink);
+  --monk-line: var(--pop);
+  --monk-head-stroke: none;
+  --bead-empty-stroke: #7b847f;
 }
 
 /* Modes */
