@@ -117,7 +117,7 @@ dependency.
 | caption | sans 400 | 13, `ink-2` | Gauge caption, "This week", level-up title line, descriptions, section labels |
 | card-title | sans 600 | 13 (caption size), `ink` | Level card title |
 | mono-sm | mono 400 | 12.5, `ink-2` | Level line on the achievements screen |
-| small | sans or mono 400 | 12, `ink-2` | Mode name, week-low line, level-up XP line (mono), achievement state |
+| small | sans or mono 400 | 12, `ink-2` | Mode name, level-up XP line (mono), achievement state |
 | meta | mono 400 | 11.5 (`--text-meta-size`), `ink-2` | Meta row, XP on the level card, week figure |
 | note | sans 400 | 11.5, `ink-2` | Footer notes |
 
@@ -208,7 +208,7 @@ face stay dark on the saffron robe and the light dark-theme head.
 | Role | Source | Colour | Where | Size |
 |---|---|---|---|---|
 | A. App icon | `tokenmonk-icon.svg`, `tokenmonk-icon-windows.svg` | Fixed in the files: dark tile, saffron robe | Only where the OS shows the app: taskbar, dock, Start menu, installer, notifications, the generated icon set. Never inside the popup. | Platform sizes from `node scripts/icons.mjs` |
-| B. Popup monk | The parts table above, drawn inline | Tokens: follows theme and mode | Inside the bead gauge (dashboard, level-up), onboarding rows, About | Gauge 240 / 200 px (same coordinates); 52 px (`--mark-lg-size`) cropped to the standalone viewBox |
+| B. Popup monk | The parts table above, drawn inline | Tokens: follows theme and mode | Inside the bead gauge (dashboard, level-up), onboarding rows, About | Gauge 240 / 220 (week-low) / 200 px (same coordinates); 52 px (`--mark-lg-size`) cropped to the standalone viewBox |
 | C. Tray monk | Rendered in Rust from robe and head | Robe `--accent`, head `--tray-track` | Inside the tray beads | 11.5 x 13 units in a 32-unit box |
 | Brand files | `tokenmonk-monk-light.svg`, `tokenmonk-monk-dark.svg`, `tokenmonk-monk-mark.svg` | Fixed in the files | README, docs, release pages | Any |
 
@@ -251,11 +251,14 @@ motion"). The only icons are the monk and the mode dot.
   the dashboard top row and the settings mode rows (there it takes the
   row's own mode accent).
 - **Monk**: role B in "Icon system", the only figure in the popup. Inside
-  the bead gauge on the dashboard (240 px) and the level-up screen
+  the bead gauge on the dashboard (240 px; 220 px in the week-low state)
+  and the level-up screen
   (200 px); alone at 52 px (`--mark-lg-size`) in the onboarding rows and
   on About. The app icon tile never appears in the popup.
 - **Bead gauge**: `--gauge-size` 240 px (level-up `--gauge-size-lg`
-  200 px), `viewBox="0 0 280 280"` (`--gauge-viewbox`), centred.
+  200 px; dashboard in the week-low state `--gauge-size-week-low` 220 px,
+  TKM-282), `viewBox="0 0 280 280"` (`--gauge-viewbox`), centred. Only the
+  rendered size changes; the viewBox, beads and monk keep their units.
   - Track: circle at (140, 140), r 112 (`--gauge-radius`), stroke `line`,
     width 1.5 (`--gauge-track-stroke`), no fill.
   - 20 beads (`--bead-count`) on the track. Bead i (1 to 20) sits at angle
@@ -343,10 +346,11 @@ inside a block is given per block. Top to bottom:
    - **Week runs out first**: when weekly percent left < 5-hour percent
      left and weekly percent left < 20 (both integers as shown; needs
      `limits.fiveHour` set, derived), the block becomes a card (padding
-     12, `--card-padding`, derived) and gets one more line under the bar
-     (small style: 12 px, `ink-2`, margin top 8, derived): "Less left
-     here than in the 5 hours. This one stops you." The status line
-     reads "The week runs out first."
+     12, `--card-padding`, derived). The card holds the row and the bar
+     only; no extra line (TKM-282). The status line reads "The week runs
+     out first." In this state the bead gauge renders at 220 px
+     (`--gauge-size-week-low`, see "Shared parts"); the size is
+     otherwise unchanged.
 7. **Spacer**: takes the free height (`flex: 1`).
 8. **Level card**: a full-width button in the card style, padding 12
    (`--card-padding`). Row, space-between, baseline: "Quiet Spender ·
@@ -937,7 +941,7 @@ marked "derived" above and stands until the maintainer decides otherwise:
   "average day" and "as of 14:05" in the meta row.
 - Monk strokes: widths of sash, hands, eyes and mouth (1.5) and the
   colour of the hands (`--monk-line`).
-- Height: the week-low state adds about 60 px (card padding, extra line
-  that may wrap) to a column that leaves about 30 px free at 680 px.
-  TKM-273 checks it with the real fonts; if it overflows, the maintainer
-  decides what gives. No scrolling on the dashboard.
+- Height: the week-low state drops the extra card line and renders the
+  bead gauge at 220 px (TKM-282, maintainer decision after the #281
+  measurement at 680 px). TKM-273 checks the result with the real fonts.
+  No scrolling on the dashboard.

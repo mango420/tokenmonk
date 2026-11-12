@@ -134,6 +134,7 @@
 
   /* Bead gauge: 20 beads on a circle, the monk inside */
   --gauge-size: 240px; /* dashboard */
+  --gauge-size-week-low: 220px; /* dashboard, week runs out first (TKM-282) */
   --gauge-size-lg: 200px; /* level-up screen */
   --gauge-viewbox: 280; /* viewBox 0 0 280 280, centre 140 140 */
   --gauge-radius: 112;
