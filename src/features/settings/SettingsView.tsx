@@ -83,7 +83,10 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false, on
                 if (shown.mode !== mode) void change({ mode });
               }}
             >
-              <span className="mode-row__name">{MODE_LABEL[mode]}</span>
+              <span className="mode-row__name">
+                <span className={`mode-dot mode-dot--${mode}`} aria-hidden="true" />
+                {MODE_LABEL[mode]}
+              </span>
               <span className="mode-row__description">{MODE_DESCRIPTION[mode]}</span>
             </button>
           ))}

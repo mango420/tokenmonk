@@ -1,10 +1,9 @@
 import type { ReactNode } from "react";
-import { LogoMark } from "./LogoMark";
 
 interface TopRowProps {
-  /** Brand on the left (main screens); sub-screens hold only their link. */
+  /** The "Tokenmonk" wordmark on the left (main screens); sub-screens hold only their link. */
   brand?: boolean;
-  /** The text link, on the right next to the brand or alone on the left. */
+  /** The text link, next to the brand or alone on the left. */
   children?: ReactNode;
 }
 
@@ -12,12 +11,7 @@ interface TopRowProps {
 export function TopRow({ brand = false, children }: TopRowProps) {
   return (
     <header className="top-row" data-tauri-drag-region="deep">
-      {brand ? (
-        <div className="brand">
-          <LogoMark size="brand" />
-          <span>Tokenmonk</span>
-        </div>
-      ) : null}
+      {brand ? <span className="brand">Tokenmonk</span> : null}
       {children}
     </header>
   );

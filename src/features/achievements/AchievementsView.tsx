@@ -24,7 +24,7 @@ export function AchievementsView({ game, onBack }: AchievementsViewProps) {
         <h1 className="ach-title">{model.title}</h1>
         <p className="level-line live-number">{model.levelLine}</p>
         <div className="ach-bar">
-          <LevelBar ratio={model.ratio} large />
+          <LevelBar ratio={model.ratio} />
         </div>
         <h2 className="ach-heading">{model.heading}</h2>
         <ul className="ach-list">

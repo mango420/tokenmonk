@@ -158,25 +158,13 @@
   --toast-visible: 3400ms;
 
   /*
-   * Transitional aliases: old names still read by the current components.
-   * Removed once TKM-273 and TKM-274 have moved to the names above (ring
-   * and segment names by TKM-273).
+   * Transitional aliases, read only by src/features/game/game.css. Removed
+   * once TKM-274 has moved to --popup-padding and --bar-height.
    */
   --popup-padding-top: var(--popup-padding);
   --popup-padding-x: var(--popup-padding);
   --popup-padding-bottom: var(--popup-padding);
   --bar-height-lg: var(--bar-height);
-  --brand-mark-size: 26px;
-  --text-hero-unit-size: 22px;
-  --segment-rule: 2px;
-  --ring-size: 248px;
-  --ring-radius: 104px;
-  --ring-stroke: 10px;
-  --ring-track-stroke: 2px;
-  --ring-track-opacity: 0.22;
-  --ring-wobble-scale: 2;
-  --motion-ring-draw: 1100ms;
-  --ease-ring-draw: cubic-bezier(0.3, 0.7, 0.2, 1);
 }
 
 /* Dark theme: follows the OS unless data-theme="light" forces light */
