@@ -117,7 +117,7 @@ dependency.
 | caption | sans 400 | 13, `ink-2` | Gauge caption, "This week", level-up title line, descriptions, section labels |
 | card-title | sans 600 | 13 (caption size), `ink` | Level card title |
 | mono-sm | mono 400 | 12.5, `ink-2` | Level line on the achievements screen |
-| small | sans or mono 400 | 12, `ink-2` | Mode name, week-low line, level-up XP line (mono), achievement state |
+| small | sans or mono 400 | 12, `ink-2` | Mode name, level-up XP line (mono), achievement state |
 | meta | mono 400 | 11.5 (`--text-meta-size`), `ink-2` | Meta row, XP on the level card, week figure |
 | note | sans 400 | 11.5, `ink-2` | Footer notes |
 
