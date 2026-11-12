@@ -1,4 +1,4 @@
-//! Tray icon with the live halo gauge, and its menu.
+//! Tray icon with the live bead gauge, and its menu.
 //!
 //! [`init`] creates the tray once; [`set_halo`] re-renders the icon. A left
 //! click toggles the popup (see `crate::window`); the menu opens on right
@@ -47,7 +47,7 @@ impl MenuAction {
     }
 }
 
-/// Creates the tray icon (dotted track only, until the first [`set_halo`]) and its
+/// Creates the tray icon (all beads empty, until the first [`set_halo`]) and its
 /// menu. Call once from the setup hook, after the positioner plugin is
 /// registered.
 pub fn init(app: &AppHandle) -> tauri::Result<()> {
@@ -117,9 +117,9 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Re-renders the tray icon with the arc at `percent` left (0 to 100,
-/// clockwise from 12 o'clock) in the accent of `mode`. `None` shows the
-/// dotted track only, for the "no limit data" state.
+/// Re-renders the tray icon with the beads for `percent` left (0 to 100)
+/// in the accent of `mode`. `None` shows
+/// all beads empty and a dimmed monk, for the "no limit data" state.
 ///
 /// Failures are logged and leave the previous icon in place.
 pub fn set_halo(app: &AppHandle, percent: Option<f64>, mode: Mode) {

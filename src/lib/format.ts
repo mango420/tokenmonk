@@ -4,7 +4,12 @@ const intFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
-const DAY_MS = 24 * HOUR_MS;
+export const DAY_MS = 24 * HOUR_MS;
+
+/** English short weekday of a local time: `Thu`. */
+export function formatWeekday(epochMs: number): string {
+  return new Date(epochMs).toLocaleDateString("en-US", { weekday: "short" });
+}
 
 /** Thousands with a comma: `184,230`. */
 export function formatInt(n: number): string {

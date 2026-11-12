@@ -37,6 +37,8 @@ jobs:
     name: guard
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      updater-artifacts: ${{ env.UPDATER_ARTIFACTS }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -112,65 +114,18 @@ jobs:
           done
           exit "$status"
 
+  # The build steps are shared with test-build.yml (build.yml). This job grants
+  # contents: write, since a called workflow cannot raise permissions.
   build:
-    name: build (${{ matrix.name }})
+    name: build
     needs: guard
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
     permissions:
       contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: macos-universal
-            os: macos-latest
-            args: --target universal-apple-darwin
-            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
-          - name: windows
-            os: windows-latest
-            args: ''
-            rust-targets: ''
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ env.BUILD_REF }}
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.rust-targets }}
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
-
-      - run: npm ci
-
-      # release-please.yml creates the tag and a draft release; releaseDraft
-      # must stay true so tauri-action finds that draft by tag and uploads to
-      # it instead of creating a second release.
-      #
-      # Binaries are unsigned (no Apple or Windows code-signing secrets);
-      # macOS gets an ad-hoc signature from tauri.conf.json. While
-      # UPDATER_ARTIFACTS is 'true' the updater bundles, .sig files and
-      # latest.json are built and uploaded; the signing env below signs them.
-      - uses: tauri-apps/tauri-action@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          tagName: v__VERSION__
-          releaseName: Tokenmonk v__VERSION__
-          releaseBody: Unsigned build. See the assets to download and install.
-          releaseDraft: true
-          prerelease: false
-          uploadUpdaterJson: ${{ env.UPDATER_ARTIFACTS == 'true' }}
-          uploadUpdaterSignatures: ${{ env.UPDATER_ARTIFACTS == 'true' }}
-          updaterJsonPreferNsis: true
-          args: ${{ matrix.args }}
+    uses: ./.github/workflows/build.yml
+    with:
+      ref: ${{ inputs.tag || github.ref }}
+      publish: true
+      updater-artifacts: ${{ needs.guard.outputs.updater-artifacts == 'true' }}
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}

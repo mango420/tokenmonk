@@ -85,9 +85,9 @@ export interface LevelScreenCopy {
   display: string;
   /** "+2 levels" under the display when several levels passed. */
   extra: string | null;
-  /** New title (caption "New title" over it); replaces the mode line. */
-  newTitle: string | null;
-  /** Heading line in the accent colour. */
+  /** Title line: "Still a <title>." or "Now a <title>.". */
+  titleLine: string | null;
+  /** Mode line (status style), or the retro line. */
   heading: string | null;
   /** Mono line. */
   detail: string | null;
@@ -98,13 +98,18 @@ export interface LevelScreenCopy {
 
 const MODE_LINE = { max: "Keep burning.", diy: "Well earned. Breathe." } as const;
 
+/** "an" before a vowel sound ("an Abbot of Restraint"), else "a". */
+function article(title: string): "a" | "an" {
+  return /^[aeiou]/i.test(title) ? "an" : "a";
+}
+
 export function levelScreenCopy(model: LevelScreenModel, game: GameState): LevelScreenCopy {
   if (model.kind === "retro") {
     const noun = model.unlockedCount === 1 ? "achievement" : "achievements";
     return {
       display: `Level ${model.level}`,
       extra: null,
-      newTitle: null,
+      titleLine: null,
       heading: "Straight from your history.",
       detail: `${model.unlockedCount} ${noun}, ${formatInt(model.xpTotal)} XP`,
       progress: null,
@@ -122,8 +127,8 @@ export function levelScreenCopy(model: LevelScreenModel, game: GameState): Level
   return {
     display: `Level ${levelUp.level}`,
     extra: gained > 1 ? `+${gained} levels` : null,
-    newTitle: levelUp.titleChanged ? levelUp.title : null,
-    heading: levelUp.titleChanged ? null : game.mode === "diy" ? MODE_LINE.diy : MODE_LINE.max,
+    titleLine: `${levelUp.titleChanged ? "Now" : "Still"} ${article(levelUp.title)} ${levelUp.title}.`,
+    heading: game.mode === "diy" ? MODE_LINE.diy : MODE_LINE.max,
     detail,
     progress: detail === null ? null : Math.min(1, Math.max(0, game.progress)),
     button: "Back to work",

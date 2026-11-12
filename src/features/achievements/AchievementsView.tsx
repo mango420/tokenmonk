@@ -24,7 +24,7 @@ export function AchievementsView({ game, onBack }: AchievementsViewProps) {
         <h1 className="ach-title">{model.title}</h1>
         <p className="level-line live-number">{model.levelLine}</p>
         <div className="ach-bar">
-          <LevelBar ratio={model.ratio} large />
+          <LevelBar ratio={model.ratio} />
         </div>
         <h2 className="ach-heading">{model.heading}</h2>
         <ul className="ach-list">
@@ -33,6 +33,7 @@ export function AchievementsView({ game, onBack }: AchievementsViewProps) {
               <div className="ach__text">
                 <span className="ach__name">{row.name}</span>
                 <span className="ach__description">{row.description}</span>
+                {row.hint !== null && <span className="ach__hint">{row.hint}</span>}
               </div>
               <span className="ach__state">{row.unlocked ? "Unlocked" : "Locked"}</span>
             </li>

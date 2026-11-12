@@ -79,11 +79,44 @@
   text-align: center;
 }
 
-/* The brand mark at the onboarding size. */
-.game-overlay .logo-mark {
-  width: var(--mark-lg-size);
-  height: var(--mark-lg-size);
-  margin-bottom: var(--space-5);
+/* Full bead string with the monk, 200 px. */
+.game-beads {
+  width: var(--gauge-size-lg);
+  height: var(--gauge-size-lg);
+  margin-bottom: var(--space-4);
+}
+
+.game-beads__track {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: var(--gauge-track-stroke);
+}
+
+.game-beads__bead {
+  r: calc(var(--bead-radius) * 1px);
+  fill: var(--accent);
+  stroke: var(--ink);
+  stroke-width: var(--bead-stroke);
+}
+
+.game-monk__robe {
+  fill: var(--accent);
+  stroke: var(--ink);
+  stroke-width: var(--monk-stroke);
+  stroke-linejoin: round;
+}
+
+.game-monk__line {
+  fill: none;
+  stroke: var(--monk-line);
+  stroke-width: var(--monk-stroke);
+  stroke-linecap: round;
+}
+
+.game-monk__head {
+  fill: var(--monk-face);
+  stroke: var(--monk-head-stroke);
+  stroke-width: var(--monk-stroke);
 }
 
 .game-overlay__title {
@@ -123,7 +156,7 @@
 }
 
 .game-overlay__caption + .game-overlay__status {
-  margin-top: 0;
+  margin-top: var(--space-1);
 }
 
 .game-overlay__xp {

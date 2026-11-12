@@ -374,9 +374,30 @@ For backend-platform (and the orchestrator where marked):
 
 - XP is a ledger (`xp_events`); level, progress and title derive from the
   sum. One XP pool for both modes; each event records the mode it was
-  earned in; the title depends on the current mode only: "Limit Chaser"
-  (Max it out, also before onboarding) and "Quiet Spender" (Do it
-  yourself), at every level.
+  earned in.
+- XP gain (TKM-255), per local day:
+  - Max it out: 10 XP per 100k headline tokens up to 2M, 2 XP per 100k
+    from 2M to 5M, nothing above 5M; plus 10 XP per active day (at least
+    one counted reply). Ceiling 270 XP per day.
+  - Do it yourself, per finished active day by daily budget used: up to
+    50 %: 150 XP; 50 % to 100 %: linear from 150 down to 30 XP; over
+    100 %: 0 XP; no budget yet: 50 XP. No active-day bonus.
+    `daily_xp_preview` applies the same rule to today so far.
+- Level curve: level `n` spans `200 + 120 * (n - 1)` XP for levels 1 to 25
+  (200, 320, 440, ..., 3,080), then a flat 3,080 XP per level, no cap.
+  Level 2 needs 200 XP in total, level 10 needs 6,120, level 30 needs
+  53,320.
+- Titles depend on the current mode (Max it out also before onboarding)
+  and the level tier:
+
+  | Levels | Max it out | Do it yourself |
+  |---|---|---|
+  | 1 to 4 | Token Tourist | Budget Curious |
+  | 5 to 9 | Prompt Regular | Quiet Spender |
+  | 10 to 14 | Context Hoarder | Frugal Prompter |
+  | 15 to 19 | Cache Whisperer | Token Ascetic |
+  | 20 to 29 | Limit Chaser | Zen Accountant |
+  | 30+ | Rate-Limit Royalty | Abbot of Restraint |
 - The game module defines XP rules, the level curve, titles and achievement
   thresholds. Contracts only carry ids and numbers.
 - Achievements (v0.1), name, description, rule and XP:
@@ -392,7 +413,17 @@ For backend-platform (and the orchestrator where marked):
   Mode restrictions and the level curve are unchanged. Plus Boo (shown as
   "Halloween 2026"): a retired, secret legacy badge that can no longer be
   earned; existing unlocks stay valid and keep their XP. Already stored
-  unlocks and XP events are not rewritten when these rules change.
+  unlocks and XP events are not rewritten when these rules change, with
+  one exception: the XP rework recount below.
+- **Recount (TKM-255)**: the game stores the rules version its ledger was
+  built with. When the stored version is older than the current one, the
+  game drops the `tokens` and `day` rows of `xp_events` once, keeps
+  achievement unlocks and their XP and the mode each day was earned in,
+  and replays the history under the new rules as a retroactive run (same
+  rules as retroactive levelling below: no `achievement-unlocked`, no
+  `level-up`, no OS notification, one `game-updated` at the end; the UI
+  shows the retro summary once). Every new rule pays at least the old one
+  for the same day, so a recount never lowers a level.
 - **Retroactive levelling**: after onboarding is completed for the first
   time, the game replays the stored history in time order, writing
   `xp_events` and unlocks with `retroactive = 1`. During the replay no

@@ -7,15 +7,22 @@ interface LevelBlockProps {
   onOpen: () => void;
 }
 
-/** Full-width button at the bottom: title, XP, level line and the level bar. */
+/** The level card: a full-width button with title and level, XP and the level bar. */
 export function LevelBlock({ model, onOpen }: LevelBlockProps) {
   return (
-    <button type="button" className="level-block" onClick={onOpen}>
-      <span className="level-block__row">
-        <span className="level-block__title">{model.title}</span>
-        {model.xp === null ? null : <span className="level-block__xp live-number">{model.xp}</span>}
+    <button type="button" className="card level-card" onClick={onOpen}>
+      <span className="level-card__row">
+        <span className="level-card__title">
+          {model.title}
+          {model.level === null ? null : (
+            <>
+              {" · Level "}
+              <span className="live-number">{model.level}</span>
+            </>
+          )}
+        </span>
+        {model.xp === null ? null : <span className="meta live-number">{model.xp}</span>}
       </span>
-      <span className="level-block__line">{model.line}</span>
       <LevelBar ratio={model.ratio} />
     </button>
   );

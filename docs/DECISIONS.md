@@ -126,7 +126,7 @@ Superseded: releases are cut through the release PR, see "Automatic versioning w
 
 - Every issue has the key `TKM-<n>`, where `<n>` is its GitHub issue number. Issues and PRs share one number sequence, so keys have gaps where a PR took the number; that is accepted.
 - Issue title: `TKM-<n>: <short>`. Each issue carries exactly one type label: `feature`, `bug` or `chore`.
-- Branch: `<prefix>/TKM-<n>-<short-kebab>` with the usual prefixes (feature/ bugfix/ hotfix/ refactor/ chore/ docs/ test/ ci/).
+- Branch: `<prefix>/TKM-<n>-<short-kebab>` with the usual prefixes (feature/ bugfix/ hotfix/ refactor/ chore/ docs/ test/ ci/). Superseded by "Branch name is the issue key" below.
 - PR title and squash subject: `<type>(<scope>): <short> (TKM-<n>)`; the PR body still ends in `Closes #<n>`. The PR key check in CI (`scripts/check-pr-key.mjs`) requires the `(TKM-<n>)` title suffix and the branch format, with the same key in both; dependabot and release branches are skipped.
 - `docs/FEATURES.md` is the feature register, generated from the issue tracker by `node scripts/features.mjs` (needs an authenticated `gh`). It is never edited by hand; regenerate and commit it when issues change.
 
@@ -152,9 +152,9 @@ Superseded: releases are cut through the release PR, see "Automatic versioning w
 Superseded in part by "Dev and main branches (2026-11-04)" below: feature and fix PRs now target `dev`, and changes reach `main` through a promotion PR. Steps 2 to 4 still apply to the release PR on `main`.
 
 1. Merge feature and fix PRs as usual; release-please updates the release PR after every push to `main`.
-2. When ready, merge the release PR through the merge queue (green checks, squash with the PR title as subject). Exceptions: its subject `chore(main): release x.y.z` has no TKM key, and there is no manual rebase or force-push, because release-please rebuilds its branch from `main` on every push (manual changes would be overwritten). Without `RELEASE_PLEASE_TOKEN` the PR has no CI checks; the gate is then a reviewer check of the version and changelog diff.
+2. When ready, merge the release PR through the merge queue (green checks, squash with the PR title as subject). Exceptions: its subject `chore(main): release x.y.z` has no TKM key, and there is no manual rebase or force-push, because release-please rebuilds its branch from `main` on every push (manual changes would be overwritten). Without `RELEASE_PLEASE_TOKEN` the PR has no CI checks; the gate is then a reviewer check of the version and changelog diff (superseded by "Windows-only release test (2026-11-08)" below: dispatching the checks by hand is required before merging).
 3. Wait until both `release.yml` builds (macOS universal and Windows) have finished and uploaded to the draft release `v<version>`.
-4. Review the draft (assets for both platforms, notes), install its assets and run [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) on macOS and Windows, then publish it. Gate, fix-forward policy and hotfix path: [RELEASE-FLOW.md](RELEASE-FLOW.md) (TKM-111).
+4. Review the draft (assets for both platforms, notes), install its assets and run [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) on macOS and Windows, then publish it. Gate, fix-forward policy and hotfix path: [RELEASE-FLOW.md](RELEASE-FLOW.md) (TKM-111). Superseded by "Windows-only release test (2026-11-08)" below: no install test of the draft; after the asset check the orchestrator publishes it.
 
 ## Design refresh (2026-11-03)
 
@@ -175,7 +175,7 @@ The popup follows the refreshed prototype; DESIGN.md and `tokens.css` describe i
 ## Release ownership (2026-11-03)
 
 - release-please drives the version, the tag and the notes: it bumps `package.json`, `package-lock.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json` and `.release-please-manifest.json` together, writes `CHANGELOG.md`, creates the tag `v<version>` and the draft release. Nothing else bumps versions or pushes tags.
-- `release.yml` (`tauri-action`) only builds and uploads: it finds the draft by tag and attaches the installers. It never creates a tag, bumps a version or publishes. Publishing the draft stays a manual maintainer step.
+- `release.yml` (`tauri-action`) only builds and uploads: it finds the draft by tag and attaches the installers. It never creates a tag, bumps a version or publishes. Publishing the draft stays a manual maintainer step. Superseded by "Windows-only release test (2026-11-08)" below: the orchestrator publishes the draft once builds and assets are complete.
 - Expected assets per release (`UPDATER_ARTIFACTS` is `'true'` since TKM-163): four installers, `Tokenmonk_<version>_universal.dmg`, `Tokenmonk_<version>_universal.app.tar.gz`, `Tokenmonk_<version>_x64-setup.exe` and `Tokenmonk_<version>_x64_en-US.msi`; a `.sig` file for the `.app.tar.gz`, the `-setup.exe` and the `.msi`; and `latest.json` (`updaterJsonPreferNsis: true`, so Windows updates use the `-setup.exe`). GitHub adds the two source archives. Releases built while the switch was `'false'` (up to v0.3.x) carry only the four installers.
 - The guard allows exactly one co-author trailer in commit messages, `github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>`. GitHub appends it when a maintainer squash-merges a PR whose commits the Actions bot authored (the release PR, the register refresh PR). It names the GitHub Actions bot, not an assistant. Every other co-author trailer stays blocked. Cause: the v0.3.0 tag commit carried it, the release guard failed and no installers were built (TKM-104).
 - Rebuilding an existing tag: start `release.yml` from `main` with the input `tag` (for example `v0.3.0`). The run checks out and builds the tag, checks that it is a tag matching the app version, and runs the guard script from `main` over the tag's tree and history. A plain re-run would use the tag's own, older guard. The tag is never moved, deleted or recreated.
@@ -195,7 +195,7 @@ Reverses the "`main` only" rule of TKM-111 ([RELEASE-FLOW.md](RELEASE-FLOW.md), 
 - Two long-lived branches. `dev` takes every feature, fix, docs, chore, ci and test PR (squash, PR title as subject, same keys and checks as before). `main` takes only promotion PRs from `dev`, hotfix PRs, the release PR and the back-merge source.
 - Test build: every push to `dev` (and a manual dispatch) builds unsigned test installers for macOS universal and Windows and keeps them as workflow artifacts. No release, no version bump, no tag, no prerelease version. Prerelease versions were not adopted: whether the Windows MSI accepts them is not verified here, and with the updater off nobody would receive them.
 - Promotion: when `dev` has passed the maintainer's test of the installed test build, a PR with head `dev` and base `main` (`chore(release): promote dev to main`) is merged with a merge commit, so every `feat` and `fix` keeps its own changelog line. Only the maintainer starts a promotion.
-- release-please runs on `main` only and works as before: release PR, tag `v<version>`, draft release. The maintainer tests the draft with [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) and publishes it by hand. After each stable release `main` is merged back into `dev` (merge commit).
+- release-please runs on `main` only and works as before: release PR, tag `v<version>`, draft release. The maintainer tests the draft with [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) and publishes it by hand (superseded by "Windows-only release test (2026-11-08)" below: no draft test, the orchestrator publishes). After each stable release `main` is merged back into `dev` (merge commit).
 - Unchanged: fix-forward, tags never move, the release PR is squash-merged, "Release ownership" and "v0.1 without updater artifacts" still apply.
 - New rules that follow from dry-runs on scratch branches: the freeze between merging a promotion and merging its release PR, and no edits to version files, `CHANGELOG.md` or `.release-please-manifest.json` on `dev` (RELEASE-FLOW.md, "Promotion PR" and "Back-merge").
 - The labelled PR build of idea #115 is covered in large part by the `dev` test build.
@@ -251,3 +251,50 @@ Maintainer moved download progress into v0.1 (TKM-212); contract and design by t
 - Source: tauri-plugin-updater 2.x on docs.rs (`Update::download_and_install`, `on_chunk: FnMut(usize, Option<u64>)`, `on_download_finish: FnOnce()`) and https://v2.tauri.app/plugin/updater/, checked 2026-11-08. The content length is `None` when the server sends no `Content-Length`.
 - Throttle: Rust emits only when the whole percent changes, so at most 101 progress events per download. The UI adds no throttle of its own.
 - Copy: "Downloading 0.4.1, 42%." with the percent as a live number; without a percent "Downloading 0.4.1.". No progress bar, no spinner.
+
+## Windows-only release test (2026-11-08)
+
+Maintainer decision after the v0.5.0 release (TKM-247). Supersedes the draft test and the manual publish in "Release ownership", "How to cut a release now" and "Dev and main branches". Flow: [RELEASE-FLOW.md](RELEASE-FLOW.md); test: [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md).
+
+- The maintainer tests test builds and releases on Windows only. macOS ships untested by the maintainer; the community tests it after publishing, and macOS reports become `bug` issues that are fixed forward. Builds are unchanged: macOS universal and Windows.
+- One gate: the maintainer's Windows test of the `dev` test build for the `dev` head that is promoted, before the promotion. No separate draft test. Problems found later, on either platform, become `bug` issues and are fixed forward. A hotfix is gated the same way: a test build dispatched on the hotfix branch (`test-build.yml` has `workflow_dispatch`), tested on Windows before the hotfix PR is merged.
+- Publishing: once both `release.yml` build jobs are green and the draft lists all expected assets ("Release ownership": four installers, three `.sig` files, `latest.json`), the orchestrator publishes it. The maintainer no longer publishes by hand. Publishing before both build jobs finish still makes `tauri-action` create a second release.
+- Release notes: the generated changelog notes are used as they are. A review by the maintainer is optional, not a gate.
+- Release PR: without `RELEASE_PLEASE_TOKEN`, dispatching `ci.yml` and `pr-key.yml` on the release branch is required before merging. Without those checks the `main` ruleset refuses the merge ("base branch policy prohibits the merge"), as on the v0.5.0 release PR (#245).
+- Why: the maintainer can only test on Windows, and the draft test repeated the test-build test of the same code.
+
+## Other-mode achievement hint (2026-11-09)
+
+Architect design for TKM-126. Details: [DESIGN.md](DESIGN.md), "Achievements", item 7.
+
+- Locked achievements that only count in the other mode get one extra line under the description: "Max it out only. Not on this mode's menu." (or "Do it yourself only. ..."). Small style, `ink-2`, full opacity; the state stays "Locked". No accent, no icon, no new token.
+- No hint on unlocked rows, on achievements that count in both modes, or before onboarding (`noneYet`).
+- Contracts unchanged: `AchievementProgress.mode` (Rust `Option<Mode>`, TS `Mode | null`) and `GameState.mode` already carry the scope, and the game module already fills it.
+
+## XP and level rework (2026-11-09)
+
+Maintainer decision (TKM-255, docs TKM-259). Supersedes the titles and "Level curve ... unchanged" of "Design refresh", and its "not rewritten" rule for this one recount. Details: [ARCHITECTURE.md](ARCHITECTURE.md), "Game".
+
+- Max it out: soft ceiling instead of the hard daily cap. 10 XP per 100k headline tokens up to 2M, 2 XP per 100k from 2M to 5M, nothing above; plus 10 XP per active day. At most 270 XP per day.
+- Do it yourself: per finished active day 150 XP up to 50 % of the daily budget, linear down to 30 XP at 100 %, 0 over budget, 50 XP without a budget. The active-day bonus is Max it out only; the per-day row already covers DIY.
+- Level curve: span `200 + 120 * (n - 1)` for levels 1 to 25, then a flat 3,080 XP per level, no cap. Target: first level-up on day 1 or 2, level 10 after about two months, a level roughly every three weeks later on.
+- Titles in six tiers per mode (1 to 4, 5 to 9, 10 to 14, 15 to 19, 20 to 29, 30+), final copy as in the TKM-255 table. No contract change: `GameState.title` and `LevelUp.title` already carry the title.
+- One-time recount: ledgers built with an older rules version drop their `tokens` and `day` XP rows and replay history under the new rules, as a silent retroactive run with one summary screen. Achievement unlocks and their XP stay. Every new rule pays at least the old one for the same day, so no level goes down.
+- Why: the hard cap stalled the bar on busy days, small days earned nothing, DIY levelled about 2.5 times slower and rewarded idling, and late levels took more than a month each.
+
+## Branch name is the issue key (2026-11-09, TKM-267)
+
+- A branch is named exactly `TKM-<n>`: no type prefix, no kebab suffix. The type lives in the PR title and the label, the topic in the issue.
+- One open PR per issue at a time; a follow-up PR for the same issue reuses the name after the first one is merged and its branch deleted.
+- Hotfixes into `main` have no prefix to tell them apart any more: `scripts/check-pr-key.mjs` accepts a `TKM-<n>` head into `main` only when the title type is `fix` or `revert`. `dev` and `release-please--*` heads stay allowed as before.
+
+## Prayer-bead popup, dark mode and new monk (2026-11-11, TKM-269)
+
+Owner decision (TKM-269, TKM-270, TKM-271); supersedes "Icon system (2026-11-04, final)" and the ring of the earlier dashboard. Details: [DESIGN.md](DESIGN.md).
+
+- `src/styles/tokens.css` is the single source of truth for design values; DESIGN.md describes the rules and names the tokens.
+- The dashboard ring becomes a string of 20 beads for the 5-hour window only; the "5 hours / Week" segment and the stat tiles are gone. The week is a 6 px bar below; when it runs out first it turns into the one card style with an extra line. The wobble filter is removed; the ring tokens stay as transitional aliases until TKM-273.
+- Exactly one card style (1 px `line` outline, radius 12, no fill), only for clickable or highlighted blocks. Popup padding 20 on all sides, column gap 14. The 8 px mode dot is the only icon besides the monk.
+- Dark mode follows the OS live. New tokens: dark jade #2FA57A, monk face, monk line, head stroke, empty bead stroke and fill, one stale opacity.
+- Level-up title line: "Still a <title>." when the title is unchanged, "Now a <title>." when it changed; "an" before a vowel sound ("Now an Abbot of Restraint.").
+- New monk (closed smiling eyes, sash, hands) replaces the old one in the popup, the brand files, the app icon and the tray, where 5 beads replace the arc. `tokenmonk-mark-mono.svg` stays only until the popup (TKM-273) and the tray (TKM-275) no longer read it; transitional token aliases in `tokens.css` go with TKM-273 and TKM-274.
