@@ -382,10 +382,10 @@ html[data-maximized] .popup {
   height: var(--gauge-size-lg);
 }
 
-/* 240 minus one 20 step: 220. */
+/* Week runs out first. */
 .bead-gauge--compact {
-  width: calc(var(--gauge-size) - var(--space-5));
-  height: calc(var(--gauge-size) - var(--space-5));
+  width: var(--gauge-size-week-low);
+  height: var(--gauge-size-week-low);
 }
 
 .bead-gauge__track {
