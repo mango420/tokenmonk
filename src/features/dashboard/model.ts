@@ -44,7 +44,6 @@ export const MODE_DESCRIPTION: Record<PopupMode, string> = {
 // ------------------------------------------------------------------ gauge
 
 const WEEK_FIRST_STATUS = "The week runs out first.";
-const WEEK_LOW_LINE = "Less left here than in the 5 hours. This one stops you.";
 
 export interface GaugeModel {
   caption: string;
@@ -70,7 +69,6 @@ export interface WeekModel {
   figure: string;
   /** The week runs out first: the block becomes a card with one more line. */
   low: boolean;
-  lowLine: string;
   stale: boolean;
 }
 
@@ -177,7 +175,6 @@ function weekModel(snap: DashboardSnapshot): WeekModel | null {
     percentLeft: left,
     figure,
     low: five !== null && left < five && left < 20,
-    lowLine: WEEK_LOW_LINE,
     stale: limits.status === "stale",
   };
 }

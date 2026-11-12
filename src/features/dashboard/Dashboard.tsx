@@ -31,7 +31,7 @@ export function Dashboard({ data, actions, onOpenSettings, onOpenLimitSetup, onO
     <div className="screen screen--dashboard">
       <Header mode={mode} onOpenSettings={onOpenSettings} />
       <p className="caption dash-caption">{gauge.caption}</p>
-      <BeadGauge percentLeft={gauge.percentLeft} stale={gauge.stale} />
+      <BeadGauge percentLeft={gauge.percentLeft} stale={gauge.stale} compact={week !== null && week.low} />
       <div className="hero-block">
         <div className="hero-row">
           <span className={`hero live-number${gauge.small ? " hero--sm" : ""}${gauge.stale ? " hero--stale" : ""}`}>
@@ -57,7 +57,6 @@ export function Dashboard({ data, actions, onOpenSettings, onOpenLimitSetup, onO
               style={{ width: `${week.percentLeft}%` }}
             />
           </div>
-          {week.low ? <p className="small week__low">{week.lowLine}</p> : null}
         </section>
       )}
       <div className="spacer" />

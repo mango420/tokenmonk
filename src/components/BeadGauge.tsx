@@ -12,6 +12,8 @@ interface BeadGaugeProps {
   stale?: boolean;
   /** Level-up screen size. */
   large?: boolean;
+  /** Week runs out first: 20 px smaller to make room for the week card. */
+  compact?: boolean;
 }
 
 /** Bead count from percent left: 0 only at exactly 0, otherwise `ceil(percent / 5)`. */
@@ -25,7 +27,7 @@ function beadsFor(percentLeft: number | null, count: number): number {
  * monk inside. Beads 1 to N are full, clockwise from 12 o'clock; the string
  * drains from the end.
  */
-export function BeadGauge({ percentLeft, stale = false, large = false }: BeadGaugeProps) {
+export function BeadGauge({ percentLeft, stale = false, large = false, compact = false }: BeadGaugeProps) {
   const geometry = useMemo(() => {
     const count = readTokenNumber("--bead-count");
     const radius = readTokenNumber("--gauge-radius");
@@ -70,6 +72,7 @@ export function BeadGauge({ percentLeft, stale = false, large = false }: BeadGau
   const shown = started ? target : 0;
   const classes = ["bead-gauge"];
   if (large) classes.push("bead-gauge--lg");
+  if (compact) classes.push("bead-gauge--compact");
   if (stale) classes.push("bead-gauge--stale");
   if (introActive) classes.push("bead-gauge--intro");
 

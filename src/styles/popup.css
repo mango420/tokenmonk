@@ -382,6 +382,12 @@ html[data-maximized] .popup {
   height: var(--gauge-size-lg);
 }
 
+/* 240 minus one 20 step: 220. */
+.bead-gauge--compact {
+  width: calc(var(--gauge-size) - var(--space-5));
+  height: calc(var(--gauge-size) - var(--space-5));
+}
+
 .bead-gauge__track {
   fill: none;
   stroke: var(--line);
@@ -527,10 +533,6 @@ html[data-maximized] .popup {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-}
-
-.week__low {
-  margin-top: var(--space-2);
 }
 
 .spacer {
@@ -903,6 +905,7 @@ html[data-maximized] .popup {
 
 @media (prefers-reduced-motion: reduce) {
   .bead,
+  .bead-gauge--intro .bead--full,
   .switch::after,
   .titlebar__bar {
     transition: none;
