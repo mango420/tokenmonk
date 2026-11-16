@@ -61,6 +61,7 @@ export const LimitData = forwardRef<HTMLElement, LimitDataProps>(function LimitD
     } catch (error) {
       console.warn(`limits connection change failed: ${describeError(error)}`);
       setFailed(true);
+      load();
     } finally {
       setBusy(false);
     }
@@ -91,7 +92,7 @@ export const LimitData = forwardRef<HTMLElement, LimitDataProps>(function LimitD
     status = "Not connected.";
     action = (
       <TextLink small onClick={() => void run(connectLimits)} disabled={busy}>
-        Connect
+        Connect limits
       </TextLink>
     );
   }
