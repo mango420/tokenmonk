@@ -10,6 +10,7 @@ import type {
   GameState,
   LevelUp,
   LimitSetup,
+  LimitsConnection,
   StatuslineFileInfo,
   Settings,
   TokenBreakdown,
@@ -306,6 +307,16 @@ const setupMissing: LimitSetup = { statuslineCommand: null, statuslineFile: file
 
 export function mockLimitSetup(scenario: MockScenario): LimitSetup {
   return scenario.limitSetup ?? setupPlain;
+}
+
+/** Dev-only Limits connection: connected when limits flow, blocked in the "missing" scenario. */
+export function mockLimitsConnection(scenario: MockScenario): LimitsConnection {
+  const settingsPath = "D:\\mock\\.claude\\settings.json";
+  if (scenario.limitSetup?.statuslineCommand === null) {
+    return { state: "blocked", settingsPath: null, previousStatusLine: false, problem: "noClaudeFolder", detail: null };
+  }
+  const connected = scenario.dashboard.limits.status !== "unavailable";
+  return { state: connected ? "connected" : "notConnected", settingsPath, previousStatusLine: false, problem: null, detail: null };
 }
 
 /** Fake events for the dev notice buttons. */

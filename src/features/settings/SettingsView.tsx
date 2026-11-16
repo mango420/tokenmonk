@@ -4,11 +4,14 @@ import { TextLink } from "../../components/TextLink";
 import { TopRow } from "../../components/TopRow";
 import type { AppActions, AppData } from "../../lib/appData";
 import { describeError, openExternal, pickFolder } from "../../lib/backend";
-import type { ClaudeFolder, SettingsPatch, UpdateStatus } from "../../lib/contracts";
+import type { ClaudeFolder, Settings, SettingsPatch, UpdateStatus } from "../../lib/contracts";
 import { formatClock } from "../../lib/format";
 import { useEscape } from "../../lib/useEscape";
 import { ClaudeFolderRow } from "./ClaudeFolderRow";
 import { LimitData } from "./LimitData";
+
+/** A patch plus the two notification keys, until `SettingsPatch` carries them itself. */
+type SettingsChange = SettingsPatch & Pick<Settings, "notifyLimits" | "notifyLevelUps">;
 
 interface SettingsViewProps {
   data: AppData;
@@ -29,19 +32,19 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false, on
     if (scrollToLimits) limitsRef.current?.scrollIntoView({ block: "start" });
   }, [scrollToLimits]);
 
-  const [pending, setPending] = useState<SettingsPatch>({});
+  const [pending, setPending] = useState<SettingsChange>({});
   const [failed, setFailed] = useState(false);
   /** Latest call number per key; only the newest call may clear its pending value. */
-  const sequence = useRef<Partial<Record<keyof SettingsPatch, number>>>({});
+  const sequence = useRef<Partial<Record<keyof SettingsChange, number>>>({});
 
   useEscape(onBack);
 
   const shown = { ...data.settings, ...pending };
 
-  const change = async (patch: SettingsPatch) => {
+  const change = async (patch: SettingsChange) => {
     setFailed(false);
-    const keys = Object.keys(patch) as (keyof SettingsPatch)[];
-    const ticket: Partial<Record<keyof SettingsPatch, number>> = {};
+    const keys = Object.keys(patch) as (keyof SettingsChange)[];
+    const ticket: Partial<Record<keyof SettingsChange, number>> = {};
     for (const key of keys) {
       ticket[key] = (sequence.current[key] ?? 0) + 1;
       sequence.current[key] = ticket[key];
@@ -83,6 +86,25 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false, on
         <h1 className="title">Settings</h1>
 
         <div className="switch-list">
+          <div className="switch-row">
+            <span className="switch-row__text">
+              <span>10% Limits notification</span>
+              <span className="caption">Once per window, when 10% is left.</span>
+            </span>
+            <Switch
+              label="10% Limits notification"
+              checked={shown.notifyLimits ?? true}
+              onChange={(notifyLimits) => void change({ notifyLimits })}
+            />
+          </div>
+          <div className="switch-row">
+            <span>Level-up notifications</span>
+            <Switch
+              label="Level-up notifications"
+              checked={shown.notifyLevelUps ?? true}
+              onChange={(notifyLevelUps) => void change({ notifyLevelUps })}
+            />
+          </div>
           <div className="switch-row">
             <span>Sound</span>
             <Switch label="Sound" checked={shown.sound} onChange={(sound) => void change({ sound })} />
@@ -130,10 +152,10 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false, on
 
         <LimitData
           ref={limitsRef}
-          folderPath={folder?.path ?? null}
           limits={data.dashboard.limits}
-          platform={data.appInfo.platform}
-          loadLimitSetup={actions.loadLimitSetup}
+          loadLimitsConnection={actions.loadLimitsConnection}
+          connectLimits={actions.connectLimits}
+          disconnectLimits={actions.disconnectLimits}
         />
 
         <div className="bottom-group">
