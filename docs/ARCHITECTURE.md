@@ -146,13 +146,11 @@ storage.
   active one.
 - **Burn rate**: headline tokens in the trailing 15 minutes divided by 15
   (`windowMinutes = 15`).
-- **Limit ETA** (Max it out burn line): needs a 5-hour reading. Percent per
-  token in the current window = `fiveHour.utilization` / headline tokens
-  since the window start (`resetsAt - 5 h`); ETA = remaining percent /
-  (burn rate x percent per token), rounded down to whole minutes. `null`
-  without a reading, without tokens in the window or with zero burn; `0` at
-  or above 100 %. Because the limit also counts claude.ai chats, the ETA is
-  an estimate, which the UI copy reflects ("~").
+- Removed by TKM-287 (no estimates anywhere): the limit forecast and the
+  daily budget below. Their contract fields (`BurnRate.limitEtaMinutes`,
+  `DashboardSnapshot.dailyBudget`, `DailyBudget`, `BudgetBasis`) stay until
+  TKM-301, TKM-304 and TKM-306 stop using them; the TKM-300 cleanup
+  deletes them. Daily budget kept below as design history.
 - **Daily budget**:
   - `weeklyLimit` basis (weekly reading available): `W0` = weekly
     utilisation at the start of the local day (last snapshot before
@@ -202,12 +200,13 @@ pub trait LimitSource: Send + Sync {
   credentials, no endpoint. Claude Code pipes a JSON object to its
   configured status-line command; the bridge mode of the Tokenmonk
   executable keeps only the `rate_limits` part and the app reads it from a
-  small file. Tokenmonk never edits Claude Code settings; the user pastes
-  one setup snippet (DESIGN.md, Settings, "Limit data"). Sources and
-  verified facts: DECISIONS.md, "Limit source".
-- Without a usable reading the app runs on token data alone: Max it out
-  shows token figures and explains that limit data is missing; Do it
-  yourself uses the `tokenHistory` budget.
+  small file. Since TKM-287 the setup is one click: "Connect limits"
+  writes the `statusLine` entry (see "Connect limits" below). The paste-only
+  snippet ("Setup snippet") is design history until TKM-307 removes it.
+  Sources and verified facts: DECISIONS.md, "Limit source".
+- Without a usable reading the app runs on token data alone: tokens today
+  is the full view plus one calm line, no warning, no estimate (DESIGN.md,
+  "Product line"). Removed by TKM-287: the `tokenHistory` budget.
 - Limit percentages include claude.ai chats; token statistics are Claude
   Code only. The popup footer says so permanently.
 
@@ -401,6 +400,95 @@ For backend-platform (and the orchestrator where marked):
    statement, `Db::insert_limit_snapshot`).
 7. Aggregate (backend-data): drop expired windows from the last good
    reading on every snapshot build (Aggregates, "Limit status").
+
+### Connect limits (TKM-287, contract TKM-300)
+
+One click in Settings writes the status line entry; "Disconnect" puts the
+previous one back. Implementation: TKM-303 (backend-platform).
+
+- Contract: `get_limits_connection`, `connect_limits`, `disconnect_limits`
+  (no arguments, all return `LimitsConnection`), event
+  `limits-connection-changed` (`LimitsConnection`), error code
+  `claudeSettings`.
+- Target: only `settings.json` in the effective Claude folder
+  (`ClaudeFolder.path`, "Claude folder"). Never project, local or managed
+  settings files. `settingsPath` is that path.
+- State, read fresh on every call (no cache, no file watcher; the UI calls
+  `get_limits_connection` when Settings opens):
+
+  | `settings.json` | `state` | `problem` |
+  |---|---|---|
+  | Claude folder unknown or missing | `blocked` | `noClaudeFolder` |
+  | Exists, cannot be read | `blocked` | `settingsUnreadable` |
+  | Not a JSON object, or `statusLine` not an object | `blocked` | `settingsInvalid` |
+  | Missing file, or no `statusLine` | `notConnected` | `null` |
+  | `statusLine` is not Tokenmonk's | `notConnected`, `previousStatusLine = true` | `null` |
+  | `statusLine` is Tokenmonk's | `connected` | `null` |
+
+  "Tokenmonk's": `statusLine.type` is `"command"` and the command runs a
+  Tokenmonk executable with `--statusline` as its first argument. This also
+  covers entries pasted by the earlier paste-only setup, so those users
+  show as `connected` and can disconnect. For `connected`,
+  `previousStatusLine` is `true` when a stored previous entry exists.
+- Connect (explicit click only; idempotent):
+  1. Classify as above; `blocked` rejects with `claudeSettings`.
+  2. If `statusLine` exists and is not Tokenmonk's, store it verbatim (the
+     whole JSON value) in `<app data dir>/statusline-previous.json` next to
+     the bridge file. An existing record is kept when already connected.
+  3. Copy the current file byte for byte to `settings.json.tokenmonk.bak`
+     in the same folder (overwritten on each write). A missing file has no
+     backup and is created.
+  4. Set `statusLine` to `{ "type": "command", "command": <bridge command> }`
+     (the bridge command as in "Setup snippet"), keeping every other key of
+     a previous `statusLine` object (for example `padding`) unchanged.
+     Every other key of the file stays as it was, in its order.
+  5. Write atomically (temp file in the same folder, then rename). Any
+     failure rejects with `claudeSettings` and leaves the file as it was.
+- Wrapping (pass-through): with a stored previous entry, the bridge writes
+  the limits file as before, then runs the previous command with the same
+  stdin bytes and prints its stdout unchanged, exiting with its exit code.
+  Tokenmonk's own line is printed only when nothing is wrapped. A failing
+  previous command never stops the limits file write.
+- Disconnect (explicit click only; idempotent): when `connected`, back up
+  as in step 3, then set `statusLine` to the stored previous entry, or
+  remove the key if there is none, write atomically, and delete the
+  record. When not connected, the file is not touched; a leftover record
+  is deleted.
+- `limits-connection-changed` follows every successful connect or
+  disconnect, and a change of the effective Claude folder.
+- Popup line (DESIGN.md, "Product line"): `connected` and no current
+  reading: "Limits after your next reply."; `notConnected` or `blocked`:
+  "Connect limits in Settings." `DashboardSnapshot.limits` stays
+  reading-based; the UI combines both.
+
+To verify in TKM-303 (scout, official docs; not decided here):
+
+- How Claude Code runs `statusLine.command` on each platform (which shell),
+  so the bridge runs the previous command the same way.
+- What happens to a running child when Claude Code cancels a status line
+  run, and that the Windows GUI-subsystem build can pipe the child's
+  stdout.
+- Key order: `serde_json` without its `preserve_order` feature reorders the
+  keys of a rewritten file. Keeping the order needs that feature enabled in
+  `Cargo.toml` (orchestrator, DECISIONS.md).
+
+## Notifications (TKM-287, contract TKM-300)
+
+Implementation: TKM-304. Copy and tone: DESIGN.md, "Product line".
+
+- Limits at 10 % left (`Settings.notifyLimits`, default on): one system
+  notification per window (`fiveHour`, `weekly`) and reset cycle, when the
+  window's `utilization` reaches 90 or more while `limits.status` is `ok`.
+  The cycle is the window's `resetsAt`; a window without `resetsAt` sends
+  nothing. Already sent cycles survive a restart.
+- Level-ups (`Settings.notifyLevelUps`, default on): one system
+  notification per `level-up` with `retroactive = false`.
+- System notifications use the OS sound; `Settings.sound` covers only the
+  in-app tone and does not apply to them.
+- Removed by TKM-287: the 90 % and 100 % warnings and the budget warning.
+- `SettingsPatch.notifyLimits` and `.notifyLevelUps` land in the TKM-300
+  cleanup (a `db` test lists every `SettingsPatch` field; TKM-301 rewrites
+  it). Until then both settings read as their defaults.
 
 ## Game
 
@@ -640,6 +728,9 @@ Defined in the contracts (names as constants on both sides):
 | `check_for_updates` | `UpdateStatus` after the check (see Updates) |
 | `install_update` | `UpdateStatus`, only on failure; success exits or restarts the app |
 | `get_claude_folder` | `ClaudeFolder` (effective folder, its source, whether `projects/` exists; see Claude folder) |
+| `get_limits_connection` | `LimitsConnection` (see Limits, "Connect limits") |
+| `connect_limits` | `LimitsConnection`; rejects with `claudeSettings` |
+| `disconnect_limits` | `LimitsConnection`; rejects with `claudeSettings` |
 
 | Event | Payload |
 |---|---|
@@ -651,6 +742,7 @@ Defined in the contracts (names as constants on both sides):
 | `app-info-changed` | `AppInfo` |
 | `navigate` | `NavigateTo` (tray menu opens settings etc.; views: dashboard, settings, onboarding, achievements, about) |
 | `update-status-changed` | `UpdateStatus` |
+| `limits-connection-changed` | `LimitsConnection` |
 
 Payloads are full state, never diffs. On start the UI calls the `get_*`
 commands once, then follows the events. Every command returns
@@ -665,7 +757,16 @@ the one data-carrying enum (`UpdateStatus`) is internally tagged with
 optional keys), and `SettingsPatch.claudeFolder` is a double option
 (absent = unchanged, `null` = reset); `Settings.claudeFolder` is omitted
 when `None` and reads absent or `null` as `None` (TS `claudeFolder?:
-string | null`, both meaning "not set").
+string | null`, both meaning "not set"). `Settings.notifyLimits` and
+`.notifyLevelUps` read absent as `true` (`serde(default = ...)`); in
+TypeScript they are optional only until the TKM-300 cleanup.
+
+Removed by TKM-287 and kept only until their users are gone (the TKM-300
+cleanup deletes them; never use them in new code): `Mode` value `diy`,
+`SettingsPatch.mode`, `BurnRate.limitEtaMinutes`,
+`DashboardSnapshot.dailyBudget`, `DailyBudget`, `BudgetBasis`,
+`GameState.dailyXpPreview`, `AchievementProgress.mode`,
+`LimitSetup.statuslineCommand`.
 
 ## Storage
 
@@ -681,7 +782,9 @@ string | null`, both meaning "not set").
   boolean, since TKM-41). A missing key means the default
   (`update_check`: `true`); new keys need no migration. `claude_folder`
   (JSON string, TKM-291): the absolute path; missing key = not set, a
-  reset deletes the key.
+  reset deletes the key. `notify_limits`, `notify_level_ups` (JSON
+  boolean, TKM-300): missing key = `true`. A stored `mode` of `"diy"` is
+  migrated to `"max"` (TKM-301); `xp_events.mode` keeps its history.
 - `UpdateStatus` is not stored; every start begins at `idle`.
 - If the database is corrupt or from a newer version, it is moved aside
   (renamed with a timestamp) and rebuilt from the logs; game progress is
@@ -699,6 +802,8 @@ string | null`, both meaning "not set").
 | Bridge not set up, or no current window | | `limits.status = unavailable`, `reason = noSource` |
 | Limit file unreadable or invalid | Keep last good reading | `limits.status` by its age (`unavailable` without one), `reason` |
 | A window of the last good reading has reset | Drop that window (`resetsAt <= now`) | that window `null`; no window left: `unavailable`, `reason = noSource` |
+| `settings.json` unusable for connect | Touch nothing | `LimitsConnection.state = blocked`, `problem`; connect or disconnect rejects with `claudeSettings` |
+| Connect or disconnect write fails | File unchanged | `CommandError { code: claudeSettings }` |
 | No session in the last 60 min | | `session = null` |
 | No budget basis | | `dailyBudget = null` |
 | Database error in a command | | `CommandError { code: storage }` |

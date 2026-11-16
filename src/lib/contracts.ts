@@ -22,12 +22,16 @@ export type EpochMs = number;
 
 // ---------------------------------------------------------------- settings
 
-/** Play mode. `noneYet` means onboarding has not been completed. */
+/** Play mode. `noneYet` means onboarding has not been completed. Max is the
+ * only mode since TKM-287; `"diy"` is removed and stays only until
+ * TKM-301/302/306/307 stop using it (cleanup in TKM-300). Never produce it
+ * in new code; stored `diy` is migrated to `max` (TKM-301). */
 export type Mode = "noneYet" | "max" | "diy";
 
 export interface Settings {
   mode: Mode;
-  /** Play a sound on achievement unlocks and level-ups. */
+  /** Play the in-app tone on achievement unlocks and level-ups. Does not
+   * apply to system notifications; they use the OS sound. */
   sound: boolean;
   /** Start Tokenmonk at login. */
   autostart: boolean;
@@ -37,6 +41,14 @@ export interface Settings {
   /** "Keep popup open": no hide on blur, the popup closes only via the
    * tray icon or its Close button. Default false. */
   keepOpen: boolean;
+  /** "Limits at 10 % left": one system notification per limit window and
+   * reset cycle at 10 % left. Default true. Rust: `bool`, always sent;
+   * optional here only until the TKM-300 cleanup (existing mock literals). */
+  notifyLimits?: boolean;
+  /** "Level-ups": a system notification per live level-up. Default true.
+   * Rust: `bool`, always sent; optional here only until the TKM-300
+   * cleanup. */
+  notifyLevelUps?: boolean;
   /** "Claude folder": the Claude config folder chosen in Settings (the app
    * appends `projects/` itself). Absent or null = not set: the folder then
    * comes from `CLAUDE_CONFIG_DIR` or the default `~/.claude` (see
@@ -46,7 +58,9 @@ export interface Settings {
 }
 
 /** Partial update for `update_settings`. Absent keys stay unchanged.
- * `mode: "noneYet"` is rejected. `claudeFolder`: a string sets the folder
+ * `mode: "noneYet"` is rejected. `mode` is removed by TKM-287 (no mode
+ * picker) and stays only until TKM-307 stops using it. `notifyLimits` and
+ * `notifyLevelUps` join in the TKM-300 cleanup, together with Rust. `claudeFolder`: a string sets the folder
  * (non-empty, absolute, else `invalidArgument`; existence is not checked),
  * `null` resets it to the default. Rust: `Option<Option<String>>`. */
 export interface SettingsPatch {
@@ -95,11 +109,13 @@ export interface LimitsView {
   fetchedAt: EpochMs | null;
 }
 
-/** Result of `get_limit_setup`. Tokenmonk never edits Claude Code settings. */
+/** Result of `get_limit_setup`: the bridge command and the bridge file
+ * state. The setup itself is one click since TKM-287 (`LimitsConnection`). */
 export interface LimitSetup {
   /** Ready-to-paste value for `statusLine.command` in Claude Code's
    * `settings.json` (executable path plus `--statusline`); null if the
-   * executable path is unknown. */
+   * executable path is unknown. Removed by TKM-287 (paste-only setup);
+   * stays until TKM-307 stops showing the snippet. */
   statuslineCommand: string | null;
   /** State of the bridge file `statusline.json` when the command ran. Lets
    * Settings tell "never arrived" from "arrived, no current window". */
@@ -116,6 +132,39 @@ export interface StatuslineFileInfo {
   /** File modification time; useful when the file exists but
    * `receivedAt` is null. Null if missing or not reported by the OS. */
   modifiedAt: EpochMs | null;
+}
+
+/** Whether Claude Code's `statusLine` runs the Tokenmonk bridge.
+ * `notConnected`: no Tokenmonk entry (or no `settings.json` yet).
+ * `connected`: it runs the bridge, alone or wrapping the previous status
+ * line. `blocked`: the file cannot be used, see `problem`; nothing is
+ * touched. */
+export type LimitsConnectionState = "notConnected" | "connected" | "blocked";
+
+/** Why a connection is `blocked`. `noClaudeFolder`: the Claude folder is
+ * unknown or missing (never created by Tokenmonk). `settingsUnreadable`:
+ * `settings.json` exists but cannot be read. `settingsInvalid`: not a JSON
+ * object, or `statusLine` present but not an object. */
+export type LimitsConnectionProblem =
+  | "noClaudeFolder"
+  | "settingsUnreadable"
+  | "settingsInvalid";
+
+/** Result of `get_limits_connection`, `connect_limits`, `disconnect_limits`
+ * and payload of `limits-connection-changed`. Read fresh on every call. */
+export interface LimitsConnection {
+  state: LimitsConnectionState;
+  /** Absolute path of `settings.json` in the effective Claude folder; null
+   * only when the Claude folder is unknown. */
+  settingsPath: string | null;
+  /** Another status line is set up: wrapped (output unchanged) when
+   * `connected`, will be wrapped on connect when `notConnected`. Always
+   * false while `blocked`. */
+  previousStatusLine: boolean;
+  /** Set exactly when `state` is `blocked`. */
+  problem: LimitsConnectionProblem | null;
+  /** Technical detail for logs, never a headline. */
+  detail: string | null;
 }
 
 // --------------------------------------------------------------- dashboard
@@ -143,12 +192,15 @@ export interface BurnRate {
   /** Headline tokens per minute over the trailing window. */
   tokensPerMinute: number;
   windowMinutes: number;
-  /** Minutes until the 5-hour limit at this pace; null without limits or burn, 0 when reached. */
+  /** Minutes until the 5-hour limit at this pace; null without limits or burn, 0 when reached.
+   * Removed by TKM-287 (no ETA); stays until TKM-301/304/306 stop using it. */
   limitEtaMinutes: number | null;
 }
 
+/** Removed by TKM-287 (no budget); stays until TKM-301/306 stop using it. */
 export type BudgetBasis = "weeklyLimit" | "tokenHistory";
 
+/** Removed by TKM-287 (no budget); stays until TKM-301/302/306 stop using it. */
 export interface DailyBudget {
   basis: BudgetBasis;
   /** Today's allowance in the unit of `basis` (weekly % points or tokens). */
@@ -185,7 +237,8 @@ export interface DashboardSnapshot {
   session: SessionStats | null;
   burnRate: BurnRate;
   limits: LimitsView;
-  /** null when neither limits nor enough token history exist. */
+  /** null when neither limits nor enough token history exist. Removed by
+   * TKM-287; stays until TKM-301/306 stop using it. */
   dailyBudget: DailyBudget | null;
   data: DataStatus;
 }
@@ -216,7 +269,8 @@ export interface AchievementProgress {
   description: string;
   /** Hidden until unlocked (only Boo, which can no longer be earned). */
   secret: boolean;
-  /** Only earnable in this mode; null for both. */
+  /** Only earnable in this mode; null for both. Removed by TKM-287 (one
+   * mode); stays until TKM-302 stops using it. */
   mode: Mode | null;
   xp: number;
   unlockedAt: EpochMs | null;
@@ -254,7 +308,8 @@ export interface GameState {
   xpForLevel: number;
   /** xpIntoLevel / xpForLevel, 0..1. */
   progress: number;
-  /** Do it yourself only: XP if usage stopped now; 0 over budget; null otherwise. */
+  /** Do it yourself only: XP if usage stopped now; 0 over budget; null otherwise.
+   * Removed by TKM-287; stays until TKM-302/306 stop using it. */
   dailyXpPreview: number | null;
   /** Newest first. */
   recentUnlocks: AchievementUnlocked[];
@@ -366,6 +421,15 @@ export const Commands = {
   /** No event of its own: call again after `settings-changed` and
    * `app-info-changed`. */
   getClaudeFolder: "get_claude_folder",
+  /** Reads `settings.json` fresh; call when Settings opens. */
+  getLimitsConnection: "get_limits_connection",
+  /** Explicit click only. Idempotent; rejects with `claudeSettings` when
+   * blocked or the write fails (file unchanged). Emits
+   * `limits-connection-changed` on success. */
+  connectLimits: "connect_limits",
+  /** Explicit click only. Restores the previous status line (or removes
+   * `statusLine`). Idempotent; rejects like `connectLimits`. */
+  disconnectLimits: "disconnect_limits",
 } as const;
 
 export type CommandName = (typeof Commands)[keyof typeof Commands];
@@ -374,7 +438,8 @@ export interface UpdateSettingsArgs {
   patch: SettingsPatch;
 }
 
-/** `mode` must be "max" or "diy". */
+/** `mode` must be "max" ("diy" is removed by TKM-287 and accepted only
+ * until TKM-301/306 drop it). */
 export interface CompleteOnboardingArgs {
   mode: Mode;
 }
@@ -392,6 +457,9 @@ export interface CommandArgs {
   check_for_updates: undefined;
   install_update: undefined;
   get_claude_folder: undefined;
+  get_limits_connection: undefined;
+  connect_limits: undefined;
+  disconnect_limits: undefined;
 }
 
 /** Resolved value per command. */
@@ -407,13 +475,19 @@ export interface CommandResults {
   check_for_updates: UpdateStatus;
   install_update: UpdateStatus;
   get_claude_folder: ClaudeFolder;
+  get_limits_connection: LimitsConnection;
+  connect_limits: LimitsConnection;
+  disconnect_limits: LimitsConnection;
 }
 
+/** `claudeSettings`: `connect_limits` or `disconnect_limits` could not use
+ * `settings.json` in the Claude folder; the file is unchanged. */
 export type CommandErrorCode =
   | "invalidArgument"
   | "notReady"
   | "storage"
-  | "internal";
+  | "internal"
+  | "claudeSettings";
 
 /** Rejection value of every failed command. */
 export interface CommandError {
@@ -432,6 +506,9 @@ export const Events = {
   appInfoChanged: "app-info-changed",
   navigate: "navigate",
   updateStatusChanged: "update-status-changed",
+  /** After connect or disconnect succeeded, and after the effective Claude
+   * folder changed. */
+  limitsConnectionChanged: "limits-connection-changed",
 } as const;
 
 export type EventName = (typeof Events)[keyof typeof Events];
@@ -454,4 +531,5 @@ export interface EventPayloads {
   "app-info-changed": AppInfo;
   navigate: NavigateTo;
   "update-status-changed": UpdateStatus;
+  "limits-connection-changed": LimitsConnection;
 }

@@ -62,6 +62,9 @@ pub struct AchievementProgress {
     /// Hidden until unlocked (only Boo, which can no longer be earned).
     pub secret: bool,
     /// `Some(mode)` if it can only be earned in that mode, `None` for both.
+    ///
+    /// Removed by TKM-287 (one mode, no other-mode hint): kept until TKM-302
+    /// stops using it (cleanup in TKM-300).
     pub mode: Option<Mode>,
     /// XP granted on unlock.
     pub xp: u32,
@@ -123,6 +126,9 @@ pub struct GameState {
     /// Do it yourself only: XP today's usage would earn if it stopped now
     /// ("+78 XP if you stop now"). `Some(0)` when over budget, `None` in
     /// Max it out or without a daily budget.
+    ///
+    /// Removed by TKM-287 (no Do it yourself, no budget): kept until TKM-302
+    /// and TKM-306 stop using it (cleanup in TKM-300).
     pub daily_xp_preview: Option<u32>,
     /// Newest first, at most a handful.
     pub recent_unlocks: Vec<AchievementUnlocked>,

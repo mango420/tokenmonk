@@ -40,10 +40,90 @@ fn settings_use_camel_case_strings() {
             "sound": true,
             "autostart": false,
             "updateCheck": true,
-            "keepOpen": false
+            "keepOpen": false,
+            "notifyLimits": true,
+            "notifyLevelUps": true
         })
     );
     assert_eq!(to_value(Mode::Diy).unwrap(), json!("diy"));
+}
+
+#[test]
+fn settings_without_notification_toggles_default_on() {
+    let parsed: Settings = serde_json::from_value(json!({
+        "mode": "max",
+        "sound": true,
+        "autostart": false,
+        "updateCheck": true,
+        "keepOpen": false
+    }))
+    .unwrap();
+    assert!(parsed.notify_limits && parsed.notify_level_ups);
+    let off: Settings = serde_json::from_value(json!({
+        "mode": "max",
+        "sound": true,
+        "autostart": false,
+        "updateCheck": true,
+        "notifyLimits": false,
+        "notifyLevelUps": false
+    }))
+    .unwrap();
+    assert!(!off.notify_limits && !off.notify_level_ups);
+}
+
+#[test]
+fn limits_connection_shape() {
+    let connected = LimitsConnection {
+        state: LimitsConnectionState::Connected,
+        settings_path: Some("/home/example/.claude/settings.json".into()),
+        previous_status_line: true,
+        problem: None,
+        detail: None,
+    };
+    assert_eq!(
+        to_value(connected).unwrap(),
+        json!({
+            "state": "connected",
+            "settingsPath": "/home/example/.claude/settings.json",
+            "previousStatusLine": true,
+            "problem": null,
+            "detail": null
+        })
+    );
+    let blocked = LimitsConnection {
+        state: LimitsConnectionState::Blocked,
+        settings_path: None,
+        previous_status_line: false,
+        problem: Some(LimitsConnectionProblem::NoClaudeFolder),
+        detail: Some("home directory unknown".into()),
+    };
+    let v = to_value(blocked).unwrap();
+    assert_eq!(v["state"], json!("blocked"));
+    assert_eq!(v["problem"], json!("noClaudeFolder"));
+    assert_eq!(v["settingsPath"], Value::Null);
+    assert_eq!(
+        to_value(LimitsConnectionState::NotConnected).unwrap(),
+        json!("notConnected")
+    );
+    assert_eq!(
+        to_value(LimitsConnectionProblem::SettingsUnreadable).unwrap(),
+        json!("settingsUnreadable")
+    );
+    assert_eq!(
+        to_value(LimitsConnectionProblem::SettingsInvalid).unwrap(),
+        json!("settingsInvalid")
+    );
+    assert_eq!(
+        to_value(CommandErrorCode::ClaudeSettings).unwrap(),
+        json!("claudeSettings")
+    );
+    assert_eq!(commands::GET_LIMITS_CONNECTION, "get_limits_connection");
+    assert_eq!(commands::CONNECT_LIMITS, "connect_limits");
+    assert_eq!(commands::DISCONNECT_LIMITS, "disconnect_limits");
+    assert_eq!(
+        events::LIMITS_CONNECTION_CHANGED,
+        "limits-connection-changed"
+    );
 }
 
 #[test]

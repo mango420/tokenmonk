@@ -10,6 +10,7 @@
 //! | `app-info-changed`     | `AppInfo`             | when `logsFound` changes (also after a Claude folder switch) |
 //! | `navigate`             | `NavigateTo`          | tray menu asks the popup to show a view|
 //! | `update-status-changed`| `UpdateStatus`        | on every update check or install transition, and per whole-percent download step |
+//! | `limits-connection-changed` | `LimitsConnection` | after `connect_limits` or `disconnect_limits` succeeded, and after the effective Claude folder changed |
 //!
 //! All events are emitted to every window. Payloads are full state, never
 //! diffs, so a missed event is healed by the next one.
@@ -24,9 +25,10 @@ pub const LEVEL_UP: &str = "level-up";
 pub const APP_INFO_CHANGED: &str = "app-info-changed";
 pub const NAVIGATE: &str = "navigate";
 pub const UPDATE_STATUS_CHANGED: &str = "update-status-changed";
+pub const LIMITS_CONNECTION_CHANGED: &str = "limits-connection-changed";
 
 /// Every event name, for tests.
-pub const ALL: [&str; 8] = [
+pub const ALL: [&str; 9] = [
     DASHBOARD_UPDATED,
     SETTINGS_CHANGED,
     GAME_UPDATED,
@@ -35,6 +37,7 @@ pub const ALL: [&str; 8] = [
     APP_INFO_CHANGED,
     NAVIGATE,
     UPDATE_STATUS_CHANGED,
+    LIMITS_CONNECTION_CHANGED,
 ];
 
 /// Views of the popup window.

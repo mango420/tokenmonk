@@ -7,6 +7,11 @@
  *   data-theme  = absent (follow the OS) | "light" | "dark" (forced)
  *   data-mode   = "max" | "diy"   (absent before onboarding: brand saffron)
  *
+ * TKM-287: saffron is the only accent. --jade, data-mode="diy",
+ * --mode-dot-size and --text-choice-size (mode rows) are removed and stay
+ * only until the popup stops using them (TKM-306, TKM-307); the TKM-300
+ * cleanup deletes them. Never use them in new code.
+ *
  * Fonts are bundled from the @fontsource packages (Schibsted Grotesk,
  * Martian Mono); this file only defines the family stacks.
  *
@@ -24,8 +29,9 @@
   --ink-2: #5a5e5c;
   --line: #bab9b1;
 
-  /* Mode accents (saffron is the same in both themes, jade is lifted in dark) */
+  /* Accent: saffron, the same in both themes */
   --saffron: #e39a0b;
+  /* Removed by TKM-287, kept until TKM-306/307 (lifted in dark) */
   --jade: #1f8a64;
 
   /* Mode-neutral accent (overridden below by data-mode) */
@@ -203,6 +209,7 @@
   --accent: var(--saffron);
 }
 
+/* Removed by TKM-287, kept until TKM-306/307 */
 :root[data-mode="diy"] {
   --accent: var(--jade);
 }
