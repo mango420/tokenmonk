@@ -55,6 +55,28 @@ pub fn command_for(base: &str, wrapped: bool) -> String {
     }
 }
 
+/// The PowerShell form of a POSIX-style `<exe> --statusline` command:
+/// `& "<exe>" --statusline`. Claude Code runs the command through PowerShell
+/// on Windows without Git Bash, where a quoted path only runs behind the call
+/// operator (about_Operators, "Call operator &").
+fn powershell_form(base: &str) -> String {
+    let (exe, rest) = split_first(base);
+    format!("& \"{exe}\"{rest}")
+}
+
+/// Whether Claude Code runs status line commands through a POSIX shell: always
+/// off Windows, with Git Bash on Windows.
+fn posix_shell() -> bool {
+    #[cfg(windows)]
+    {
+        git_bash().is_some()
+    }
+    #[cfg(not(windows))]
+    {
+        true
+    }
+}
+
 /// First token of a shell command line (double quotes allowed) and the rest.
 fn split_first(command: &str) -> (&str, &str) {
     let c = command.trim_start();
@@ -221,6 +243,17 @@ pub fn connect(
     data_dir: &Path,
     command: &str,
 ) -> Result<LimitsConnection, ConnectError> {
+    connect_for_shell(claude_dir, data_dir, command, posix_shell())
+}
+
+/// [`connect`] with the shell form given (`posix`: POSIX shell, else
+/// PowerShell), so tests do not depend on the machine.
+fn connect_for_shell(
+    claude_dir: Option<&Path>,
+    data_dir: &Path,
+    command: &str,
+    posix: bool,
+) -> Result<LimitsConnection, ConnectError> {
     if command.trim().is_empty() {
         return Err(ConnectError::NoCommand);
     }
@@ -257,7 +290,14 @@ pub fn connect(
     // Unknown keys of the old entry stay as they are.
     let mut entry = old.unwrap_or_else(|| json!({}));
     entry["type"] = json!("command");
-    entry["command"] = Value::String(command_for(command, wrapped));
+    entry["command"] = Value::String(command_for(
+        &if posix {
+            command.to_owned()
+        } else {
+            powershell_form(command)
+        },
+        wrapped,
+    ));
     map.insert(KEY.to_owned(), entry);
     if let Err(e) = write_settings(&path, map) {
         if stored_now {
@@ -499,6 +539,41 @@ mod tests {
         assert!(!is_ours("echo tokenmonk --statusline"));
         assert!(!is_ours("/a/tokenmonk --other --statusline"));
         assert!(!is_ours("/a/other --statusline"));
+    }
+
+    #[test]
+    fn powershell_form_is_written_without_git_bash() {
+        let e = env(None);
+        let c = "\"C:/Program Files/Tokenmonk/tokenmonk.exe\" --statusline";
+        connect_for_shell(e.dir(), e.data.path(), c, false).unwrap();
+        let cmd = e.settings()["statusLine"]["command"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        assert_eq!(
+            cmd,
+            "& \"C:/Program Files/Tokenmonk/tokenmonk.exe\" --statusline"
+        );
+        assert!(is_ours(&cmd));
+        // Wrapping keeps the flag and stays idempotent.
+        let e = env(Some(r#"{"statusLine":{"type":"command","command":"old"}}"#));
+        connect_for_shell(e.dir(), e.data.path(), c, false).unwrap();
+        connect_for_shell(e.dir(), e.data.path(), c, false).unwrap();
+        let cmd = e.settings()["statusLine"]["command"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        assert!(
+            cmd.starts_with("& \"C:/Program Files/") && cmd.ends_with("--statusline --passthrough")
+        );
+    }
+
+    #[test]
+    fn posix_form_is_kept_with_git_bash() {
+        let e = env(None);
+        let c = "\"C:/Program Files/Tokenmonk/tokenmonk.exe\" --statusline";
+        connect_for_shell(e.dir(), e.data.path(), c, true).unwrap();
+        assert_eq!(e.settings()["statusLine"]["command"], c);
     }
 
     #[test]
