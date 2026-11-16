@@ -172,3 +172,27 @@ fn a_restart_inside_the_same_cycle_does_not_repeat_the_notice() {
     // The next cycle still notifies.
     assert_eq!(after.feed(Some((93.0, reset2())), None, t(12, 5)).len(), 1);
 }
+
+#[test]
+fn a_window_without_a_reset_time_sends_nothing() {
+    use tokenmonk_lib::contracts::limits::LimitWindow;
+    use tokenmonk_lib::limits::notice::LimitNotifier;
+
+    let mut n = LimitNotifier::new();
+    let w = LimitWindow {
+        utilization: 95.0,
+        resets_at: None,
+    };
+    assert!(n.observe(Some(&w), Some(&w), t(10, 0)).is_empty());
+}
+
+#[test]
+fn reset_times_are_compared_exactly() {
+    let mut r = Rig::new();
+    assert_eq!(r.feed(Some((92.0, reset1())), None, t(11, 0)).len(), 1);
+    // One second later is a different cycle, not rounding noise.
+    assert_eq!(
+        r.feed(Some((92.0, reset1() + 1_000)), None, t(11, 5)).len(),
+        1
+    );
+}
