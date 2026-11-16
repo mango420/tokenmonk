@@ -198,16 +198,26 @@ function useLiveAppData(enabled: boolean): AppState {
     [apply],
   );
 
-  const connectLimits = useCallback(async () => {
-    const next = await call(Commands.connectLimits);
-    apply("limitsConnection", next);
-    return next;
-  }, [apply]);
-  const disconnectLimits = useCallback(async () => {
-    const next = await call(Commands.disconnectLimits);
-    apply("limitsConnection", next);
-    return next;
-  }, [apply]);
+  /** Runs a connect/disconnect; on failure re-reads the state so the real reason shows. */
+  const changeLimits = useCallback(
+    async (command: typeof Commands.connectLimits | typeof Commands.disconnectLimits) => {
+      try {
+        const next = await call(command);
+        apply("limitsConnection", next);
+        return next;
+      } catch (error) {
+        try {
+          apply("limitsConnection", await call(Commands.getLimitsConnection));
+        } catch (readError) {
+          console.warn(`get_limits_connection failed: ${describeError(readError)}`);
+        }
+        throw error;
+      }
+    },
+    [apply],
+  );
+  const connectLimits = useCallback(() => changeLimits(Commands.connectLimits), [changeLimits]);
+  const disconnectLimits = useCallback(() => changeLimits(Commands.disconnectLimits), [changeLimits]);
   const loadClaudeFolder = useCallback(() => call(Commands.getClaudeFolder), []);
 
   const checkForUpdates = useCallback(async () => {

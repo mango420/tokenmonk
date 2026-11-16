@@ -98,7 +98,7 @@ export const LimitData = forwardRef<HTMLElement, LimitDataProps>(function LimitD
       </p>
       {failed ? (
         <p className="note note--error" role="alert">
-          Couldn’t change that. Try again.
+          Couldn’t change that.
         </p>
       ) : null}
     </section>
