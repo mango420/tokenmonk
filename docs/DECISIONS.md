@@ -308,3 +308,16 @@ Owner decision (TKM-211), approved by the maintainer on 2026-11-16. Contract and
 - New dependency: the official dialog plugin, Rust crate `tauri-plugin-dialog` and npm package `@tauri-apps/plugin-dialog`, for a native folder picker in Settings (`open` with `directory: true`, registered with `tauri_plugin_dialog::init()`). It extends the plugin list under "v0.1 dependencies".
 - Capability: only `dialog:allow-open` (open without a pre-configured scope), not the plugin's default set. The UI only passes the picked path to `update_settings`; all reading stays in Rust.
 - A folder without `projects/` is still saved; Settings shows a calm hint instead of an error.
+
+## Product line (2026-11-16, TKM-287)
+
+Maintainer decision (TKM-287). Details: [DESIGN.md](DESIGN.md), "Product line".
+
+- Core question: "How much do I have left?" The popup leads with both limit windows (5-hour and 7-day) at equal size, percent left plus reset time; level and title move into an always visible header (look by the TKM-288 mockup). The tray beads always follow the 5-hour window.
+- Single mode Max. "Do it yourself", the mode picker, the onboarding mode choice, the daily budget and the jade accent are removed. Existing Do it yourself users are switched to Max silently; XP and levels stay. Supersedes the mode parts of "Design refresh (2026-11-03)", "Popup with log-only data (2026-11-07)", "Other-mode achievement hint (2026-11-09)" and the Do it yourself rules in "XP and level rework (2026-11-09)".
+- Limit source: the Claude Code status line (`rate_limits`) only, no undocumented endpoints (TKM-119 closed). New: one-click "Connect limits" in Settings. After an explicit click the app writes the `statusLine` entry into `settings.json` in the effective Claude folder (TKM-211), with a backup. An existing status line is wrapped: Tokenmonk reads the limits, then runs the old command with its output unchanged (pass-through). "Disconnect" restores the previous entry. Supersedes "Tokenmonk never edits Claude Code settings" under "Limit source".
+- No estimates anywhere: no daily budget, no forecast, no limit ETA. Without limits (not connected, before the first reply, plan without `rate_limits`) tokens today is the full view, no warning, plus one calm line ("Limits after your next reply." / "Connect limits in Settings.").
+- Settings keeps only Limits connect/disconnect, Claude folder, autostart and updates, notifications. Notifications: once per window and reset cycle at 10 % left, dry tone ("10% left. Resets 16:40."); level-ups as system notifications, with a toggle.
+- Wording: "Limits" in the popup, Settings, tray and notifications; "status line" only where the setup is explained.
+- Out of scope: usage per project or model, history, API cost (TKM-208, TKM-209, TKM-210, TKM-243), any estimated budget or forecast.
+- Open: telling a plan without `rate_limits` from "not yet"; whether the desktop app and IDE extensions run the status line (TKM-242); header look (TKM-288).
