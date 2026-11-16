@@ -3,11 +3,12 @@ import { Switch } from "../../components/Switch";
 import { TextLink } from "../../components/TextLink";
 import { TopRow } from "../../components/TopRow";
 import type { AppActions, AppData } from "../../lib/appData";
-import { openExternal } from "../../lib/backend";
-import type { SettingsPatch, UpdateStatus } from "../../lib/contracts";
+import { describeError, openExternal, pickFolder } from "../../lib/backend";
+import type { ClaudeFolder, SettingsPatch, UpdateStatus } from "../../lib/contracts";
 import { formatClock } from "../../lib/format";
 import { useEscape } from "../../lib/useEscape";
 import { MODE_DESCRIPTION, MODE_LABEL, type PopupMode } from "../dashboard/model";
+import { ClaudeFolderRow } from "./ClaudeFolderRow";
 import { LimitData } from "./LimitData";
 
 interface SettingsViewProps {
@@ -57,6 +58,22 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false, on
     });
     if (!ok) setFailed(true);
   };
+
+  const [folder, setFolder] = useState<ClaudeFolder | null>(null);
+  const { loadClaudeFolder } = actions;
+  // Re-read whenever `settings-changed` or `app-info-changed` delivered new state.
+  useEffect(() => {
+    let alive = true;
+    loadClaudeFolder().then(
+      (value) => {
+        if (alive) setFolder(value);
+      },
+      (error: unknown) => console.warn(`get_claude_folder failed: ${describeError(error)}`),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [loadClaudeFolder, data.settings, data.appInfo]);
 
   const version = data.appInfo.version;
 
@@ -132,8 +149,15 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false, on
           </p>
         ) : null}
 
+        <ClaudeFolderRow
+          folder={folder}
+          pickFolder={pickFolder}
+          onChange={(claudeFolder) => actions.updateSettings({ claudeFolder })}
+        />
+
         <LimitData
           ref={limitsRef}
+          folderPath={folder?.path ?? null}
           limits={data.dashboard.limits}
           platform={data.appInfo.platform}
           loadLimitSetup={actions.loadLimitSetup}

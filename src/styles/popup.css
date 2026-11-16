@@ -963,3 +963,33 @@ html[data-maximized] .popup {
   font-size: var(--text-row-size);
   font-weight: var(--weight-medium);
 }
+
+/* Claude folder row (Settings). */
+.folder-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--gap-18);
+}
+
+.folder-row .label {
+  margin-bottom: 0;
+}
+
+.folder-row__path {
+  margin: 0;
+  font-size: var(--text-small-size);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.folder-row__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.folder-row__actions {
+  display: inline-flex;
+  gap: var(--gap-14);
+}

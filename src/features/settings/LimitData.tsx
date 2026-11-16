@@ -9,7 +9,18 @@ import { SnippetCard } from "./SnippetCard";
 interface LimitDataProps {
   limits: LimitsView;
   platform: Platform;
+  /** Effective Claude folder; `null` while unknown. */
+  folderPath: string | null;
   loadLimitSetup: AppActions["loadLimitSetup"];
+}
+
+/** `settings.json` inside the effective Claude folder (home-relative fallback while unknown). */
+function settingsFilePath(folder: string | null, windows: boolean): string {
+  if (folder === null || folder === "") {
+    return windows ? "%USERPROFILE%\\.claude\\settings.json" : "~/.claude/settings.json";
+  }
+  const sep = windows ? "\\" : "/";
+  return `${folder.replace(/[\\/]+$/, "")}${sep}settings.json`;
 }
 
 type Setup = { state: "loading" } | { state: "failed" } | { state: "ready"; setup: LimitSetup };
@@ -78,7 +89,7 @@ function snippetFor(command: string): string {
  * settings. Tokenmonk never edits those settings itself.
  */
 export const LimitData = forwardRef<HTMLElement, LimitDataProps>(function LimitData(
-  { limits, platform, loadLimitSetup },
+  { limits, platform, folderPath, loadLimitSetup },
   ref,
 ) {
   const [setup, setSetup] = useState<Setup>({ state: "loading" });
@@ -113,7 +124,7 @@ export const LimitData = forwardRef<HTMLElement, LimitDataProps>(function LimitD
   const file = setup.state === "ready" ? setup.setup.statuslineFile : null;
   const windows = platform === "windows";
   const powerShellAlternative = windows && command !== null && command.startsWith('"');
-  const settingsPath = windows ? "%USERPROFILE%\\.claude\\settings.json" : "~/.claude/settings.json";
+  const settingsPath = settingsFilePath(folderPath, windows);
 
   return (
     <section ref={ref} className="limit-data" aria-labelledby="settings-limit-data">
