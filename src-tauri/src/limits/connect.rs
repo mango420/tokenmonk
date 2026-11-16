@@ -61,6 +61,8 @@ pub fn command_for(base: &str, wrapped: bool) -> String {
 /// operator (about_Operators, "Call operator &").
 fn powershell_form(base: &str) -> String {
     let (exe, rest) = split_first(base);
+    // Inside double quotes PowerShell expands `$` and backtick escapes.
+    let exe = exe.replace('`', "``").replace('$', "`$");
     format!("& \"{exe}\"{rest}")
 }
 
@@ -566,6 +568,19 @@ mod tests {
         assert!(
             cmd.starts_with("& \"C:/Program Files/") && cmd.ends_with("--statusline --passthrough")
         );
+    }
+
+    #[test]
+    fn powershell_form_escapes_dollar_and_backtick() {
+        let e = env(None);
+        let c = "\"C:/Tools/a$b/x`y/tokenmonk.exe\" --statusline";
+        connect_for_shell(e.dir(), e.data.path(), c, false).unwrap();
+        let cmd = e.settings()["statusLine"]["command"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        assert_eq!(cmd, "& \"C:/Tools/a`$b/x``y/tokenmonk.exe\" --statusline");
+        assert!(is_ours(&cmd));
     }
 
     #[test]
