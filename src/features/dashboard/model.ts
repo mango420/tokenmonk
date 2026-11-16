@@ -8,6 +8,7 @@ import type {
   DashboardSnapshot,
   GameState,
   LimitWindow,
+  LimitsConnection,
   LimitsView,
   UpdateStatus,
 } from "../../lib/contracts";
@@ -148,8 +149,12 @@ const LIMITS_NEXT_REPLY = "Limits after your next reply.";
 const LIMITS_CONNECT = "Connect limits in Settings.";
 
 /** No limits: tokens today is the full view, no warning, one calm line. */
-function tokensOnly(snap: DashboardSnapshot, week: WeekModel | null): DashboardModel {
-  const notConnected = snap.limits.reason === "noSource";
+function tokensOnly(
+  snap: DashboardSnapshot,
+  connection: LimitsConnection,
+  week: WeekModel | null,
+): DashboardModel {
+  const notConnected = connection.state === "notConnected";
   return {
     gauge: tokensGauge(
       snap,
@@ -161,13 +166,13 @@ function tokensOnly(snap: DashboardSnapshot, week: WeekModel | null): DashboardM
   };
 }
 
-export function buildDashboard(snap: DashboardSnapshot): DashboardModel {
+export function buildDashboard(snap: DashboardSnapshot, connection: LimitsConnection): DashboardModel {
   const { limits } = snap;
-  if (hasNoLimitData(limits)) return tokensOnly(snap, null);
+  if (hasNoLimitData(limits)) return tokensOnly(snap, connection, null);
 
   const week = weekModel(snap);
   const window = limits.fiveHour;
-  if (window === null) return tokensOnly(snap, week);
+  if (window === null) return tokensOnly(snap, connection, week);
 
   const caption = "Your Claude Code limit, this 5-hour window";
   const left = percentLeft(window.utilization);

@@ -18,7 +18,7 @@ interface DashboardProps {
 /** The popup's dashboard: bead gauge, one big number, meta row, week bar, level card. */
 export function Dashboard({ data, actions, onOpenSettings, onOpenLimitSetup, onOpenAchievements }: DashboardProps) {
   const { dashboard, game } = data;
-  const { gauge, week } = buildDashboard(dashboard);
+  const { gauge, week } = buildDashboard(dashboard, data.limitsConnection);
   const note = buildNote(dashboard, data.update);
   const [installing, setInstalling] = useState(false);
   const install = () => {

@@ -14,6 +14,7 @@ import {
   type AppInfo,
   type ClaudeFolder,
   type DashboardSnapshot,
+  type LimitsConnection,
   type GameState,
   type LimitSetup,
   type Settings,
@@ -33,6 +34,7 @@ export interface AppData {
   dashboard: DashboardSnapshot;
   game: GameState;
   update: UpdateStatus;
+  limitsConnection: LimitsConnection;
 }
 
 /**
@@ -68,6 +70,18 @@ export const usesMockData: boolean = import.meta.env.DEV && !insideTauri();
 // ------------------------------------------------------------ placeholders
 
 const EMPTY_TOKENS = { input: 0, output: 0, cacheCreation: 0, cacheRead: 0, total: 0 };
+
+/** Mock only: a missing limit source reads as "not connected". */
+function mockConnection(snap: DashboardSnapshot): LimitsConnection {
+  const notConnected = snap.limits.reason === "noSource";
+  return {
+    state: notConnected ? "notConnected" : "connected",
+    settingsPath: null,
+    previousStatusLine: false,
+    problem: null,
+    detail: null,
+  };
+}
 
 function placeholders(): AppData {
   return {
@@ -109,6 +123,7 @@ function placeholders(): AppData {
       retroDone: true,
     },
     update: { kind: "idle" },
+    limitsConnection: { state: "notConnected", settingsPath: null, previousStatusLine: false, problem: null, detail: null },
   };
 }
 
@@ -132,6 +147,7 @@ function useLiveAppData(enabled: boolean): AppState {
   useBackendEvent(Events.gameUpdated, (v) => apply("game", v), enabled);
   useBackendEvent(Events.appInfoChanged, (v) => apply("appInfo", v), enabled);
   useBackendEvent(Events.updateStatusChanged, (v) => apply("update", v), enabled);
+  useBackendEvent(Events.limitsConnectionChanged, (v) => apply("limitsConnection", v), enabled);
 
   useEffect(() => {
     if (!enabled) return;
@@ -145,6 +161,7 @@ function useLiveAppData(enabled: boolean): AppState {
       ["dashboard", call(Commands.getDashboard)],
       ["game", call(Commands.getGameState)],
       ["update", call(Commands.getUpdateStatus)],
+      ["limitsConnection", call(Commands.getLimitsConnection)],
     ] as const;
 
     void Promise.allSettled(reads.map(([, promise]) => promise)).then((results) => {
@@ -265,6 +282,7 @@ function useMockAppData(scenario: MockScenarioId): AppState {
       dashboard: source.dashboard,
       game: source.game,
       update,
+      limitsConnection: mockConnection(source.dashboard),
     },
     actions: { updateSettings, loadLimitSetup, loadClaudeFolder, checkForUpdates, installUpdate },
     retry: () => undefined,
