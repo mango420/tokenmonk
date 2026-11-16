@@ -114,6 +114,7 @@ mod tests {
                 autostart: None,
                 update_check: None,
                 keep_open: None,
+                claude_folder: None,
             })
             .unwrap();
         assert_eq!(s.mode, Mode::Diy);

@@ -31,7 +31,7 @@ request of the app is the update check (see "Updates"), made by Rust.
 ## Data flow
 
 ```
-~/.claude/projects/**/*.jsonl            (read only)
+<Claude folder>/projects/**/*.jsonl     (read only; see "Claude folder")
         |  file events + periodic rescan
         v
 watcher --new complete lines--> logs (parse, filter) --records--> db (upsert by message id)
@@ -94,6 +94,37 @@ Upsert: `INSERT ... ON CONFLICT(message_id) DO UPDATE` setting
 agent, model and project are identical on every copy of a message, so the
 stored values stay. The result does not depend on the order in which files
 or lines are read (LOG-FORMAT.md, "Deduplication").
+
+## Claude folder
+
+The Claude folder is Claude Code's config folder; the ingest root is its
+`projects/` subfolder, and the status-line setup names `settings.json` in
+it. Decided in TKM-211, contract in TKM-291.
+
+- Order: `Settings.claudeFolder` (source `setting`), else the environment
+  variable `CLAUDE_CONFIG_DIR` when set and non-empty (source `env`), else
+  `.claude` in the home directory (source `default`). Apps started by
+  autostart or the OS launcher often do not see shell variables, hence the
+  setting.
+- `update_settings` with `claudeFolder: "<absolute path>"` sets it,
+  `claudeFolder: null` resets it to the default, an absent key leaves it
+  alone. An empty or relative path is rejected with `invalidArgument`. The
+  folder is saved even if it or its `projects/` does not exist.
+- A change switches live: stop the running ingest, start a new one on the
+  new root. No restart. Data already stored stays; the new folder is read
+  in addition, and dedup by message id keeps anything from counting twice.
+  History, levels and XP are kept. One root at a time.
+- `get_claude_folder` returns `ClaudeFolder { path, source, projectsFound }`
+  for the Settings row and the limit-data copy. There is no extra event:
+  the UI calls it on start and again after `settings-changed` and
+  `app-info-changed`. The core emits `app-info-changed` when `logsFound`
+  changes, which includes a switch to a folder with or without `projects/`.
+- `AppInfo.logsFound` and `ClaudeFolder.projectsFound` both mean "`projects/`
+  exists in the effective folder". Without it the Settings row shows a calm
+  hint ("No logs here yet."), never an error.
+- The folder picker is the native dialog from `tauri-plugin-dialog`
+  (DECISIONS.md, "Claude folder picker"); the UI passes the chosen path to
+  `update_settings`.
 
 ## Aggregates
 
@@ -299,7 +330,8 @@ Bridge file (camelCase, all timestamps `EpochMs`; invented values):
   form.
 - The UI builds the snippet with `JSON.stringify`, so quotes are escaped:
   `{ "statusLine": { "type": "command", "command": <statuslineCommand> } }`,
-  to be merged into the user settings file `~/.claude/settings.json`.
+  to be merged into the user settings file `settings.json` in the Claude
+  folder (`ClaudeFolder.path`; `~/.claude/settings.json` by default).
   This makes Tokenmonk the whole status line command: it replaces any
   existing `statusLine` value.
 - Chaining an existing status line: Tokenmonk does not run other commands
@@ -607,6 +639,7 @@ Defined in the contracts (names as constants on both sides):
 | `get_update_status` | `UpdateStatus` |
 | `check_for_updates` | `UpdateStatus` after the check (see Updates) |
 | `install_update` | `UpdateStatus`, only on failure; success exits or restarts the app |
+| `get_claude_folder` | `ClaudeFolder` (effective folder, its source, whether `projects/` exists; see Claude folder) |
 
 | Event | Payload |
 |---|---|
@@ -627,7 +660,12 @@ Serialization: struct fields camelCase; unit enums as camelCase strings;
 the one data-carrying enum (`UpdateStatus`) is internally tagged with
 `"kind"`, variant and field names camelCase (`{ "kind": "upToDate",
 "checkedAt": 0 }`), a discriminated union in TypeScript; `Option` is
-`null`; timestamps are epoch milliseconds.
+`null`; timestamps are epoch milliseconds. Two marked exceptions:
+`SettingsPatch` fields are `skip_serializing_if = "Option::is_none"` (TS
+optional keys), and `SettingsPatch.claudeFolder` is a double option
+(absent = unchanged, `null` = reset); `Settings.claudeFolder` is omitted
+when `None` and reads absent or `null` as `None` (TS `claudeFolder?:
+string | null`, both meaning "not set").
 
 ## Storage
 
@@ -641,7 +679,9 @@ the one data-carrying enum (`UpdateStatus`) is internally tagged with
   `limit_snapshots`, `settings`, `xp_events`, `achievements`, `app_state`.
 - `settings` keys: `mode`, `sound`, `autostart`, `update_check` (JSON
   boolean, since TKM-41). A missing key means the default
-  (`update_check`: `true`); new keys need no migration.
+  (`update_check`: `true`); new keys need no migration. `claude_folder`
+  (JSON string, TKM-291): the absolute path; missing key = not set, a
+  reset deletes the key.
 - `UpdateStatus` is not stored; every start begins at `idle`.
 - If the database is corrupt or from a newer version, it is moved aside
   (renamed with a timestamp) and rebuilt from the logs; game progress is

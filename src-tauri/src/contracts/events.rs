@@ -7,7 +7,7 @@
 //! | `game-updated`         | `GameState`           | after XP, level or progress changes    |
 //! | `achievement-unlocked` | `AchievementUnlocked` | once per live (non-retroactive) unlock |
 //! | `level-up`             | `LevelUp`             | once per live level change             |
-//! | `app-info-changed`     | `AppInfo`             | when `logsFound` changes               |
+//! | `app-info-changed`     | `AppInfo`             | when `logsFound` changes (also after a Claude folder switch) |
 //! | `navigate`             | `NavigateTo`          | tray menu asks the popup to show a view|
 //! | `update-status-changed`| `UpdateStatus`        | on every update check or install transition, and per whole-percent download step |
 //!

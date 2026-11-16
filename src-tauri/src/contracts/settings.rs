@@ -1,6 +1,6 @@
 //! User settings and onboarding.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 /// The play mode chosen in onboarding ("How do you want to vibe?").
 ///
@@ -36,6 +36,14 @@ pub struct Settings {
     /// stored settings, so it defaults on deserialize.
     #[serde(default)]
     pub keep_open: bool,
+    /// "Claude folder": the Claude config folder chosen in Settings (the
+    /// app appends `projects/` itself). `None` = not set; the folder then
+    /// comes from `CLAUDE_CONFIG_DIR` or the default `~/.claude`, see
+    /// [`ClaudeFolder`](super::app::ClaudeFolder). Omitted in JSON when
+    /// `None`; absent (older stored settings) or `null` reads as `None`.
+    /// TS: `claudeFolder?: string | null`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claude_folder: Option<String>,
 }
 
 impl Default for Settings {
@@ -46,12 +54,18 @@ impl Default for Settings {
             autostart: false,
             update_check: true,
             keep_open: false,
+            claude_folder: None,
         }
     }
 }
 
 /// Partial update for `update_settings`. Absent fields stay unchanged.
 /// Setting `mode` to `noneYet` is rejected with `invalidArgument`.
+///
+/// `claude_folder` is a double option: `None` (key absent) = unchanged,
+/// `Some(None)` (JSON `null`) = reset to default, `Some(Some(path))` = set.
+/// The path must be non-empty and absolute, otherwise `invalidArgument`;
+/// whether it or its `projects/` exists is not checked.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct SettingsPatch {
@@ -65,4 +79,20 @@ pub struct SettingsPatch {
     pub update_check: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_open: Option<bool>,
+    #[serde(
+        default,
+        deserialize_with = "present_option",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub claude_folder: Option<Option<String>>,
+}
+
+/// Maps a present key to `Some(..)`, so `null` becomes `Some(None)` and only
+/// an absent key stays `None`.
+fn present_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer).map(Some)
 }

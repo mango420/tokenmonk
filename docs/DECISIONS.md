@@ -40,8 +40,9 @@ Tauri plugins (Rust crate and matching npm package):
 | `opener` | Open links in the default browser |
 | `single-instance` | Only one tray instance at a time (Rust only, no JS API) |
 | `positioner` (`tray-icon`) | Place the popup next to the tray icon |
+| `dialog` | Native folder picker for the Claude folder setting (TKM-291) |
 
-npm: `react`, `react-dom` (UI), `@tauri-apps/api` (IPC), the six plugin packages above (without single-instance), `@fontsource/schibsted-grotesk`, `@fontsource/martian-mono` (bundled fonts, no network requests at runtime; they replace `@fontsource/fraunces`, `@fontsource/manrope` and `@fontsource/jetbrains-mono`, see "Design refresh").
+npm: `react`, `react-dom` (UI), `@tauri-apps/api` (IPC), the seven plugin packages above (without single-instance), `@fontsource/schibsted-grotesk`, `@fontsource/martian-mono` (bundled fonts, no network requests at runtime; they replace `@fontsource/fraunces`, `@fontsource/manrope` and `@fontsource/jetbrains-mono`, see "Design refresh").
 Dev: `typescript`, `vite`, `@vitejs/plugin-react`, `@types/react`, `@types/react-dom`, `@tauri-apps/cli`.
 
 `updater`, `autostart` and `single-instance` are desktop-only crates (target-gated in `Cargo.toml`), registered under `#[cfg(desktop)]`.
@@ -298,3 +299,12 @@ Owner decision (TKM-269, TKM-270, TKM-271); supersedes "Icon system (2026-11-04,
 - Dark mode follows the OS live. New tokens: dark jade #2FA57A, monk face, monk line, head stroke, empty bead stroke and fill, one stale opacity.
 - Level-up title line: "Still a <title>." when the title is unchanged, "Now a <title>." when it changed; "an" before a vowel sound ("Now an Abbot of Restraint.").
 - New monk (closed smiling eyes, sash, hands) replaces the old one in the popup, the brand files, the app icon and the tray, where 5 beads replace the arc. `tokenmonk-mark-mono.svg` stays only until the popup (TKM-273) and the tray (TKM-275) no longer read it; transitional token aliases in `tokens.css` go with TKM-273 and TKM-274.
+
+## Claude folder picker (2026-11-16, TKM-211, TKM-291)
+
+Owner decision (TKM-211), approved by the maintainer on 2026-11-16. Contract and behaviour: [ARCHITECTURE.md](ARCHITECTURE.md), "Claude folder".
+
+- The Claude folder is read in this order: the Settings value, else `CLAUDE_CONFIG_DIR`, else `~/.claude`. The app appends `projects/` itself. Changing it switches the ingest live, without a restart; stored data, levels and XP stay.
+- New dependency: the official dialog plugin, Rust crate `tauri-plugin-dialog` and npm package `@tauri-apps/plugin-dialog`, for a native folder picker in Settings (`open` with `directory: true`, registered with `tauri_plugin_dialog::init()`). It extends the plugin list under "v0.1 dependencies".
+- Capability: only `dialog:allow-open` (open without a pre-configured scope), not the plugin's default set. The UI only passes the picked path to `update_settings`; all reading stays in Rust.
+- A folder without `projects/` is still saved; Settings shows a calm hint instead of an error.

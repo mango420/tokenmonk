@@ -37,15 +37,25 @@ export interface Settings {
   /** "Keep popup open": no hide on blur, the popup closes only via the
    * tray icon or its Close button. Default false. */
   keepOpen: boolean;
+  /** "Claude folder": the Claude config folder chosen in Settings (the app
+   * appends `projects/` itself). Absent or null = not set: the folder then
+   * comes from `CLAUDE_CONFIG_DIR` or the default `~/.claude` (see
+   * `ClaudeFolder`). Rust: `Option<String>`, omitted when `None`, accepts
+   * absent or null. Optional so a `SettingsPatch` can be spread onto it. */
+  claudeFolder?: string | null;
 }
 
-/** Partial update for `update_settings`. `mode: "noneYet"` is rejected. */
+/** Partial update for `update_settings`. Absent keys stay unchanged.
+ * `mode: "noneYet"` is rejected. `claudeFolder`: a string sets the folder
+ * (non-empty, absolute, else `invalidArgument`; existence is not checked),
+ * `null` resets it to the default. Rust: `Option<Option<String>>`. */
 export interface SettingsPatch {
   mode?: Mode;
   sound?: boolean;
   autostart?: boolean;
   updateCheck?: boolean;
   keepOpen?: boolean;
+  claudeFolder?: string | null;
 }
 
 // ------------------------------------------------------------------ limits
@@ -261,7 +271,29 @@ export interface AppInfo {
   version: string;
   platform: Platform;
   schemaVersion: number;
+  /** Whether `projects/` exists in the effective Claude folder. */
   logsFound: boolean;
+}
+
+/** Environment variable for another Claude config folder (Rust
+ * `app::CLAUDE_CONFIG_DIR_ENV`). */
+export const CLAUDE_CONFIG_DIR_ENV = "CLAUDE_CONFIG_DIR";
+
+/** Where the effective Claude folder comes from. Order: `setting`
+ * (`Settings.claudeFolder`), else `env` (`CLAUDE_CONFIG_DIR`, set and
+ * non-empty), else `default` (`.claude` in the home directory). */
+export type ClaudeFolderSource = "setting" | "env" | "default";
+
+/** Result of `get_claude_folder`: the Claude config folder in use. Logs are
+ * read below `<path>/projects/`; the status-line setup lives in
+ * `<path>/settings.json`. */
+export interface ClaudeFolder {
+  /** Absolute path, for display. Null only with source `default` when the
+   * home directory is unknown. */
+  path: string | null;
+  source: ClaudeFolderSource;
+  /** Whether `<path>/projects/` exists (same value as `AppInfo.logsFound`). */
+  projectsFound: boolean;
 }
 
 /** Public GitHub repository (Rust `app::REPO_URL`), the About screen's
@@ -331,6 +363,9 @@ export const Commands = {
   /** Resolves only on failure (`installFailed`); on success the app exits
    * or restarts. Rejects with `invalidArgument` if nothing is installable. */
   installUpdate: "install_update",
+  /** No event of its own: call again after `settings-changed` and
+   * `app-info-changed`. */
+  getClaudeFolder: "get_claude_folder",
 } as const;
 
 export type CommandName = (typeof Commands)[keyof typeof Commands];
@@ -356,6 +391,7 @@ export interface CommandArgs {
   get_update_status: undefined;
   check_for_updates: undefined;
   install_update: undefined;
+  get_claude_folder: undefined;
 }
 
 /** Resolved value per command. */
@@ -370,6 +406,7 @@ export interface CommandResults {
   get_update_status: UpdateStatus;
   check_for_updates: UpdateStatus;
   install_update: UpdateStatus;
+  get_claude_folder: ClaudeFolder;
 }
 
 export type CommandErrorCode =

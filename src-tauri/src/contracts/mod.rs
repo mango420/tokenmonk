@@ -42,7 +42,7 @@ pub mod schema;
 pub mod settings;
 pub mod update;
 
-pub use app::{AppInfo, Platform};
+pub use app::{AppInfo, ClaudeFolder, ClaudeFolderSource, Platform};
 pub use commands::{CommandError, CommandErrorCode, CompleteOnboardingArgs, UpdateSettingsArgs};
 pub use dashboard::{
     BudgetBasis, BurnRate, DailyBudget, DashboardSnapshot, DataState, DataStatus, SessionStats,

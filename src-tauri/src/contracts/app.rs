@@ -1,6 +1,7 @@
 //! App-level information: version, platform, schema version and whether the
 //! Claude Code logs were found. The UI reads it with `get_app_info` and
-//! listens to `app-info-changed`.
+//! listens to `app-info-changed`. The effective Claude folder comes from
+//! `get_claude_folder`.
 
 use serde::{Deserialize, Serialize};
 
@@ -32,6 +33,36 @@ pub struct AppInfo {
     pub platform: Platform,
     /// Database schema version in use.
     pub schema_version: u32,
-    /// Whether the Claude Code projects folder exists.
+    /// Whether `projects/` exists in the effective Claude folder.
     pub logs_found: bool,
+}
+
+/// Environment variable that points Claude Code at another config folder.
+pub const CLAUDE_CONFIG_DIR_ENV: &str = "CLAUDE_CONFIG_DIR";
+
+/// Where the effective Claude folder comes from. Order: setting, else env,
+/// else default.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ClaudeFolderSource {
+    /// `"setting"`: `Settings.claude_folder`.
+    Setting,
+    /// `"env"`: [`CLAUDE_CONFIG_DIR_ENV`], set and non-empty.
+    Env,
+    /// `"default"`: `.claude` in the home directory.
+    Default,
+}
+
+/// Result of `get_claude_folder`: the Claude config folder in use. Logs are
+/// read below `<path>/projects/`; the status-line setup lives in
+/// `<path>/settings.json`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClaudeFolder {
+    /// Absolute path, for display. `None` only with source `default` when
+    /// the home directory is unknown.
+    pub path: Option<String>,
+    pub source: ClaudeFolderSource,
+    /// Whether `<path>/projects/` exists (same value as `AppInfo.logs_found`).
+    pub projects_found: bool,
 }
