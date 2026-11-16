@@ -81,15 +81,14 @@ impl Db {
     }
 
     /// One mode only (TKM-301): a stored `diy` becomes `max` silently on
-    /// open. XP events keep their amounts; only the mode label changes.
+    /// open. Only the stored setting changes; ledger rows keep their `diy`
+    /// label as history.
     /// Idempotent, no schema bump (the contract pins the schema version).
     fn retire_diy_mode(&self) -> DbResult<()> {
         self.conn.execute(
             "UPDATE settings SET value = '\"max\"' WHERE key = 'mode' AND value = '\"diy\"'",
             [],
         )?;
-        self.conn
-            .execute("UPDATE xp_events SET mode = 'max' WHERE mode = 'diy'", [])?;
         Ok(())
     }
 
@@ -299,7 +298,7 @@ mod tests {
         assert_eq!(db.xp_total().unwrap(), 40);
         assert_eq!(
             db.xp_events().unwrap()[0].mode,
-            crate::contracts::settings::Mode::Max
+            crate::contracts::settings::Mode::Diy
         );
     }
 }

@@ -23,19 +23,6 @@ import {
   percentLeft,
 } from "../../lib/format";
 
-export type PopupMode = "max" | "diy";
-
-// Kept until the Settings mode picker is gone (TKM-307).
-export const MODE_LABEL: Record<PopupMode, string> = {
-  max: "Max it out",
-  diy: "Do it yourself",
-};
-
-export const MODE_DESCRIPTION: Record<PopupMode, string> = {
-  max: "Use the whole limit, every window.",
-  diy: "Use less. Keep it calm.",
-};
-
 // ------------------------------------------------------------------ gauge
 
 const WEEK_FIRST_STATUS = "The week runs out first.";
