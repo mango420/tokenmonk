@@ -87,7 +87,7 @@ export interface LevelScreenCopy {
   extra: string | null;
   /** Title line: "Still a <title>." or "Now a <title>.". */
   titleLine: string | null;
-  /** Mode line (status style), or the retro line. */
+  /** Heading line, or the retro line. */
   heading: string | null;
   /** Mono line. */
   detail: string | null;
@@ -96,9 +96,9 @@ export interface LevelScreenCopy {
   button: string;
 }
 
-const MODE_LINE = { max: "Keep burning.", diy: "Well earned. Breathe." } as const;
+const LEVEL_UP_LINE = "Keep burning.";
 
-/** "an" before a vowel sound ("an Abbot of Restraint"), else "a". */
+/** "an" before a vowel sound ("an Overlord"), else "a". */
 function article(title: string): "a" | "an" {
   return /^[aeiou]/i.test(title) ? "an" : "a";
 }
@@ -128,7 +128,7 @@ export function levelScreenCopy(model: LevelScreenModel, game: GameState): Level
     display: `Level ${levelUp.level}`,
     extra: gained > 1 ? `+${gained} levels` : null,
     titleLine: `${levelUp.titleChanged ? "Now" : "Still"} ${article(levelUp.title)} ${levelUp.title}.`,
-    heading: game.mode === "diy" ? MODE_LINE.diy : MODE_LINE.max,
+    heading: LEVEL_UP_LINE,
     detail,
     progress: detail === null ? null : Math.min(1, Math.max(0, game.progress)),
     button: "Back to work",

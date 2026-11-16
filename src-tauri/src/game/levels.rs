@@ -1,7 +1,6 @@
-//! Level curve and titles. Pure functions of the XP total and the mode.
+//! Level curve and titles. Pure functions of the XP total.
 
 use super::constants::{LEVEL_FIRST_SPAN_XP, LEVEL_FLAT_FROM, LEVEL_STEP_XP, TITLE_TIERS};
-use crate::contracts::Mode;
 
 /// Where an XP total sits on the level curve.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,19 +47,14 @@ pub fn level_info(xp_total: u64) -> LevelInfo {
     }
 }
 
-/// Title of the mode at `level`: it changes at the tier edges in
-/// `TITLE_TIERS`. Before onboarding (`NoneYet`) the Max title applies, as the
-/// popup falls back to Max it out.
-pub fn title_for(mode: Mode, level: u32) -> &'static str {
+/// Title at `level`: it changes at the tier edges in `TITLE_TIERS`.
+pub fn title_for(level: u32) -> &'static str {
     let tier = TITLE_TIERS
         .iter()
         .rev()
         .find(|t| level >= t.min_level)
         .unwrap_or(&TITLE_TIERS[0]);
-    match mode {
-        Mode::Diy => tier.diy,
-        Mode::Max | Mode::NoneYet => tier.max,
-    }
+    tier.title
 }
 
 #[cfg(test)]
@@ -112,19 +106,7 @@ mod tests {
             (99, "Rate-Limit Royalty"),
         ];
         for (level, title) in max {
-            assert_eq!(title_for(Mode::Max, level), title);
-            assert_eq!(title_for(Mode::NoneYet, level), title);
-        }
-        let diy = [
-            (4, "Budget Curious"),
-            (5, "Quiet Spender"),
-            (10, "Frugal Prompter"),
-            (15, "Token Ascetic"),
-            (20, "Zen Accountant"),
-            (30, "Abbot of Restraint"),
-        ];
-        for (level, title) in diy {
-            assert_eq!(title_for(Mode::Diy, level), title);
+            assert_eq!(title_for(level), title);
         }
     }
 }

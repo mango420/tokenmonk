@@ -108,22 +108,6 @@ fn max_bands_and_active_day_bonus() {
     assert_eq!(max_day_xp(50_000_000), 270);
 }
 
-#[test]
-fn diy_edges() {
-    assert_eq!(diy_day_xp(0.0), 150);
-    assert_eq!(diy_day_xp(50.0), 150);
-    assert_eq!(diy_day_xp(75.0), 90);
-    assert_eq!(diy_day_xp(100.0), 30);
-    assert_eq!(diy_day_xp(100.1), 0);
-}
-
-fn old_history() -> Facts {
-    facts(vec![
-        day(date(2026, 10, 20), 3_000_000, None),
-        day(date(2026, 10, 21), 400_000, None),
-    ])
-}
-
 fn legacy_row(mode: Mode, kind: &str, reference: &str, amount: u32) -> LedgerEntry {
     LedgerEntry {
         earned_at: 1,
@@ -201,14 +185,20 @@ fn recount_keeps_modes_and_never_lowers_the_total() {
             .find(|e| e.kind == kind && e.reference == r)
             .cloned()
     };
-    let diy = row(KIND_DAY, "2026-10-21").expect("diy day paid");
-    assert_eq!((diy.mode, diy.amount), (Mode::Diy, 150));
+    assert!(row(KIND_DAY, "2026-10-21").is_none(), "no second award");
+    let diy = store
+        .data
+        .ledger
+        .iter()
+        .find(|e| e.kind == KIND_DAY_LEGACY && e.reference == "2026-10-21")
+        .expect("diy day kept");
+    assert_eq!((diy.mode, diy.amount), (Mode::Diy, 40));
     let max = row(KIND_DAY, "2026-10-20").expect("max bonus");
     assert_eq!((max.mode, max.amount), (Mode::Max, MAX_ACTIVE_DAY_XP));
     assert_eq!(row(KIND_TOKENS, "2026-10-20/21").unwrap().amount, 2);
     assert!(ev.unlocks.is_empty() && ev.level_up.is_none_or(|l| l.retroactive));
     let total = ev.state.xp_total;
-    assert_eq!(total, 10 + (200 + 20 + 10) + 150);
+    assert_eq!(total, 10 + (200 + 20 + 10) + 40);
     assert!(total >= old_total);
     assert!(level_info(total).level >= level_info(old_total).level);
 
@@ -318,21 +308,6 @@ fn first_blood_and_night_owl_with_local_detail() {
 }
 
 #[test]
-fn night_owl_is_max_only() {
-    let mut d = day(date(2026, 10, 28), 1_000, Some(1.0));
-    d.night_at = Some(ms(2026, 10, 28, 3, 0));
-    let ev = evaluate(
-        &GameData::default(),
-        &facts(vec![d]),
-        Mode::Diy,
-        ms(2026, 10, 28, 12, 0),
-        &Utc,
-        false,
-    );
-    assert_eq!(unlocked(&ev), vec![AchievementId::FirstBlood]);
-}
-
-#[test]
 fn rambo_and_so_close_from_limit_readings() {
     let now = ms(2026, 10, 28, 20, 0);
     let a_end = ms(2026, 10, 28, 5, 0);
@@ -389,120 +364,6 @@ fn a_window_that_hit_the_limit_is_not_so_close() {
         false,
     );
     assert_eq!(unlocked(&ev), vec![AchievementId::RateLimitRambo]);
-}
-
-#[test]
-fn diy_awards_finished_days_by_budget_and_previews_today() {
-    let mut store = MemoryStore::default();
-    let today = date(2026, 10, 28);
-    let now = ms(2026, 10, 28, 14, 0);
-    let f = facts(vec![
-        day(date(2026, 10, 26), 5_000, Some(23.0)),
-        day(date(2026, 10, 27), 5_000, None),
-        day(today, 5_000, Some(23.0)),
-    ]);
-    let ev = apply(&mut store, &f, Mode::Diy, now, false);
-    let amounts: BTreeMap<_, _> = ev
-        .ledger
-        .iter()
-        .filter(|e| e.kind == KIND_DAY)
-        .map(|e| (e.reference.clone(), e.amount))
-        .collect();
-    assert_eq!(amounts.len(), 2, "today is not finished");
-    assert_eq!(amounts["2026-10-26"], 150);
-    assert_eq!(amounts["2026-10-27"], DIY_UNMEASURED_DAY_XP);
-    assert_eq!(ev.state.daily_xp_preview, Some(150));
-
-    let over = facts(vec![day(today, 5_000, Some(130.0))]);
-    let ev = evaluate(&store.data, &over, Mode::Diy, now, &Utc, false);
-    assert_eq!(ev.state.daily_xp_preview, Some(0));
-    let none = facts(vec![day(today, 5_000, None)]);
-    let ev = evaluate(&store.data, &none, Mode::Diy, now, &Utc, false);
-    assert_eq!(ev.state.daily_xp_preview, None);
-    let ev = evaluate(&store.data, &f, Mode::Max, now, &Utc, false);
-    assert_eq!(ev.state.daily_xp_preview, None);
-}
-
-#[test]
-fn a_day_stays_with_the_mode_that_earned_it() {
-    let mut store = MemoryStore::default();
-    let d = date(2026, 10, 27);
-    let f = facts(vec![
-        day(d, 300_000, Some(10.0)),
-        day(date(2026, 10, 28), 0, None),
-    ]);
-    apply(&mut store, &f, Mode::Max, ms(2026, 10, 27, 23, 0), false);
-    let before = store.data.ledger.len();
-    // Switched to Do it yourself the next day: the finished day is not paid twice.
-    let ev = apply(&mut store, &f, Mode::Diy, ms(2026, 10, 28, 9, 0), false);
-    assert!(ev.ledger.iter().all(|e| e.kind != KIND_DAY));
-    assert!(store.data.ledger.len() >= before);
-}
-
-#[test]
-fn token_monk_is_one_finished_day_under_the_daily_budget() {
-    let first = date(2026, 10, 1);
-    let monk = |ev: &Evaluation| {
-        ev.unlocks
-            .iter()
-            .find(|u| u.id == AchievementId::TokenMonk)
-            .cloned()
-    };
-
-    // Today does not count, however calm it is so far.
-    let mut store = MemoryStore::default();
-    let now = day_start_ms(first, &Utc) + 12 * HOUR;
-    let ev = apply(
-        &mut store,
-        &facts(vec![day(first, 800, Some(5.0))]),
-        Mode::Diy,
-        now,
-        false,
-    );
-    assert!(monk(&ev).is_none());
-
-    // A finished day without a budget, over budget, or idle does not count.
-    for d in [
-        day(first, 800, None),
-        day(first, 800, Some(100.0)),
-        day(first, 800, Some(130.0)),
-        day(first, 0, Some(0.0)),
-    ] {
-        let mut store = MemoryStore::default();
-        let now = day_start_ms(first + Days::new(1), &Utc) + HOUR;
-        let ev = apply(&mut store, &facts(vec![d]), Mode::Diy, now, false);
-        assert!(monk(&ev).is_none());
-    }
-
-    // One finished day at 99.9 % unlocks it at the end of that day.
-    let mut store = MemoryStore::default();
-    let days = vec![
-        day(first, 800, Some(99.9)),
-        day(first + Days::new(1), 800, Some(150.0)),
-    ];
-    let now = day_start_ms(first + Days::new(1), &Utc) + HOUR;
-    let ev = apply(&mut store, &facts(days), Mode::Diy, now, false);
-    let unlock = monk(&ev).expect("token monk");
-    assert_eq!(unlock.xp, 150);
-    assert_eq!(unlock.detail, None);
-    assert_eq!(unlock.unlocked_at, day_start_ms(first + Days::new(1), &Utc));
-    let state = ev
-        .state
-        .achievements
-        .iter()
-        .find(|a| a.id == AchievementId::TokenMonk)
-        .unwrap();
-    assert_eq!((state.current, state.target), (None, None));
-    assert_eq!(state.progress_label, None);
-
-    // Max it out never earns it.
-    let mut store = MemoryStore::default();
-    let days = vec![
-        day(first, 800, Some(5.0)),
-        day(first + Days::new(1), 0, None),
-    ];
-    let ev = apply(&mut store, &facts(days), Mode::Max, now, false);
-    assert!(monk(&ev).is_none());
 }
 
 #[test]
@@ -571,7 +432,7 @@ fn state_matches_the_curve() {
     assert_eq!(ev.state.xp_into_level, info.into_level);
     assert_eq!(ev.state.xp_for_level, info.for_level);
     assert!((0.0..=1.0).contains(&ev.state.progress));
-    assert_eq!(ev.state.achievements.len(), 6);
+    assert_eq!(ev.state.achievements.len(), 5);
     assert_eq!(ev.state.achievements[0].id, AchievementId::FirstBlood);
 }
 
@@ -580,11 +441,9 @@ fn boo_is_not_earnable() {
     let mut store = MemoryStore::default();
     let now = ms(2026, 11, 2, 12, 0);
     let f = Facts::default();
-    for mode in [Mode::Max, Mode::Diy] {
-        let ev = apply(&mut store, &f, mode, now, false);
-        assert!(!unlocked(&ev).contains(&AchievementId::Boo));
-        assert_eq!(ev.state.xp_total, 0);
-    }
+    let ev = apply(&mut store, &f, Mode::Max, now, false);
+    assert!(!unlocked(&ev).contains(&AchievementId::Boo));
+    assert_eq!(ev.state.xp_total, 0);
 }
 
 fn legacy_boo() -> GameData {
@@ -837,19 +696,45 @@ fn replay_equals_live_for_max_it_out() {
 }
 
 #[test]
-fn replay_equals_live_for_do_it_yourself() {
-    replay_equals_live(Mode::Diy, 10);
+fn token_monk_is_retired_and_only_listed_once_unlocked() {
+    let first = date(2026, 10, 1);
+    let now = day_start_ms(first + Days::new(1), &Utc) + HOUR;
+    let f = facts(vec![day(first, 800, Some(5.0))]);
+    let mut store = MemoryStore::default();
+    let ev = apply(&mut store, &f, Mode::Max, now, false);
+    assert!(!unlocked(&ev).contains(&AchievementId::TokenMonk));
+    assert!(ev
+        .state
+        .achievements
+        .iter()
+        .all(|a| a.id != AchievementId::TokenMonk && a.mode.is_none()));
 
-    let h = history(10);
-    let end = ms(2026, 10, 10, 12, 0);
-    let ev = evaluate(
-        &GameData::default(),
-        &facts_at(&h, end, date(2026, 9, 1)),
-        Mode::Diy,
-        end,
-        &Utc,
-        true,
-    );
-    assert!(unlocked(&ev).contains(&AchievementId::TokenMonk));
-    assert!(!unlocked(&ev).contains(&AchievementId::NightOwl));
+    let mut prev = GameData::default();
+    prev.achievements.push(AchievementRecord {
+        id: AchievementId::TokenMonk,
+        unlocked_at: Some(now - HOUR),
+        retroactive: false,
+        current: None,
+        target: None,
+        updated_at: now,
+    });
+    let ev = evaluate(&prev, &f, Mode::Max, now, &Utc, false);
+    let monk = ev
+        .state
+        .achievements
+        .iter()
+        .find(|a| a.id == AchievementId::TokenMonk)
+        .expect("kept once unlocked");
+    assert!(monk.unlocked_at.is_some());
+}
+
+#[test]
+fn no_daily_xp_preview_and_a_retired_diy_mode_value_earns_as_max() {
+    let now = ms(2026, 10, 28, 14, 0);
+    let f = facts(vec![day(date(2026, 10, 28), 300_000, Some(20.0))]);
+    let ev = evaluate(&GameData::default(), &f, Mode::Diy, now, &Utc, false);
+    assert_eq!(ev.state.daily_xp_preview, None);
+    assert_eq!(ev.state.mode, Mode::Max);
+    assert!(ev.ledger.iter().all(|e| e.mode == Mode::Max));
+    assert_eq!(ev.state.xp_total, max_day_xp(300_000) as u64 + 10);
 }

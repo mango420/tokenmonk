@@ -9,14 +9,13 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use chrono::{Days, NaiveDate, TimeZone, Timelike};
+use chrono::{NaiveDate, TimeZone, Timelike};
 
 use super::constants::{
-    achievement_def, AchievementDef, ACHIEVEMENTS, DIY_DAILY_MAX_XP, DIY_DAILY_MIN_XP,
-    DIY_FULL_XP_UP_TO_PERCENT, DIY_UNMEASURED_DAY_XP, FULL_RATE_BLOCKS_PER_DAY, KIND_ACHIEVEMENT,
-    KIND_DAY, KIND_DAY_MODE, KIND_TOKENS, MAX_ACTIVE_DAY_XP, RAMBO_PERCENT, RECENT_UNLOCKS,
-    SOFT_BAND_END_BLOCK, SO_CLOSE_PERCENT, TOKENS_PER_BLOCK, TOKEN_MONK_BELOW_PERCENT,
-    WINDOW_BUCKET_MS, XP_PER_BLOCK, XP_PER_SOFT_BLOCK,
+    achievement_def, AchievementDef, ACHIEVEMENTS, FULL_RATE_BLOCKS_PER_DAY, KIND_ACHIEVEMENT,
+    KIND_DAY, KIND_DAY_LEGACY, KIND_DAY_MODE, KIND_TOKENS, MAX_ACTIVE_DAY_XP, RAMBO_PERCENT,
+    RECENT_UNLOCKS, SOFT_BAND_END_BLOCK, SO_CLOSE_PERCENT, TOKENS_PER_BLOCK, WINDOW_BUCKET_MS,
+    XP_PER_BLOCK, XP_PER_SOFT_BLOCK,
 };
 use super::levels::{level_info, title_for};
 use super::model::{
@@ -30,7 +29,8 @@ use crate::contracts::{
 ///
 /// - `prev`: ledger, achievement rows and the retro flag as stored.
 /// - `facts`: see [`Facts`].
-/// - `mode`: the current mode. With `NoneYet` nothing is awarded.
+/// - `mode`: `NoneYet` (before onboarding) awards nothing; any other value
+///   earns XP the one way there is.
 /// - `now`: epoch ms; days before the local day of `now` are finished.
 /// - `tz`: the local time zone, for calendar days and the Night Owl window.
 /// - `retroactive`: the first-start replay. Marks every produced row and
@@ -43,51 +43,36 @@ pub fn evaluate<Tz: TimeZone>(
     tz: &Tz,
     retroactive: bool,
 ) -> Evaluation {
-    let today = local_date(now, tz);
-    let earn_mode = (mode != Mode::NoneYet).then_some(mode);
+    let earning = mode != Mode::NoneYet;
+    let mode = if earning { Mode::Max } else { Mode::NoneYet };
 
     let xp_before: u64 = prev.ledger.iter().map(|e| u64::from(e.amount)).sum();
     let mut awards = Awards::new(prev, retroactive);
 
-    // XP for burning (Max it out) or holding back (Do it yourself).
-    if let Some(m) = earn_mode {
+    // XP for burning.
+    if earning {
         let day_modes = day_modes(prev);
         let marker_only = marker_only_days(prev);
         let mut days: Vec<&DayFacts> = facts.days.iter().filter(|d| d.tokens > 0).collect();
         days.sort_by_key(|d| d.day);
         for d in days {
             let key = d.day.to_string();
-            // A recounted day (marker only) is paid under the mode it was
-            // earned in. Otherwise a day already awarded under the other mode
-            // stays with it.
-            let m = match marker_only.get(&key) {
-                Some(marked) => *marked,
-                None => {
-                    if day_modes.get(&key).is_some_and(|dm| *dm != m) {
-                        continue;
-                    }
-                    m
-                }
+            // A day already awarded under the retired Do it yourself mode
+            // stays as it was paid; a recounted marker-only day is skipped
+            // the same way.
+            let legacy = match marker_only.get(&key) {
+                Some(marked) => *marked != Mode::Max,
+                None => day_modes.get(&key).is_some_and(|dm| *dm != Mode::Max),
             };
-            let at = day_start_ms(d.day, tz);
-            match m {
-                Mode::Max => {
-                    let blocks = (d.tokens / TOKENS_PER_BLOCK).min(SOFT_BAND_END_BLOCK);
-                    for k in 1..=blocks {
-                        awards.add(m, at, KIND_TOKENS, format!("{key}/{k}"), max_block_xp(k));
-                    }
-                    awards.add(m, at, KIND_DAY, key, MAX_ACTIVE_DAY_XP);
-                }
-                Mode::Diy if d.day < today => {
-                    let xp = d
-                        .budget_used_percent
-                        .map_or(DIY_UNMEASURED_DAY_XP, diy_day_xp);
-                    if xp > 0 {
-                        awards.add(m, at, KIND_DAY, key, xp);
-                    }
-                }
-                _ => {}
+            if legacy {
+                continue;
             }
+            let at = day_start_ms(d.day, tz);
+            let blocks = (d.tokens / TOKENS_PER_BLOCK).min(SOFT_BAND_END_BLOCK);
+            for k in 1..=blocks {
+                awards.add(mode, at, KIND_TOKENS, format!("{key}/{k}"), max_block_xp(k));
+            }
+            awards.add(mode, at, KIND_DAY, key, MAX_ACTIVE_DAY_XP);
         }
     }
 
@@ -102,9 +87,9 @@ pub fn evaluate<Tz: TimeZone>(
     };
 
     let mut candidates: Vec<(EpochMs, usize, &'static AchievementDef)> = Vec::new();
-    if let Some(m) = earn_mode {
+    if earning {
         for (idx, def) in ACHIEVEMENTS.iter().enumerate() {
-            if def.mode.is_some_and(|dm| dm != m) || is_unlocked(&records, def.id) {
+            if def.legacy || is_unlocked(&records, def.id) {
                 continue;
             }
             let at = match def.id {
@@ -112,9 +97,8 @@ pub fn evaluate<Tz: TimeZone>(
                 AchievementId::NightOwl => facts.days.iter().filter_map(|d| d.night_at).min(),
                 AchievementId::RateLimitRambo => rambo_at(&facts.limits),
                 AchievementId::SoClose => so_close_at(&facts.limits, now),
-                AchievementId::TokenMonk => token_monk_at(&facts.days, today, tz),
-                // Legacy badge: kept for users who unlocked it, never earned again.
-                AchievementId::Boo => None,
+                // Legacy badges: kept for users who unlocked them, never earned again.
+                AchievementId::TokenMonk | AchievementId::Boo => None,
             };
             if let Some(at) = at {
                 candidates.push((at, idx, def));
@@ -126,9 +110,13 @@ pub fn evaluate<Tz: TimeZone>(
     let mut changed: Vec<AchievementRecord> = Vec::new();
     let mut unlocks: Vec<AchievementUnlocked> = Vec::new();
     for (at, _, def) in candidates {
-        if let Some(m) = earn_mode {
-            awards.add(m, at, KIND_ACHIEVEMENT, def.id.as_str().to_string(), def.xp);
-        }
+        awards.add(
+            mode,
+            at,
+            KIND_ACHIEVEMENT,
+            def.id.as_str().to_string(),
+            def.xp,
+        );
         let record = AchievementRecord {
             id: def.id,
             unlocked_at: Some(at),
@@ -150,30 +138,12 @@ pub fn evaluate<Tz: TimeZone>(
     let level_up = (after.level > before.level).then(|| LevelUp {
         level: after.level,
         previous_level: before.level,
-        title: title_for(mode, after.level).to_string(),
-        title_changed: title_for(mode, after.level) != title_for(mode, before.level),
+        title: title_for(after.level).to_string(),
+        title_changed: title_for(after.level) != title_for(before.level),
         retroactive,
     });
 
-    let preview = (mode == Mode::Diy)
-        .then(|| {
-            facts
-                .days
-                .iter()
-                .find(|d| d.day == today && d.tokens > 0)
-                .and_then(|d| d.budget_used_percent)
-                .map(diy_day_xp)
-        })
-        .flatten();
-
-    let state = build_state(
-        mode,
-        &records,
-        xp_after,
-        preview,
-        prev.retro_done || retroactive,
-        tz,
-    );
+    let state = build_state(mode, &records, xp_after, prev.retro_done || retroactive, tz);
 
     Evaluation {
         state,
@@ -184,7 +154,7 @@ pub fn evaluate<Tz: TimeZone>(
     }
 }
 
-/// XP of the `block`-th (1-based) 100k-token block of a Max it out day: full
+/// XP of the `block`-th (1-based) 100k-token block of a day: full
 /// rate up to the full-rate band, the soft rate up to its end, 0 above.
 pub fn max_block_xp(block: u64) -> u32 {
     if block <= FULL_RATE_BLOCKS_PER_DAY {
@@ -194,21 +164,6 @@ pub fn max_block_xp(block: u64) -> u32 {
     } else {
         0
     }
-}
-
-/// XP a day at `used_percent` of the daily budget earns in Do it yourself:
-/// the maximum up to the full-XP edge, linear down to the minimum at 100 %,
-/// 0 above 100 %.
-pub fn diy_day_xp(used_percent: f64) -> u32 {
-    if used_percent > 100.0 {
-        return 0;
-    }
-    if used_percent <= DIY_FULL_XP_UP_TO_PERCENT {
-        return DIY_DAILY_MAX_XP;
-    }
-    let t = (used_percent - DIY_FULL_XP_UP_TO_PERCENT) / (100.0 - DIY_FULL_XP_UP_TO_PERCENT);
-    let max = f64::from(DIY_DAILY_MAX_XP);
-    (max - (max - f64::from(DIY_DAILY_MIN_XP)) * t).round() as u32
 }
 
 /// Local calendar day of an epoch timestamp.
@@ -272,11 +227,13 @@ impl Awards {
 }
 
 /// The mode each local day was awarded under (`tokens`, `day` and `daymode`
-/// rows).
+/// rows). Only the retired Do it yourself mode differs from Max.
 pub(super) fn day_modes(prev: &GameData) -> HashMap<String, Mode> {
     prev.ledger
         .iter()
-        .filter(|e| e.kind == KIND_TOKENS || e.kind == KIND_DAY || e.kind == KIND_DAY_MODE)
+        .filter(|e| {
+            [KIND_TOKENS, KIND_DAY, KIND_DAY_LEGACY, KIND_DAY_MODE].contains(&e.kind.as_str())
+        })
         .filter_map(|e| {
             let day = e.reference.split('/').next()?;
             Some((day.to_string(), e.mode))
@@ -290,7 +247,7 @@ fn marker_only_days(prev: &GameData) -> HashMap<String, Mode> {
     let paid: HashSet<&str> = prev
         .ledger
         .iter()
-        .filter(|e| e.kind == KIND_TOKENS || e.kind == KIND_DAY)
+        .filter(|e| [KIND_TOKENS, KIND_DAY, KIND_DAY_LEGACY].contains(&e.kind.as_str()))
         .filter_map(|e| e.reference.split('/').next())
         .collect();
     prev.ledger
@@ -331,21 +288,6 @@ fn so_close_at(limits: &[LimitFact], now: EpochMs) -> Option<EpochMs> {
         .min()
 }
 
-/// Token Monk: the end of the earliest finished active day that had a daily
-/// budget and stayed below `TOKEN_MONK_BELOW_PERCENT` of it.
-fn token_monk_at<Tz: TimeZone>(days: &[DayFacts], today: NaiveDate, tz: &Tz) -> Option<EpochMs> {
-    days.iter()
-        .filter(|d| d.day < today && d.tokens > 0)
-        .filter(|d| {
-            d.budget_used_percent
-                .is_some_and(|p| p < TOKEN_MONK_BELOW_PERCENT)
-        })
-        .map(|d| d.day)
-        .min()
-        .and_then(|day| day.checked_add_days(Days::new(1)))
-        .map(|next| day_start_ms(next, tz))
-}
-
 /// Context line of an unlock, derived from the id and the unlock time so it
 /// needs no storage.
 fn unlock_detail<Tz: TimeZone>(id: AchievementId, at: EpochMs, tz: &Tz) -> Option<String> {
@@ -380,7 +322,6 @@ fn build_state<Tz: TimeZone>(
     mode: Mode,
     records: &HashMap<AchievementId, AchievementRecord>,
     xp_total: u64,
-    daily_xp_preview: Option<u32>,
     retro_done: bool,
     tz: &Tz,
 ) -> GameState {
@@ -388,6 +329,12 @@ fn build_state<Tz: TimeZone>(
 
     let achievements: Vec<AchievementProgress> = ACHIEVEMENTS
         .iter()
+        .filter(|def| {
+            !def.legacy
+                || records
+                    .get(&def.id)
+                    .is_some_and(|r| r.unlocked_at.is_some())
+        })
         .map(|def| {
             let rec = records.get(&def.id);
             let (current, target) = match def.target {
@@ -402,7 +349,7 @@ fn build_state<Tz: TimeZone>(
                 name: def.name.to_string(),
                 description: def.description.to_string(),
                 secret: def.secret,
-                mode: def.mode,
+                mode: None,
                 xp: def.xp,
                 unlocked_at: rec.and_then(|r| r.unlocked_at),
                 current,
@@ -433,12 +380,12 @@ fn build_state<Tz: TimeZone>(
     GameState {
         mode,
         level: info.level,
-        title: title_for(mode, info.level).to_string(),
+        title: title_for(info.level).to_string(),
         xp_total,
         xp_into_level: info.into_level,
         xp_for_level: info.for_level,
         progress: info.progress(),
-        daily_xp_preview,
+        daily_xp_preview: None,
         recent_unlocks,
         achievements,
         retro_done,
