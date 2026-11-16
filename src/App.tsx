@@ -21,7 +21,7 @@ export default function App() {
   const app = useAppData(scenario);
   const { data, actions } = app;
   const [requested, setRequested] = useState<View>("dashboard");
-  /** Settings opens scrolled to "Limit data" (the dashboard's setup hint). */
+  /** Settings opens scrolled to "Limits" (the dashboard's setup hint). */
   const [limitsTarget, setLimitsTarget] = useState(false);
 
   const open = useCallback((view: View, toLimits = false) => {

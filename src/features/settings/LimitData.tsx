@@ -85,7 +85,7 @@ function snippetFor(command: string): string {
 }
 
 /**
- * Settings, "Limit data": the status-line snippet to paste into Claude Code's
+ * Settings, "Limits": the status-line snippet to paste into Claude Code's
  * settings. Tokenmonk never edits those settings itself.
  */
 export const LimitData = forwardRef<HTMLElement, LimitDataProps>(function LimitData(
@@ -129,7 +129,7 @@ export const LimitData = forwardRef<HTMLElement, LimitDataProps>(function LimitD
   return (
     <section ref={ref} className="limit-data" aria-labelledby="settings-limit-data">
       <span id="settings-limit-data" className="label">
-        Limit data
+        Limits
       </span>
       <StatusLine limits={limits} received={file?.receivedAt != null} />
       {file !== null && limits.status === "unavailable" ? (
@@ -181,7 +181,7 @@ export const LimitData = forwardRef<HTMLElement, LimitDataProps>(function LimitD
         </>
       )}
 
-      <p className="caption">Needs a Pro or Max plan. Numbers show up after the first reply. Limit numbers come from Claude Code’s status line; sessions in the desktop app may not run it and then bring no numbers.</p>
+      <p className="caption">Needs a Pro or Max plan. Numbers show up after the first reply. Limits come from Claude Code’s status line; sessions in the desktop app may not run it and then bring no numbers.</p>
     </section>
   );
 });

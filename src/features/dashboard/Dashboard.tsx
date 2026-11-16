@@ -10,7 +10,7 @@ interface DashboardProps {
   data: AppData;
   actions: AppActions;
   onOpenSettings: () => void;
-  /** Opens Settings scrolled to "Limit data". */
+  /** Opens Settings scrolled to "Limits". */
   onOpenLimitSetup: () => void;
   onOpenAchievements: () => void;
 }
