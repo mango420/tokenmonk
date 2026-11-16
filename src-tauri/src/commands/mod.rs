@@ -260,6 +260,7 @@ mod tests {
             autostart: None,
             update_check: None,
             keep_open: None,
+            claude_folder: None,
         };
         let (before, after) = apply_update(&s, &patch, |_| Ok(())).unwrap();
         assert_eq!(before.mode, Mode::NoneYet);
