@@ -16,6 +16,61 @@ redesign disagree, the redesign wins. States neither shows are derived
 below from their components and tokens; such rules and copy are marked
 "derived".
 
+## Product line
+
+Maintainer decision (TKM-287). Where a section below disagrees, this
+section wins; superseded parts are marked "Removed by TKM-287". Decision
+log: [DECISIONS.md](DECISIONS.md), "Product line (2026-11-16, TKM-287)".
+
+**Core question**: "How much do I have left?"
+
+**Popup, top to bottom**:
+
+1. Header with level and title, always visible. Look and space: mockup
+   in TKM-288.
+2. Both limit windows, 5-hour and 7-day, at equal size: percent left plus
+   reset time.
+
+**Without limits** (not connected, before the first reply, or a plan
+without `rate_limits`): tokens today is the full view. No warning, no
+estimate, plus one calm line.
+
+**Limit states and their line**:
+
+| State | Popup |
+|---|---|
+| Connected, limits in | Both windows: percent left and reset time |
+| Connected, no limits yet | Tokens today, "Limits after your next reply." |
+| Not connected | Tokens today, "Connect limits in Settings." |
+| Plan without `rate_limits` | As "no limits yet" until it can be told apart (open point, derived) |
+
+**Limit source**: the Claude Code status line (`rate_limits`) only. No
+undocumented endpoints. "Connect limits" in Settings: after an explicit
+click the app writes the `statusLine` entry into `settings.json` in the
+effective Claude folder (TKM-211), with a backup. An existing status line
+is wrapped: Tokenmonk reads the limits, then runs the old command with its
+output unchanged. "Disconnect" restores the previous entry.
+
+**No estimates anywhere**: no budget, no forecast, no ETA.
+
+**One mode**: Max. Saffron is the only accent.
+
+**Roles**:
+
+- **Tray**: the beads always follow the 5-hour window.
+- **Game**: level and title in the popup header; XP and levels as before.
+- **Settings**: only Limits (connect, disconnect), Claude folder,
+  autostart and updates, notifications, sound, keep popup open.
+- **Notifications**: once per window and reset cycle at 10 % left, dry
+  tone ("10% left. Resets 16:40."). Level-ups as system notifications,
+  with a toggle.
+
+**Wording**: "Limits" everywhere in the popup, Settings, tray and
+notifications. "Status line" only where the setup is explained.
+
+Out of scope: usage per project or model, history, API cost, any
+estimated budget or forecast.
+
 ## Personality and voice
 
 The monk is calm, a little smug and secretly competitive. He never panics,
@@ -27,7 +82,10 @@ even with 1 % left.
   Chaser*, *Rate-Limit Rambo*) carry the jokes; the rest stays plain.
 - **Mode-aware.** Max it out talks like a coach ("Make it count."), Do it
   yourself like a friend with a walking habit ("Go for a walk.").
+  Removed by TKM-287: one mode only.
 - **Number first.** The dashboard leads with one big number: percent left.
+  TKM-287: two numbers of equal size, one per limit window ("Product
+  line").
 - English UI copy, real typographic quotes and apostrophes (’), no em
   dashes, no emoji. Separators in running copy are commas ("Level 7, 340
   of 920 XP"), not dots.
@@ -36,6 +94,12 @@ even with 1 % left.
   "Number formats").
 
 ## Modes
+
+Removed by TKM-287: Max is the only mode. "Do it yourself", the mode
+picker, the onboarding mode choice, the daily budget and the jade accent
+go; existing Do it yourself users are switched to Max silently, XP and
+levels stay. The rules below are design history until the follow-up
+issues remove them from the app.
 
 | Mode | Accent | Name | Description |
 |---|---|---|---|
@@ -135,9 +199,11 @@ dependency.
   Thu"); under 24 h away the duration as above ("resets in 5h 12m",
   derived).
 - Estimates carry `~` directly before the number, no space ("~84.2k",
-  "~25 min"); the `~` uses the number's own style.
+  "~25 min"); the `~` uses the number's own style. Removed by TKM-287:
+  no estimates anywhere.
 - Limit ETA: `burnRate.limitEtaMinutes` rounded to 5, at least 5, as
-  "~N min" (same rule as the OS notification, "While hidden").
+  "~N min" (same rule as the OS notification, "While hidden"). Removed by
+  TKM-287.
 - XP: full numbers with thousands commas ("1,240 / 1,880 XP").
 
 ## Spacing, radius, motion
@@ -240,6 +306,23 @@ overflow hidden. Each screen is a column with `--popup-padding` 20 on all
 four sides. Actions are text links (`ink-2`, hover `ink`, padding 6 px
 vertical), full-width rows or a card (one style, see "Spacing, radius,
 motion"). The only icons are the monk and the mode dot.
+
+Removed by TKM-287 (see "Product line"; kept below as design history
+until the follow-up issues land):
+
+- Dashboard: the mode dot and mode name in the top row, the Do it
+  yourself status column, the budget in the meta row, the limit ETA
+  ("Limit in ~25 min"), and the "No limit data, with a token budget"
+  state. The 5-hour gauge as the single hero gives way to both windows at
+  equal size; layout by the TKM-288 mockup.
+- Onboarding: the mode choice.
+- Settings: the "Mode" radio group; the "Limit data" paste-only setup
+  gives way to one-click connect. Sound and "Keep popup open" stay.
+- Achievements: the other-mode hint.
+- Notifications: the 90 % and 100 % warnings, the budget warning and the
+  ETA body give way to one warning at 10 % left per window; level-ups get
+  a system notification.
+- Level-up screen: the Do it yourself mode line.
 
 ### Shared parts
 
@@ -794,6 +877,10 @@ Each limit warning fires once per upward crossing: once per 5-hour window
 to 5, at least 5); without an ETA the body is omitted. Level-ups get no OS
 notification; the level-up screen waits for the next open.
 
+Removed by TKM-287: the 90 % and 100 % warnings, the budget warning and the
+ETA body; one warning at 10 % left per window and reset cycle instead.
+Level-ups get a system notification, with a toggle ("Product line").
+
 Fed by: `AchievementUnlocked`, `GameState.achievements`, `Settings.sound`;
 limit warnings from `DashboardSnapshot.limits`, `burnRate`, `dailyBudget`.
 
@@ -859,7 +946,8 @@ opacities. A 32 x 32 unit box (`viewBox="0 0 32 32"`):
   monk here too.
 
 Value: 5-hour percent left in both modes. Before onboarding the accent is
-saffron. The tray icon is not the app icon (role C in "Icon system"): it
+saffron. TKM-287: the beads always follow the 5-hour window; with one
+mode the accent is always saffron. The tray icon is not the app icon (role C in "Icon system"): it
 is drawn from the monk paths, not from the app icon files.
 
 ## Tray menu
@@ -914,6 +1002,18 @@ Platform icons are generated from these files by `node scripts/icons.mjs`
 (desktop sets only); the generated set is refreshed by TKM-276.
 
 ## Not covered by the design / out of scope
+
+Out of scope (TKM-287): usage per project or model, history, API cost,
+any estimated budget or forecast.
+
+Open points from the product line (TKM-287):
+
+- How to tell a plan without `rate_limits` (API, gateway) reliably from
+  "not yet", so the hint line can disappear for those users.
+- Whether the desktop app and IDE extensions run the status line
+  (verified in TKM-242).
+- Header with level and title: look and space, decided by the TKM-288
+  mockup.
 
 Open points:
 
