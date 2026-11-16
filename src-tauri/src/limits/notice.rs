@@ -1,7 +1,7 @@
 //! The single limit notification: 10 % left, once per window and reset cycle
 //! (docs/DESIGN.md, "Product line"). Pure logic, no I/O: the caller feeds
-//! each new [`LimitReading`] to [`LimitNotifier::check`] and shows what it
-//! returns. The notified cycles ([`Cycles`]) are stored by the caller under
+//! the windows of each new reading to [`LimitNotifier::observe`] and shows
+//! what it returns. A window without a reset time never notifies. The notified cycles ([`Cycles`]) are stored by the caller under
 //! `app_state` key [`STATE_KEY`], so a restart does not repeat a notice.
 
 use chrono::{DateTime, TimeZone};
@@ -12,9 +12,6 @@ use crate::contracts::EpochMs;
 
 /// Notify when this share or less is left, in percent.
 pub const NOTIFY_AT_LEFT: f64 = 10.0;
-
-/// Two reset times closer than this are the same cycle (sources round).
-const SAME_CYCLE_MS: i64 = 120_000;
 
 /// Which limit window a notification is about.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -125,20 +122,7 @@ impl LimitNotifier {
         Tz: TimeZone,
         Tz::Offset: std::fmt::Display,
     {
-        let mut out = Vec::new();
-        for (kind, window, slot) in [
-            (
-                WindowKind::FiveHour,
-                &reading.five_hour,
-                &mut self.five_hour,
-            ),
-            (WindowKind::Weekly, &reading.weekly, &mut self.seven_day),
-        ] {
-            if let Some(n) = check_window(kind, window.as_ref(), slot, now, tz) {
-                out.push(n);
-            }
-        }
-        out
+        self.observe_in(reading.five_hour.as_ref(), reading.weekly.as_ref(), now, tz)
     }
 }
 
@@ -159,13 +143,10 @@ where
         return None;
     };
     let left = (100.0 - w.utilization).clamp(0.0, 100.0);
-    let new_cycle = match (slot.cycle, w.resets_at) {
-        (Some(a), Some(b)) => (a - b).abs() > SAME_CYCLE_MS,
-        _ => false,
-    };
-    // Without a reset time the only re-arm signal is climbing back above
-    // the threshold.
-    if new_cycle || (left > NOTIFY_AT_LEFT && slot.cycle.is_none()) {
+    // No reset time, no cycle to tell apart: stay silent, keep the slot.
+    let resets_at = w.resets_at?;
+    // A different `resetsAt` is a new cycle (compared exactly).
+    if slot.cycle != Some(resets_at) {
         *slot = Slot::default();
     }
     if left > NOTIFY_AT_LEFT || slot.fired {
@@ -173,12 +154,12 @@ where
     }
     *slot = Slot {
         fired: true,
-        cycle: w.resets_at,
+        cycle: Some(resets_at),
     };
     Some(LimitNotice {
         window: kind,
         title: title(kind).into(),
-        text: body(left, w.resets_at, now, tz),
+        text: body(left, Some(resets_at), now, tz),
     })
 }
 
@@ -250,7 +231,7 @@ mod tests {
         assert_eq!(got.len(), 1);
         assert_eq!(got[0].window, WindowKind::FiveHour);
         assert_eq!(got[0].text, "10% left. Resets 16:40.");
-        let worse = reading(win(97.0, Some(NOON + 4 * H + 40 * 60_000 + 5_000)), None);
+        let worse = reading(win(97.0, Some(NOON + 4 * H + 40 * 60_000)), None);
         assert!(n.check(&worse, NOON, &utc()).is_empty());
     }
 
@@ -286,14 +267,10 @@ mod tests {
     }
 
     #[test]
-    fn no_reset_time_rearms_when_back_above_ten() {
+    fn window_without_reset_time_sends_nothing() {
         let mut n = LimitNotifier::default();
         let hot = reading(win(95.0, None), None);
-        assert_eq!(n.check(&hot, NOON, &utc()).len(), 1);
         assert!(n.check(&hot, NOON, &utc()).is_empty());
-        assert!(n
-            .check(&reading(win(20.0, None), None), NOON, &utc())
-            .is_empty());
-        assert_eq!(n.check(&hot, NOON, &utc()).len(), 1);
+        assert_eq!(n.cycles(), Cycles::default());
     }
 }

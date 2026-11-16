@@ -267,12 +267,16 @@ mod tests {
     };
     use crate::limits::LimitPoll;
     use chrono::FixedOffset;
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Mutex;
 
     #[derive(Clone, Default)]
-    struct Recorder(Arc<Mutex<Vec<String>>>);
+    struct Recorder(Arc<Mutex<Vec<String>>>, Arc<AtomicBool>);
 
     impl Recorder {
+        fn set_popup_visible(&self, v: bool) {
+            self.1.store(v, Ordering::SeqCst);
+        }
         fn log(&self) -> Vec<String> {
             self.0.lock().unwrap().clone()
         }
@@ -304,7 +308,7 @@ mod tests {
             self.push(format!("halo {p:?} {m:?}"));
         }
         fn popup_visible(&self) -> bool {
-            false
+            self.1.load(Ordering::SeqCst)
         }
         fn notify(&self, title: &str, body: &str) {
             self.push(format!("notify {title}: {body}"));
@@ -417,6 +421,58 @@ mod tests {
         p.on_snapshot(&mut db, &s, SnapshotCause::Tick);
         assert_eq!(rec.count("notify"), 0);
         assert!(db.app_state("limit_notice_cycles").unwrap().is_some());
+    }
+
+    fn level_up_evaluation() -> Evaluation {
+        Evaluation {
+            state: GameState {
+                mode: Mode::Max,
+                level: 3,
+                title: "Token Novice".into(),
+                xp_total: 0,
+                xp_into_level: 0,
+                xp_for_level: 100,
+                progress: 0.0,
+                daily_xp_preview: None,
+                recent_unlocks: vec![],
+                achievements: vec![],
+                retro_done: true,
+            },
+            ledger: vec![],
+            achievements: vec![],
+            unlocks: vec![],
+            level_up: Some(LevelUp {
+                level: 3,
+                previous_level: 2,
+                title: "Token Novice".into(),
+                title_changed: false,
+                retroactive: false,
+            }),
+        }
+    }
+
+    #[test]
+    fn level_up_notification_only_when_hidden_enabled_and_live() {
+        let (p, rec, state, _db) = setup(Mode::Max);
+        let eval = level_up_evaluation();
+
+        p.announce(&eval, false);
+        assert_eq!(rec.count("notify Level 3: Token Novice"), 1);
+
+        rec.set_popup_visible(true);
+        p.announce(&eval, false);
+        assert_eq!(rec.count("notify"), 1, "popup visible: the toast covers it");
+
+        rec.set_popup_visible(false);
+        p.announce(&eval, true);
+        assert_eq!(rec.count("notify"), 1, "retroactive replay stays quiet");
+
+        state.set_settings(Settings {
+            notify_level_ups: false,
+            ..state.settings()
+        });
+        p.announce(&eval, false);
+        assert_eq!(rec.count("notify"), 1, "toggle off");
     }
 
     #[test]
