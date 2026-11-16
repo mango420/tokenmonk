@@ -241,6 +241,12 @@ pub fn show(app: &AppHandle) {
     }
 }
 
+/// `true` while the popup is shown.
+pub fn is_visible(app: &AppHandle) -> bool {
+    app.get_webview_window(LABEL)
+        .is_some_and(|p| p.is_visible().unwrap_or(false))
+}
+
 /// Hides the popup.
 pub fn hide(app: &AppHandle) {
     if let Some(popup) = app.get_webview_window(LABEL) {
