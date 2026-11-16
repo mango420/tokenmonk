@@ -98,7 +98,7 @@ export interface LevelScreenCopy {
 
 const LEVEL_UP_LINE = "Keep burning.";
 
-/** "an" before a vowel sound ("an Overlord"), else "a". */
+/** "an" before a vowel sound ("an Abbot"), else "a". */
 function article(title: string): "a" | "an" {
   return /^[aeiou]/i.test(title) ? "an" : "a";
 }

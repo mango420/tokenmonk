@@ -208,6 +208,36 @@ fn recount_keeps_modes_and_never_lowers_the_total() {
 }
 
 #[test]
+fn current_rules_keep_a_legacy_diy_day_untouched() {
+    let now = ms(2026, 10, 28, 12, 0);
+    let mut store = MemoryStore {
+        rules_version: Some(RULES_VERSION),
+        ..MemoryStore::default()
+    };
+    store
+        .data
+        .ledger
+        .push(legacy_row(Mode::Diy, KIND_DAY, "2026-10-21", 40));
+    assert!(!recount_if_outdated(&mut store).unwrap());
+
+    let ev = apply(&mut store, &mixed_history(), Mode::Max, now, false);
+    assert!(ev
+        .ledger
+        .iter()
+        .all(|e| !(e.kind == KIND_DAY && e.reference == "2026-10-21")));
+    let kept = store
+        .data
+        .ledger
+        .iter()
+        .find(|e| e.kind == KIND_DAY && e.reference == "2026-10-21")
+        .expect("diy row kept");
+    assert_eq!((kept.mode, kept.amount), (Mode::Diy, 40));
+    assert!(ev.state.xp_total >= 40);
+    let total: u64 = store.data.ledger.iter().map(|e| u64::from(e.amount)).sum();
+    assert_eq!(ev.state.xp_total, total);
+}
+
+#[test]
 fn recount_replay_equals_live_levelling() {
     // Live: one evaluation after every change, growing facts, not retroactive.
     let steps = [
