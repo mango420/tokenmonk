@@ -42,13 +42,11 @@ export interface Settings {
    * tray icon or its Close button. Default false. */
   keepOpen: boolean;
   /** "Limits at 10 % left": one system notification per limit window and
-   * reset cycle at 10 % left. Default true. Rust: `bool`, always sent;
-   * optional here only until the TKM-300 cleanup (existing mock literals). */
-  notifyLimits?: boolean;
+   * reset cycle at 10 % left. Default true. Rust: `bool`, always sent. */
+  notifyLimits: boolean;
   /** "Level-ups": a system notification per live level-up. Default true.
-   * Rust: `bool`, always sent; optional here only until the TKM-300
-   * cleanup. */
-  notifyLevelUps?: boolean;
+   * Rust: `bool`, always sent. */
+  notifyLevelUps: boolean;
   /** "Claude folder": the Claude config folder chosen in Settings (the app
    * appends `projects/` itself). Absent or null = not set: the folder then
    * comes from `CLAUDE_CONFIG_DIR` or the default `~/.claude` (see
@@ -59,8 +57,8 @@ export interface Settings {
 
 /** Partial update for `update_settings`. Absent keys stay unchanged.
  * `mode: "noneYet"` is rejected. `mode` is removed by TKM-287 (no mode
- * picker) and stays only until TKM-307 stops using it. `notifyLimits` and
- * `notifyLevelUps` join in the TKM-300 cleanup, together with Rust. `claudeFolder`: a string sets the folder
+ * picker) and stays only until TKM-307 stops using it. `notifyLimits` /
+ * `notifyLevelUps` toggle the two notifications. `claudeFolder`: a string sets the folder
  * (non-empty, absolute, else `invalidArgument`; existence is not checked),
  * `null` resets it to the default. Rust: `Option<Option<String>>`. */
 export interface SettingsPatch {
@@ -69,6 +67,8 @@ export interface SettingsPatch {
   autostart?: boolean;
   updateCheck?: boolean;
   keepOpen?: boolean;
+  notifyLimits?: boolean;
+  notifyLevelUps?: boolean;
   claudeFolder?: string | null;
 }
 

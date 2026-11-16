@@ -14,14 +14,15 @@ use chrono::{Local, TimeZone};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::app::{AppState, DbGameStore, IngestSupervisor, UpdateState};
-use crate::contracts::events::{APP_INFO_CHANGED, SETTINGS_CHANGED};
+use crate::contracts::events::{APP_INFO_CHANGED, LIMITS_CONNECTION_CHANGED, SETTINGS_CHANGED};
 use crate::contracts::{
     AppInfo, ClaudeFolder, CommandError, CommandErrorCode, DashboardSnapshot, EpochMs, GameState,
-    LimitSetup, Mode, Settings, SettingsPatch, UpdateStatus,
+    LimitSetup, LimitsConnection, Mode, Settings, SettingsPatch, UpdateStatus,
 };
 use crate::db::DbError;
 use crate::game::{evaluate, Facts, GameStore};
 use crate::limits::setup::{current_statusline_command, current_statusline_file};
+use crate::limits::{bridge, connect};
 use crate::watcher::{claude_folder, IngestConfig};
 
 fn error(code: CommandErrorCode, message: impl Into<String>) -> CommandError {
@@ -164,6 +165,8 @@ fn switch_claude_folder(app: &AppHandle) {
                     log::warn!("could not switch the Claude folder, ingest is now off: {e}");
                 }
             }
+            // The status line setup lives in the folder in use.
+            emit(&app, LIMITS_CONNECTION_CHANGED, &read_connection(&app));
             // Also after a failure: the folder in use changed either way.
             let folder = claude_folder(current().as_deref());
             let mut info = state.info();
@@ -233,6 +236,53 @@ pub fn get_limit_setup() -> Result<LimitSetup, CommandError> {
         statusline_command: current_statusline_command(),
         statusline_file: current_statusline_file(),
     })
+}
+
+fn connection_dirs(app: &AppHandle) -> (Option<std::path::PathBuf>, Option<std::path::PathBuf>) {
+    let setting = app
+        .try_state::<Arc<AppState>>()
+        .and_then(|s| s.settings().claude_folder);
+    (
+        claude_folder(setting.as_deref()).path.map(Into::into),
+        bridge::app_data_dir(),
+    )
+}
+
+fn read_connection(app: &AppHandle) -> LimitsConnection {
+    let (claude, data) = connection_dirs(app);
+    match data {
+        Some(data) => connect::inspect(claude.as_deref(), &data),
+        None => connect::inspect(None, std::path::Path::new("")),
+    }
+}
+
+fn claude_settings_error(e: connect::ConnectError) -> CommandError {
+    error(CommandErrorCode::ClaudeSettings, e.to_string())
+}
+
+#[tauri::command]
+pub fn get_limits_connection(app: AppHandle) -> Result<LimitsConnection, CommandError> {
+    Ok(read_connection(&app))
+}
+
+#[tauri::command]
+pub fn connect_limits(app: AppHandle) -> Result<LimitsConnection, CommandError> {
+    let (claude, data) = connection_dirs(&app);
+    let data = data.ok_or_else(|| error(CommandErrorCode::Internal, "no app data directory"))?;
+    let command = current_statusline_command()
+        .ok_or_else(|| error(CommandErrorCode::Internal, "no executable path"))?;
+    let c = connect::connect(claude.as_deref(), &data, &command).map_err(claude_settings_error)?;
+    emit(&app, LIMITS_CONNECTION_CHANGED, &c);
+    Ok(c)
+}
+
+#[tauri::command]
+pub fn disconnect_limits(app: AppHandle) -> Result<LimitsConnection, CommandError> {
+    let (claude, data) = connection_dirs(&app);
+    let data = data.ok_or_else(|| error(CommandErrorCode::Internal, "no app data directory"))?;
+    let c = connect::disconnect(claude.as_deref(), &data).map_err(claude_settings_error)?;
+    emit(&app, LIMITS_CONNECTION_CHANGED, &c);
+    Ok(c)
 }
 
 #[tauri::command]
@@ -309,6 +359,8 @@ mod tests {
             autostart: None,
             update_check: None,
             keep_open: None,
+            notify_limits: None,
+            notify_level_ups: None,
             claude_folder: None,
         };
         let (before, after) = apply_update(&s, &patch, |_| Ok(())).unwrap();

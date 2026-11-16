@@ -316,7 +316,7 @@ const booGame: GameState = {
   achievements: achievements.map((a) => (a.id === "boo" ? { ...a, unlockedAt: NOW - 3 * HOUR } : a)),
 };
 
-const maxSettings: Settings = { mode: "max", sound: true, autostart: false, updateCheck: true, keepOpen: false };
+const maxSettings: Settings = { mode: "max", sound: true, autostart: false, updateCheck: true, keepOpen: false, notifyLimits: true, notifyLevelUps: true };
 
 const buildScenarios = () => ({
   max: {
