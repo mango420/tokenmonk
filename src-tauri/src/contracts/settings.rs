@@ -2,10 +2,10 @@
 
 use serde::{Deserialize, Deserializer, Serialize};
 
-/// The play mode chosen in onboarding ("How do you want to vibe?").
+/// The play mode.
 ///
-/// `NoneYet` means onboarding has not been completed; the UI shows the
-/// onboarding question instead of the dashboard.
+/// `NoneYet` means onboarding has not been completed. Since TKM-287 Max is
+/// the only mode: `Diy` is removed (see the variant).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Mode {
@@ -14,7 +14,10 @@ pub enum Mode {
     NoneYet,
     /// `"max"`: Max it out (saffron). Use every last token.
     Max,
-    /// `"diy"`: Do it yourself (jade). Give the AI as little as possible.
+    /// `"diy"`: Do it yourself. Removed by TKM-287: kept only until
+    /// TKM-301/302/306/307 stop using it (cleanup in TKM-300). Stored `diy`
+    /// is migrated to `max` silently (TKM-301); XP and levels stay. Never
+    /// produce it in new code.
     Diy,
 }
 
@@ -24,7 +27,8 @@ pub enum Mode {
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub mode: Mode,
-    /// Play a sound on achievement unlocks and level-ups.
+    /// Play the in-app tone on achievement unlocks and level-ups. Does not
+    /// apply to system notifications; they use the OS sound.
     pub sound: bool,
     /// Start Tokenmonk at login.
     pub autostart: bool,
@@ -36,6 +40,15 @@ pub struct Settings {
     /// stored settings, so it defaults on deserialize.
     #[serde(default)]
     pub keep_open: bool,
+    /// "Limits at 10 % left": one system notification per limit window and
+    /// reset cycle when the window drops to 10 % left (docs/ARCHITECTURE.md,
+    /// "Notifications"). Default on; absent on input reads as on.
+    #[serde(default = "default_true")]
+    pub notify_limits: bool,
+    /// "Level-ups": a system notification per live level-up. Default on;
+    /// absent on input reads as on.
+    #[serde(default = "default_true")]
+    pub notify_level_ups: bool,
     /// "Claude folder": the Claude config folder chosen in Settings (the
     /// app appends `projects/` itself). `None` = not set; the folder then
     /// comes from `CLAUDE_CONFIG_DIR` or the default `~/.claude`, see
@@ -54,13 +67,27 @@ impl Default for Settings {
             autostart: false,
             update_check: true,
             keep_open: false,
+            notify_limits: true,
+            notify_level_ups: true,
             claude_folder: None,
         }
     }
 }
 
+fn default_true() -> bool {
+    true
+}
+
 /// Partial update for `update_settings`. Absent fields stay unchanged.
 /// Setting `mode` to `noneYet` is rejected with `invalidArgument`.
+///
+/// `mode`: removed by TKM-287 (no mode picker); kept until TKM-307 stops
+/// using it (cleanup in TKM-300).
+///
+/// `notifyLimits` and `notifyLevelUps` (`Option<bool>`, matching the two
+/// `Settings` fields) are added in the TKM-300 cleanup: a test in `db`
+/// builds this struct with every field listed, so a new field would break
+/// it until TKM-301 rewrites that test.
 ///
 /// `claude_folder` is a double option: `None` (key absent) = unchanged,
 /// `Some(None)` (JSON `null`) = reset to default, `Some(Some(path))` = set.

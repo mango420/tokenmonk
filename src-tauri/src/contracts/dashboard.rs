@@ -1,4 +1,9 @@
-//! The popup's data: token totals, session, burn rate, limits, daily budget.
+//! The popup's data: token totals, session, burn rate and limits.
+//!
+//! Removed by TKM-287 (no estimates anywhere): [`DailyBudget`],
+//! [`BudgetBasis`], `DashboardSnapshot::daily_budget` and
+//! `BurnRate::limit_eta_minutes`. They stay only until TKM-301, TKM-304 and
+//! TKM-306 stop using them (cleanup in TKM-300); never read them in new code.
 //!
 //! Definitions (see docs/ARCHITECTURE.md, "Aggregates"):
 //! * "Today" is the current local calendar day.
@@ -41,8 +46,7 @@ pub struct SessionStats {
     pub tokens: TokenBreakdown,
 }
 
-/// Recent token burn and, if limits are known, the projected time to the
-/// 5-hour limit.
+/// Recent token burn.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BurnRate {
@@ -53,10 +57,15 @@ pub struct BurnRate {
     /// Minutes until the 5-hour limit is reached at the current pace.
     /// `None` when limits are unavailable or nothing is burning.
     /// `Some(0)` when the limit is already reached.
+    ///
+    /// Removed by TKM-287 (no ETA): kept until TKM-301, TKM-304 and TKM-306
+    /// stop using it (cleanup in TKM-300).
     pub limit_eta_minutes: Option<u32>,
 }
 
 /// What the daily budget is measured in.
+///
+/// Removed by TKM-287: kept until TKM-301 stops using it (cleanup in TKM-300).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum BudgetBasis {
@@ -68,6 +77,9 @@ pub enum BudgetBasis {
 }
 
 /// How much may be used per day until the weekly reset.
+///
+/// Removed by TKM-287 (no budget): kept until TKM-301, TKM-302 and TKM-306
+/// stop using it (cleanup in TKM-300).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DailyBudget {
@@ -129,6 +141,9 @@ pub struct DashboardSnapshot {
     pub burn_rate: BurnRate,
     pub limits: LimitsView,
     /// `None` when neither limits nor enough token history exist.
+    ///
+    /// Removed by TKM-287: kept until TKM-301 and TKM-306 stop using it
+    /// (cleanup in TKM-300).
     pub daily_budget: Option<DailyBudget>,
     pub data: DataStatus,
 }

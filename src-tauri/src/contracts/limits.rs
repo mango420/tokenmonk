@@ -6,6 +6,10 @@
 //! written by the status-line bridge (docs/ARCHITECTURE.md, "Limits").
 //! Without a working source the app runs on token data alone and says so
 //! ([`LimitStatus::Unavailable`]).
+//!
+//! [`LimitsConnection`] is the one-click setup (TKM-287): whether Claude
+//! Code's `statusLine` runs the bridge (docs/ARCHITECTURE.md, "Connect
+//! limits").
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -80,8 +84,9 @@ pub struct LimitsView {
     pub fetched_at: Option<EpochMs>,
 }
 
-/// Returned by `get_limit_setup`: what the Settings view needs to show the
-/// status-line setup snippet. Tokenmonk never edits Claude Code settings.
+/// Returned by `get_limit_setup`: the bridge command and the state of the
+/// bridge file. Since TKM-287 the setup itself is one click
+/// ([`LimitsConnection`]); this stays for the bridge file check.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LimitSetup {
@@ -89,6 +94,10 @@ pub struct LimitSetup {
     /// `settings.json`: this executable's path plus the bridge flag, for
     /// example `"/Applications/Tokenmonk.app/Contents/MacOS/tokenmonk --statusline"`.
     /// `None` if the executable path cannot be determined.
+    ///
+    /// Removed by TKM-287 (the paste-only setup gives way to one-click
+    /// connect): kept until TKM-307 stops showing the snippet (cleanup in
+    /// TKM-300).
     pub statusline_command: Option<String>,
     /// State of the bridge file `statusline.json`, read when the command
     /// runs. Lets Settings tell "never arrived" from "arrived, no current
@@ -113,6 +122,58 @@ pub struct StatuslineFileInfo {
     /// but the file exists (something arrived, but it cannot be read).
     /// `None` if the file is missing or the OS does not report it.
     pub modified_at: Option<EpochMs>,
+}
+
+/// Whether Claude Code's status line runs the Tokenmonk bridge, read from
+/// `settings.json` in the effective Claude folder.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum LimitsConnectionState {
+    /// `"notConnected"`: no Tokenmonk entry in `statusLine` (or no
+    /// `settings.json` yet). Settings offers "Connect limits".
+    NotConnected,
+    /// `"connected"`: `statusLine` runs the bridge, alone or wrapping the
+    /// previous status line. Settings offers "Disconnect".
+    Connected,
+    /// `"blocked"`: the file cannot be used, see `problem`. Connect and
+    /// disconnect would fail; nothing is touched.
+    Blocked,
+}
+
+/// Why a [`LimitsConnection`] is `blocked`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum LimitsConnectionProblem {
+    /// `"noClaudeFolder"`: the effective Claude folder is unknown or does
+    /// not exist. Tokenmonk never creates it.
+    NoClaudeFolder,
+    /// `"settingsUnreadable"`: `settings.json` exists but cannot be read.
+    SettingsUnreadable,
+    /// `"settingsInvalid"`: `settings.json` is not a JSON object, or its
+    /// `statusLine` is present but not an object. Tokenmonk never rewrites
+    /// a file it cannot parse.
+    SettingsInvalid,
+}
+
+/// Returned by `get_limits_connection`, `connect_limits` and
+/// `disconnect_limits`, and pushed with `limits-connection-changed`.
+/// Read fresh from `settings.json` on every call; nothing is cached.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LimitsConnection {
+    pub state: LimitsConnectionState,
+    /// Absolute path of `settings.json` in the effective Claude folder, for
+    /// display. `None` only when the Claude folder is unknown.
+    pub settings_path: Option<String>,
+    /// A status line other than Tokenmonk's is set up. `connected`: it is
+    /// wrapped and runs after the bridge with its output unchanged.
+    /// `notConnected`: "Connect limits" will wrap it. Always `false` while
+    /// `blocked`.
+    pub previous_status_line: bool,
+    /// Set exactly when `state` is `blocked`.
+    pub problem: Option<LimitsConnectionProblem>,
+    /// Short technical detail for logs, never shown as headline.
+    pub detail: Option<String>,
 }
 
 /// Error returned by a [`LimitSource`].

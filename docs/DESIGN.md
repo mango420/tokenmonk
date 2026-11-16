@@ -68,6 +68,14 @@ output unchanged. "Disconnect" restores the previous entry.
 **Wording**: "Limits" everywhere in the popup, Settings, tray and
 notifications. "Status line" only where the setup is explained.
 
+**Fed by** (contract TKM-300; rules in ARCHITECTURE.md, Limits, "Connect
+limits" and "Notifications"): `LimitsConnection` (`get_limits_connection`,
+`connect_limits`, `disconnect_limits`, `limits-connection-changed`) for
+the Limits row and the popup's calm line, together with
+`DashboardSnapshot.limits`; `Settings.notifyLimits` and
+`Settings.notifyLevelUps` for the two notification switches. Accent token:
+`--saffron` via `--accent`; `--jade` and `data-mode="diy"` are removed.
+
 Out of scope: usage per project or model, history, API cost, any
 estimated budget or forecast.
 
@@ -198,12 +206,9 @@ dependency.
 - Week reset: English short weekday of the local reset time ("resets
   Thu"); under 24 h away the duration as above ("resets in 5h 12m",
   derived).
-- Estimates carry `~` directly before the number, no space ("~84.2k",
-  "~25 min"); the `~` uses the number's own style. Removed by TKM-287:
-  no estimates anywhere.
-- Limit ETA: `burnRate.limitEtaMinutes` rounded to 5, at least 5, as
-  "~N min" (same rule as the OS notification, "While hidden"). Removed by
-  TKM-287.
+- Estimates carry `~` directly before the number, no space ("~84.2k");
+  the `~` uses the number's own style. Removed by TKM-287: no estimates
+  anywhere.
 - XP: full numbers with thousands commas ("1,240 / 1,880 XP").
 
 ## Spacing, radius, motion
@@ -311,16 +316,16 @@ Removed by TKM-287 (see "Product line"; kept below as design history
 until the follow-up issues land):
 
 - Dashboard: the mode dot and mode name in the top row, the Do it
-  yourself status column, the budget in the meta row, the limit ETA
-  ("Limit in ~25 min"), and the "No limit data, with a token budget"
+  yourself status column, the budget in the meta row, and the "No limit
+  data, with a token budget"
   state. The 5-hour gauge as the single hero gives way to both windows at
   equal size; layout by the TKM-288 mockup.
 - Onboarding: the mode choice.
 - Settings: the "Mode" radio group; the "Limit data" paste-only setup
   gives way to one-click connect. Sound and "Keep popup open" stay.
 - Achievements: the other-mode hint.
-- Notifications: the 90 % and 100 % warnings, the budget warning and the
-  ETA body give way to one warning at 10 % left per window; level-ups get
+- Notifications: the 90 % and 100 % warnings and the budget warning give
+  way to one warning at 10 % left per window; level-ups get
   a system notification.
 - Level-up screen: the Do it yourself mode line.
 
@@ -401,16 +406,7 @@ inside a block is given per block. Top to bottom:
 5. **Meta row** (meta style: mono 11.5, `ink-2`, `tabular-nums`; 1 px
    `line` on top, padding top 12, space-between, one line):
    - Left: "resets in 2h 14m" from `fiveHour.resetsAt`; empty when it is
-     `null`. With a limit ETA it reads "Limit in ~25 min" instead.
-     - **Limit ETA** (TKM-228). Shown only if all hold:
-       `limits.status = ok`, `limits.fiveHour` is set,
-       `burnRate.limitEtaMinutes` is at least 1, and either
-       `fiveHour.resetsAt` is `null` or the rounded N shown in the text
-       (see "Number formats") is less than the whole minutes until
-       `resetsAt`, as also shown in "resets in" (otherwise the window
-       resets first and the ETA means nothing; 118 min with the reset in
-       1h 59m rounds to ~120 and is hidden). `limitEtaMinutes = 0` shows
-       no ETA (the beads already say 0 %). Never while stale.
+     `null`.
    - Right: "1.2k tokens/min" (`burnRate.tokensPerMinute`, compact). In
      Do it yourself with a `dailyBudget` the budget replaces it:
      `weeklyLimit` basis "~84.2k left today" (`tokensLeftPerDay`,
@@ -866,19 +862,18 @@ the tone is not doubled.
 | Notification | When | Title | Body |
 |---|---|---|---|
 | Unlock | `achievement-unlocked`, not retroactive | "Night Owl unlocked, +50 XP" | detail, else description |
-| Max it out, 90 % | `limits.fiveHour.utilization` crosses 90 | "5h limit at 90 %" | "Limit in ~25 min at this pace." |
+| Max it out, 90 % | `limits.fiveHour.utilization` crosses 90 | "5h limit at 90 %" | none |
 | Max it out, 100 % | crosses 100 | "5h limit at 100 %" | "Limit reached. Breathe." |
 | Do it yourself, over budget | `dailyBudget.usedPercent` crosses 100 | "Today’s budget at 100 %" | "Over budget. The AI wins today." |
 
 Each limit warning fires once per upward crossing: once per 5-hour window
 (`fiveHour.resetsAt`) and once per day for the budget. None while
 `limits.status` is not `ok` (Max it out), none for stale values, none while
-`fiveHour = null`. The 90 % body uses `burnRate.limitEtaMinutes` (N rounded
-to 5, at least 5); without an ETA the body is omitted. Level-ups get no OS
-notification; the level-up screen waits for the next open.
+`fiveHour = null`. Level-ups get no OS notification; the level-up screen
+waits for the next open.
 
-Removed by TKM-287: the 90 % and 100 % warnings, the budget warning and the
-ETA body; one warning at 10 % left per window and reset cycle instead.
+Removed by TKM-287: the 90 % and 100 % warnings and the budget warning;
+one warning at 10 % left per window and reset cycle instead.
 Level-ups get a system notification, with a toggle ("Product line").
 
 Fed by: `AchievementUnlocked`, `GameState.achievements`, `Settings.sound`;

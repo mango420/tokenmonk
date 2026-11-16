@@ -35,8 +35,8 @@ CREATE TABLE messages (
 CREATE INDEX messages_ts ON messages (ts);
 CREATE INDEX messages_session_ts ON messages (session_id, ts);
 
--- Every good limit reading, for staleness, burn projection and the daily
--- budget baseline. Percentages are 0..100 (may exceed 100).
+-- Every good limit reading, for staleness and the latest values.
+-- Percentages are 0..100 (may exceed 100).
 CREATE TABLE limit_snapshots (
     id                  INTEGER PRIMARY KEY,
     fetched_at          INTEGER NOT NULL,
@@ -49,10 +49,10 @@ CREATE TABLE limit_snapshots (
 
 CREATE INDEX limit_snapshots_fetched_at ON limit_snapshots (fetched_at);
 
--- User settings as key/value; keys: mode, sound, autostart.
+-- User settings as key/value; keys: see docs/ARCHITECTURE.md, "Storage".
 CREATE TABLE settings (
     key   TEXT PRIMARY KEY,
-    value TEXT NOT NULL                        -- JSON, e.g. "\"diy\"" or "true"
+    value TEXT NOT NULL                        -- JSON, e.g. "\"max\"" or "true"
 );
 
 -- XP ledger. Level and progress are derived from SUM(amount).
@@ -60,7 +60,7 @@ CREATE TABLE settings (
 CREATE TABLE xp_events (
     id          INTEGER PRIMARY KEY,
     earned_at   INTEGER NOT NULL,
-    mode        TEXT    NOT NULL,              -- 'max' | 'diy'
+    mode        TEXT    NOT NULL,              -- 'max' (older rows may hold 'diy')
     kind        TEXT    NOT NULL,              -- defined by the game module
     ref         TEXT    NOT NULL,
     amount      INTEGER NOT NULL,
