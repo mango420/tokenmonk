@@ -43,6 +43,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::get_dashboard,
             commands::get_settings,
+            commands::get_claude_folder,
             commands::update_settings,
             commands::complete_onboarding,
             commands::get_game_state,
