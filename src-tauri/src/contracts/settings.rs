@@ -4,25 +4,26 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 /// The play mode.
 ///
-/// `NoneYet` means onboarding has not been completed. Since TKM-287 Max is
-/// the only mode: `Diy` is removed (see the variant).
+/// Max is the only mode (docs/DESIGN.md, "Product line"). `Diy` survives
+/// only as a legacy value for history: see the variant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Mode {
-    /// `"noneYet"`: onboarding pending.
+    /// `"noneYet"`: no mode stored yet (the default of a fresh install).
+    /// The game awards nothing in this state.
     #[default]
     NoneYet,
     /// `"max"`: Max it out (saffron). Use every last token.
     Max,
-    /// `"diy"`: Do it yourself. Removed by TKM-287: kept only until
-    /// TKM-301/302/306/307 stop using it (cleanup in TKM-300). Stored `diy`
-    /// is migrated to `max` silently (TKM-301); XP and levels stay. Never
-    /// produce it in new code.
+    /// `"diy"`: the retired Do it yourself mode. Legacy only: it labels old
+    /// XP ledger rows (`xp_events.mode`), which the game counts like any
+    /// other row. A stored `diy` setting reads as `max` (docs/ARCHITECTURE.md,
+    /// "Storage"). Never produced for settings, the game state or new XP.
     Diy,
 }
 
-/// Persisted user settings. Returned by `get_settings`, `update_settings`,
-/// `complete_onboarding` and the `settings-changed` event.
+/// Persisted user settings. Returned by `get_settings`, `update_settings`
+/// and the `settings-changed` event.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
@@ -78,11 +79,8 @@ fn default_true() -> bool {
     true
 }
 
-/// Partial update for `update_settings`. Absent fields stay unchanged.
-/// Setting `mode` to `noneYet` is rejected with `invalidArgument`.
-///
-/// `mode`: removed by TKM-287 (no mode picker); kept until TKM-307 stops
-/// using it (cleanup in TKM-300).
+/// Partial update for `update_settings`. Absent fields stay unchanged. The
+/// mode is not part of the patch: there is nothing to pick.
 ///
 /// `notify_limits` / `notify_level_ups` (`"notifyLimits"` /
 /// `"notifyLevelUps"`) toggle the two notification settings.
@@ -94,8 +92,6 @@ fn default_true() -> bool {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct SettingsPatch {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mode: Option<Mode>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sound: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]

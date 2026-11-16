@@ -1,9 +1,6 @@
-//! The popup's data: token totals, session, burn rate and limits.
-//!
-//! Removed by TKM-287 (no estimates anywhere): [`DailyBudget`],
-//! [`BudgetBasis`], `DashboardSnapshot::daily_budget` and
-//! `BurnRate::limit_eta_minutes`. They stay only until TKM-301, TKM-304 and
-//! TKM-306 stop using them (cleanup in TKM-300); never read them in new code.
+//! The popup's data: token totals, session, burn rate and limits. No
+//! estimates: no budget, no forecast, no ETA (docs/DESIGN.md, "Product
+//! line").
 //!
 //! Definitions (see docs/ARCHITECTURE.md, "Aggregates"):
 //! * "Today" is the current local calendar day.
@@ -54,55 +51,6 @@ pub struct BurnRate {
     pub tokens_per_minute: f64,
     /// Length of the trailing window in minutes.
     pub window_minutes: u32,
-    /// Minutes until the 5-hour limit is reached at the current pace.
-    /// `None` when limits are unavailable or nothing is burning.
-    /// `Some(0)` when the limit is already reached.
-    ///
-    /// Removed by TKM-287 (no ETA): kept until TKM-301, TKM-304 and TKM-306
-    /// stop using it (cleanup in TKM-300).
-    pub limit_eta_minutes: Option<u32>,
-}
-
-/// What the daily budget is measured in.
-///
-/// Removed by TKM-287: kept until TKM-301 stops using it (cleanup in TKM-300).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum BudgetBasis {
-    /// `"weeklyLimit"`: percentage points of the weekly limit.
-    WeeklyLimit,
-    /// `"tokenHistory"`: headline tokens, derived from past days because no
-    /// limit data is available.
-    TokenHistory,
-}
-
-/// How much may be used per day until the weekly reset.
-///
-/// Removed by TKM-287 (no budget): kept until TKM-301, TKM-302 and TKM-306
-/// stop using it (cleanup in TKM-300).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DailyBudget {
-    pub basis: BudgetBasis,
-    /// Today's allowance in the unit of `basis`.
-    pub allowance: f64,
-    /// Used today in the unit of `basis`.
-    pub used_today: f64,
-    /// `used_today / allowance * 100`; may exceed 100 (over budget).
-    pub used_percent: f64,
-    /// Days until the weekly reset, today included (at least 1).
-    pub days_left: u32,
-    /// Weekly reset, if known.
-    pub resets_at: Option<EpochMs>,
-    /// Headline tokens that may still be used per day, today included, until
-    /// the weekly reset. An estimate: the weekly limit also counts claude.ai
-    /// chats. Only with the `weeklyLimit` basis: headline tokens since the
-    /// weekly window start (`resets_at` minus 7 days) divided by the current
-    /// weekly utilization give tokens per percent point; the value is
-    /// `(100 - utilization) / days_left` times that, at least 0. `None` with
-    /// the `tokenHistory` basis, at 0 % weekly utilization or without tokens
-    /// in the window. Serialized as `tokensLeftPerDay`, `null` never omitted.
-    pub tokens_left_per_day: Option<f64>,
 }
 
 /// State of the log import.
@@ -140,10 +88,5 @@ pub struct DashboardSnapshot {
     pub session: Option<SessionStats>,
     pub burn_rate: BurnRate,
     pub limits: LimitsView,
-    /// `None` when neither limits nor enough token history exist.
-    ///
-    /// Removed by TKM-287: kept until TKM-301 and TKM-306 stop using it
-    /// (cleanup in TKM-300).
-    pub daily_budget: Option<DailyBudget>,
     pub data: DataStatus,
 }

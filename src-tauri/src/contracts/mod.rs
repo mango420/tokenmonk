@@ -43,17 +43,15 @@ pub mod settings;
 pub mod update;
 
 pub use app::{AppInfo, ClaudeFolder, ClaudeFolderSource, Platform};
-pub use commands::{CommandError, CommandErrorCode, CompleteOnboardingArgs, UpdateSettingsArgs};
+pub use commands::{CommandError, CommandErrorCode, UpdateSettingsArgs};
 pub use dashboard::{
-    BudgetBasis, BurnRate, DailyBudget, DashboardSnapshot, DataState, DataStatus, SessionStats,
-    TokenBreakdown,
+    BurnRate, DashboardSnapshot, DataState, DataStatus, SessionStats, TokenBreakdown,
 };
 pub use events::{NavigateTo, View};
 pub use game::{AchievementId, AchievementProgress, AchievementUnlocked, GameState, LevelUp};
 pub use limits::{
-    LimitError, LimitReading, LimitReason, LimitSetup, LimitSource, LimitStatus, LimitWindow,
-    LimitsConnection, LimitsConnectionProblem, LimitsConnectionState, LimitsView,
-    StatuslineFileInfo,
+    LimitError, LimitReading, LimitReason, LimitSource, LimitStatus, LimitWindow, LimitsConnection,
+    LimitsConnectionProblem, LimitsConnectionState, LimitsView,
 };
 pub use settings::{Mode, Settings, SettingsPatch};
 pub use update::UpdateStatus;

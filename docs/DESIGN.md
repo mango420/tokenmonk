@@ -74,7 +74,7 @@ limits" and "Notifications"): `LimitsConnection` (`get_limits_connection`,
 the Limits row and the popup's calm line, together with
 `DashboardSnapshot.limits`; `Settings.notifyLimits` and
 `Settings.notifyLevelUps` for the two notification switches. Accent token:
-`--saffron` via `--accent`; `--jade` and `data-mode="diy"` are removed.
+`--saffron` via `--accent`; there is no `--jade` and no `data-mode`.
 
 Out of scope: usage per project or model, history, API cost, any
 estimated budget or forecast.
@@ -106,8 +106,9 @@ even with 1 % left.
 Removed by TKM-287: Max is the only mode. "Do it yourself", the mode
 picker, the onboarding mode choice, the daily budget and the jade accent
 go; existing Do it yourself users are switched to Max silently, XP and
-levels stay. The rules below are design history until the follow-up
-issues remove them from the app.
+levels stay. The rules below are design history only: the app, the
+contracts (`Mode` keeps `diy` only for legacy XP rows) and the tokens
+(`--jade`, `data-mode`) no longer have them.
 
 | Mode | Accent | Name | Description |
 |---|---|---|---|
@@ -136,17 +137,15 @@ and previews only).
 | `ink` | #181A1B | #E8E7E0 | Primary text and numbers; toast background; full bead and robe outline |
 | `ink-2` | #5A5E5C | #98A09B | Labels, captions, units, links, secondary numbers |
 | `line` | #BAB9B1 | #363E3A | Hairlines, card outline, gauge track, bar and switch tracks, popup outline |
-| `saffron` | #E39A0B | #E39A0B | Max it out accent, brand |
-| `jade` | #1F8A64 | #2FA57A | Do it yourself accent |
+| `saffron` | #E39A0B | #E39A0B | The only accent, brand |
 | `monk-face` | #F4F3EF | = `ink` | Monk head fill |
 | `monk-line` | = `ink` | = `pop` | Sash, hands, eyes and mouth strokes |
 | `monk-head-stroke` | = `ink` | none | Head outline |
 | `bead-empty-stroke` | #8A8D88 | #7B847F | Empty bead outline |
 | `bead-empty-fill` | = `pop` | = `pop` | Empty bead fill |
 
-- `accent` is `saffron` or `jade` by `data-mode` (saffron before
-  onboarding). Accents never carry text: they fill beads, bars, the robe,
-  the mode dot, switch tracks and accent rules.
+- `accent` is always `saffron`. Accents never carry text: they fill
+  beads, bars, the robe, switch tracks and accent rules.
 - Stale limit values: full beads and the week bar fill take `--accent` at
   `--stale-opacity` (45 %). One opacity token, no extra colour.
 - Contrast (WCAG ratio on `pop`): `ink` 13.6 light / 13.0 dark, `ink-2`
@@ -176,13 +175,11 @@ dependency.
 | hero | mono 500 | 52, -2px, line 1 | Under the gauge: percent left ("73%") |
 | hero-sm | mono 500 | 46, -2px, line 1 | Under the gauge without limit data: tokens today |
 | hero-label | sans 500 | 18 | "of your limit left" / "tokens today", beside the hero on its baseline |
-| onboard-title | sans 500 | 32, -0.025em, line 1.08 | "How do you want to vibe?", "Level 8" (number mono) |
+| onboard-title | sans 500 | 32, -0.025em, line 1.08 | "Level 8" on the level-up screen (number mono) |
 | ach-title | sans 500 | 28, -0.02em | Title on the achievements screen |
 | title | sans 500 | 22, -0.02em | "Settings" |
-| choice-lg | sans 500 | 21, -0.015em | Onboarding choice name |
 | status | sans 500 | 17, -0.01em | Status line under the hero |
 | stat | mono 400 | 26, -0.03em, line 1.2 | Version on About |
-| choice | sans 500 | 15.5 | Settings mode row name |
 | brand | sans 600 | 15, -0.01em | "Tokenmonk" wordmark |
 | row | sans 500 | 15 | Achievement name, About rows |
 | toast-title | sans 500 | 14.5 | Toast name |
@@ -251,8 +248,7 @@ event, whether the popup is open or hidden.
 ## Icon system
 
 One monk everywhere: closed smiling eyes, a sash across the robe, hands
-resting at the hem. Besides the monk, the only icon in the app is the 8 px
-mode dot (see "Shared parts").
+resting at the hem. The monk is the only icon in the app.
 
 ### The monk drawing
 
@@ -279,7 +275,7 @@ face stay dark on the saffron robe and the light dark-theme head.
 | Role | Source | Colour | Where | Size |
 |---|---|---|---|---|
 | A. App icon | `tokenmonk-icon.svg`, `tokenmonk-icon-windows.svg` | Fixed in the files: dark tile, saffron robe | Only where the OS shows the app: taskbar, dock, Start menu, installer, notifications, the generated icon set. Never inside the popup. | Platform sizes from `node scripts/icons.mjs` |
-| B. Popup monk | The parts table above, drawn inline | Tokens: follows theme and mode | Inside the bead gauge (dashboard, level-up), onboarding rows, About | Gauge 240 / 220 (week-low) / 200 px (same coordinates); 52 px (`--mark-lg-size`) cropped to the standalone viewBox |
+| B. Popup monk | The parts table above, drawn inline | Tokens: follows theme | Inside the bead gauge (dashboard, level-up), About | Gauge 240 / 220 (week-low) / 200 px (same coordinates); 52 px (`--mark-lg-size`) cropped to the standalone viewBox |
 | C. Tray monk | Rendered in Rust from robe and head | Robe `--accent`, head `--tray-track` | Inside the tray beads | 11.5 x 13 units in a 32-unit box |
 | Brand files | `tokenmonk-monk-light.svg`, `tokenmonk-monk-dark.svg`, `tokenmonk-monk-mark.svg` | Fixed in the files | README, docs, release pages | Any |
 
@@ -299,8 +295,7 @@ Files in `assets/brand/`, all with `viewBox="76 76 128 146"`:
 - **A. App icon**: the new monk on the dark ink tile. Details in "App
   icon".
 - **B. Popup monk**: the parts above with token colours, no tile and no
-  background. Where a row sets its own accent (the onboarding choice
-  rows), the robe takes that accent.
+  background.
 - **C. Tray monk**: robe and head only; sash, hands and face are below
   pixel size there (derived). Details in "Tray icon".
 
@@ -310,10 +305,11 @@ The popup is 360 x 680 px, radius 18, background `pop`, `shadow-popup`,
 overflow hidden. Each screen is a column with `--popup-padding` 20 on all
 four sides. Actions are text links (`ink-2`, hover `ink`, padding 6 px
 vertical), full-width rows or a card (one style, see "Spacing, radius,
-motion"). The only icons are the monk and the mode dot.
+motion"). The only icon is the monk.
 
-Removed by TKM-287 (see "Product line"; kept below as design history
-until the follow-up issues land):
+Removed by TKM-287 (see "Product line"). Where the sections below still
+describe these parts, that text is design history; the app no longer has
+them:
 
 - Dashboard: the mode dot and mode name in the top row, the Do it
   yourself status column, the budget in the meta row, and the "No limit
@@ -333,16 +329,11 @@ until the follow-up issues land):
 
 - **Top row**: min height 32, items centred, space-between. On sub-screens
   the top row holds only the text link "Back" (Esc does the same). The
-  dashboard and onboarding versions are described with their screens.
-- **Mode dot**: 8 px circle (`--mode-dot-size`), fill `--accent`, gap 6
-  (`--gap-6`, derived) before the mode name. Only next to a mode name:
-  the dashboard top row and the settings mode rows (there it takes the
-  row's own mode accent).
+  dashboard version is described with its screen.
 - **Monk**: role B in "Icon system", the only figure in the popup. Inside
   the bead gauge on the dashboard (240 px; 220 px in the week-low state)
   and the level-up screen
-  (200 px); alone at 52 px (`--mark-lg-size`) in the onboarding rows and
-  on About. The app icon tile never appears in the popup.
+  (200 px); alone at 52 px (`--mark-lg-size`) on About. The app icon tile never appears in the popup.
 - **Bead gauge**: `--gauge-size` 240 px (level-up `--gauge-size-lg`
   200 px; dashboard in the week-low state `--gauge-size-week-low` 220 px,
   TKM-282), `viewBox="0 0 280 280"` (`--gauge-viewbox`), centred. Only the
@@ -507,7 +498,7 @@ Version numbers come from `UpdateStatus.version` ("0.4.1" is a sample).
   `today.total` (compact) and hero-label "tokens today"; status line
   "Fresh window. Numbers on your next reply." (derived); meta row left
   empty. The week block shows as usual.
-- **No limit data, with a token budget** (`limits.status = unavailable`
+- Removed by TKM-287 (design history; the app, the contracts and the tokens no longer have it): **No limit data, with a token budget** (`limits.status = unavailable`
   and `dailyBudget.basis = tokenHistory`; only Do it yourself gets this
   basis; derived, TKM-228):
   - Caption: "Your token budget, today" (derived).
@@ -540,6 +531,9 @@ All numbers and copy in examples are samples; real values come from
 `DashboardSnapshot` and `GameState`.
 
 ### Onboarding
+
+Removed by TKM-287 (design history; the app, the contracts and the tokens no longer have it): there is no onboarding view, no `View` `onboarding` and no
+`complete_onboarding`.
 
 Shown while `Settings.mode = noneYet` (`View = onboarding`); the popup
 opens by itself on every start while it is pending. Accent: saffron.
@@ -635,15 +629,18 @@ Padding 20 on all sides like every screen; no cards.
 Every change applies at once through `update_settings { patch }`, no save
 button. While a call runs the control stays in its new position; on
 `CommandError` it flips back and the note "Couldn’t save that. Try
-again." appears under the section (derived). Switching mode changes the
-accent after `settings-changed`.
+again." appears under the section (derived).
 
 Fed by: `Settings`, `update_settings`, `settings-changed`,
-`AppInfo.version`, `NavigateTo`, `LimitSetup`, `DashboardSnapshot.limits`,
+`AppInfo.version`, `NavigateTo`, `LimitsConnection`, `DashboardSnapshot.limits`,
 `UpdateStatus` (`get_update_status`, `update-status-changed`),
 `check_for_updates`, `install_update`.
 
 #### Limit data
+
+Removed by TKM-287 (design history; the app, the contracts and the tokens no longer have it): the paste-only setup below gave way to one-click "Connect limits"
+("Product line"; ARCHITECTURE.md, "Connect limits"). `LimitSetup`,
+`StatuslineFileInfo` and `get_limit_setup` are gone.
 
 Derived from the settings rows; same tokens. Tokenmonk never edits Claude
 Code settings; this section only shows what to paste.
@@ -807,7 +804,7 @@ sides; rows, no cards.
    space-between, gap 12. Left: name (row style) over description
    (caption). Right: "Unlocked" or "Locked" (small, no wrap, padding top
    3). Locked rows show name and description at 50 % opacity.
-7. Other-mode hint: a locked row whose achievement only counts in the
+7. Removed by TKM-287 (design history; the app, the contracts and the tokens no longer have it): other-mode hint: a locked row whose achievement only counts in the
    other mode (`AchievementProgress.mode` is set and differs from
    `GameState.mode`) gets one more line under the description: "Max it
    out only. Not on this mode's menu." or "Do it yourself only. Not on
@@ -815,7 +812,7 @@ sides; rows, no cards.
    margin top 2, full opacity (not dimmed with the row), may wrap. The
    right side still reads "Locked". No accent colour, no icon.
 
-Other-mode hint rules: no hint on unlocked rows (earned is earned, the XP
+Other-mode hint rules (design history, as item 7): no hint on unlocked rows (earned is earned, the XP
 stays in the one pool), none for achievements with `mode = null`, none
 while `GameState.mode` is `noneYet`. The hint follows `game-updated`, so
 a mode switch in Settings updates it. It does not change the heading
@@ -877,7 +874,8 @@ one warning at 10 % left per window and reset cycle instead.
 Level-ups get a system notification, with a toggle ("Product line").
 
 Fed by: `AchievementUnlocked`, `GameState.achievements`, `Settings.sound`;
-limit warnings from `DashboardSnapshot.limits`, `burnRate`, `dailyBudget`.
+the limit notification from `DashboardSnapshot.limits` and
+`Settings.notifyLimits` (ARCHITECTURE.md, "Notifications").
 
 ### Level-up screen
 
@@ -940,9 +938,7 @@ opacities. A 32 x 32 unit box (`viewBox="0 0 32 32"`):
   (`--tray-head-opacity-template`). The no-data fade (0.45) applies to the
   monk here too.
 
-Value: 5-hour percent left in both modes. Before onboarding the accent is
-saffron. TKM-287: the beads always follow the 5-hour window; with one
-mode the accent is always saffron. The tray icon is not the app icon (role C in "Icon system"): it
+Value: 5-hour percent left. The accent is always saffron. The tray icon is not the app icon (role C in "Icon system"): it
 is drawn from the monk paths, not from the app icon files.
 
 ## Tray menu
@@ -1012,15 +1008,12 @@ Open points from the product line (TKM-287):
 
 Open points:
 
-- Copy links in "Limit data" use the web Clipboard API
+- (Design history, the paste-only setup is gone.) Copy links in "Limit data" use the web Clipboard API
   (`navigator.clipboard.writeText`). Verified manually on Windows (WebView2,
   installed release build): the snippet lands on the clipboard. macOS
   (WKWebView) is still unverified. If `writeText` rejects there, the
   fallback applies: the caption "Couldn’t copy. Select it and copy by hand."
   shows and the snippet text is selected.
-- The other-mode hint on the Achievements screen is not in the prototype
-  (it lists all achievements regardless of mode); decided in TKM-126
-  using existing styles only.
 - Update UI (update line, Settings update row and switch) is not in the
   prototype; it is derived from the TKM-41 decisions using existing
   styles only. Download progress (TKM-212) is text in the same line, no
@@ -1032,8 +1025,9 @@ marked "derived" above and stands until the maintainer decides otherwise:
 - Text styles and spacing inside the week block ("This week" caption,
   figure in meta style, margins 8), the week-low card padding (12, as the
   level card) and the week reset copy under 24 h.
-- Dashboard without limit data: captions, beads on the token budget,
-  "average day" and "as of 14:05" in the meta row.
+- Dashboard without limit data: captions and "as of 14:05" in the meta
+  row (the token budget beads and "average day" are gone with the
+  budget).
 - Monk strokes: widths of sash, hands, eyes and mouth (1.5) and the
   colour of the hands (`--monk-line`).
 - Height: the week-low state drops the extra card line and renders the

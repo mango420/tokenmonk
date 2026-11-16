@@ -96,7 +96,7 @@ function placeholders(): AppData {
       generatedAt: Date.now(),
       today: EMPTY_TOKENS,
       session: null,
-      burnRate: { tokensPerMinute: 0, windowMinutes: 15, limitEtaMinutes: null },
+      burnRate: { tokensPerMinute: 0, windowMinutes: 15 },
       limits: {
         status: "unavailable",
         reason: "noSource",
@@ -106,7 +106,6 @@ function placeholders(): AppData {
         weekly: null,
         fetchedAt: null,
       },
-      dailyBudget: null,
       data: { state: "noLogs", filesTotal: 0, filesDone: 0, lastMessageAt: null, detail: null },
     },
     game: {
@@ -117,7 +116,6 @@ function placeholders(): AppData {
       xpIntoLevel: 0,
       xpForLevel: 1,
       progress: 0,
-      dailyXpPreview: null,
       recentUnlocks: [],
       achievements: [],
       retroDone: true,
@@ -262,7 +260,7 @@ function useMockAppData(scenario: MockScenarioId): AppState {
   }, [scenario]);
 
   const updateSettings = useCallback(async (patch: SettingsPatch) => {
-    setSettings((s) => ({ ...s, ...patch, mode: patch.mode ?? s.mode }));
+    setSettings((s) => ({ ...s, ...patch }));
     return true;
   }, []);
 

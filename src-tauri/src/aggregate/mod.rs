@@ -5,7 +5,6 @@
 //! time zone, storage is UTC epoch ms. The window lengths and thresholds
 //! below are the only place these numbers live.
 
-mod budget;
 mod limit_state;
 mod timeutil;
 
@@ -18,8 +17,7 @@ use crate::contracts::settings::Mode;
 use crate::contracts::EpochMs;
 use crate::db::{Db, DbResult, TokenTotals};
 
-pub use budget::{days_left, history_budget, weekly_budget};
-pub use limit_state::{limit_eta_minutes, LimitState};
+pub use limit_state::LimitState;
 pub use timeutil::{add_days, day_start, local_date};
 
 /// A session is current while its newest message is younger than this.
@@ -28,12 +26,6 @@ pub const SESSION_IDLE_MS: i64 = 60 * 60_000;
 pub const BURN_WINDOW_MINUTES: u32 = 15;
 /// A limit reading older than this is `stale`.
 pub const LIMIT_STALE_MS: i64 = 15 * 60_000;
-/// Length of the 5-hour limit window.
-pub const FIVE_HOUR_MS: i64 = 5 * 60 * 60_000;
-/// Length of the weekly limit window.
-pub const WEEK_MS: i64 = 7 * 24 * 60 * 60_000;
-/// Previous local days that feed the token-history budget.
-pub const HISTORY_DAYS: i64 = 7;
 
 fn breakdown(t: &TokenTotals) -> TokenBreakdown {
     TokenBreakdown {
@@ -102,19 +94,6 @@ pub fn snapshot<Tz: TimeZone>(
 
     let view = limits.view(now);
 
-    let eta = match view.five_hour.as_ref() {
-        Some(w) if w.utilization >= 100.0 => limit_eta_minutes(w, now, tokens_per_minute, 0),
-        Some(w) => match w.resets_at {
-            Some(resets_at) => {
-                let start = resets_at.saturating_sub(FIVE_HOUR_MS);
-                let in_window = db.tokens_between(start, now.saturating_add(1))?.headline();
-                limit_eta_minutes(w, now, tokens_per_minute, in_window)
-            }
-            None => None,
-        },
-        None => None,
-    };
-
     data.last_message_at = db.latest_message()?.map(|m| m.ts);
 
     Ok(DashboardSnapshot {
@@ -124,10 +103,8 @@ pub fn snapshot<Tz: TimeZone>(
         burn_rate: BurnRate {
             tokens_per_minute,
             window_minutes: BURN_WINDOW_MINUTES,
-            limit_eta_minutes: eta,
         },
         limits: view,
-        daily_budget: None,
         data,
     })
 }
@@ -143,7 +120,6 @@ mod tests {
 
     const MIN: i64 = 60_000;
     const HOUR: i64 = 60 * MIN;
-    const DAY: i64 = 24 * HOUR;
     // 2026-10-28T00:00:00Z
     const DAY0: i64 = 1_793_145_600_000;
 
@@ -198,9 +174,7 @@ mod tests {
         assert!(s.session.is_none());
         assert_eq!(s.burn_rate.tokens_per_minute, 0.0);
         assert_eq!(s.burn_rate.window_minutes, 15);
-        assert_eq!(s.burn_rate.limit_eta_minutes, None);
         assert_eq!(s.limits.status, LimitStatus::Unavailable);
-        assert!(s.daily_budget.is_none());
         assert_eq!(s.data.last_message_at, None);
     }
 
@@ -304,7 +278,7 @@ mod tests {
     }
 
     #[test]
-    fn eta_from_five_hour_window_tokens() {
+    fn burn_rate_counts_the_trailing_window_only() {
         let mut db = Db::open_in_memory().unwrap();
         let now = DAY0 + 10 * HOUR;
         let window_start = now - 2 * HOUR;
@@ -319,59 +293,15 @@ mod tests {
         let limits = limits_with(LimitReading {
             five_hour: Some(LimitWindow {
                 utilization: 40.0,
-                resets_at: Some(window_start + FIVE_HOUR_MS),
+                resets_at: Some(window_start + 5 * HOUR),
             }),
             weekly: None,
             fetched_at: now - MIN,
         });
         let s = snap(&db, &limits, Mode::Max, now);
-        // burn = 1500/15 = 100 tokens/min; 0.01 %/token -> 1 %/min; 60 % left.
+        // burn = 1500/15 = 100 tokens/min.
         assert!((s.burn_rate.tokens_per_minute - 100.0).abs() < 1e-9);
-        assert_eq!(s.burn_rate.limit_eta_minutes, Some(60));
         assert_eq!(s.limits.status, LimitStatus::Ok);
-    }
-
-    #[test]
-    fn eta_is_none_without_reading_and_zero_at_limit() {
-        let mut db = Db::open_in_memory().unwrap();
-        let now = DAY0 + 10 * HOUR;
-        db.upsert_messages(&[rec("a", "s", now - MIN, 100, 0, 0, 0)])
-            .unwrap();
-        let s = snap(&db, &LimitState::default(), Mode::Max, now);
-        assert_eq!(s.burn_rate.limit_eta_minutes, None);
-        let full = limits_with(LimitReading {
-            five_hour: Some(LimitWindow {
-                utilization: 100.0,
-                resets_at: Some(now + HOUR),
-            }),
-            weekly: None,
-            fetched_at: now,
-        });
-        assert_eq!(
-            snap(&db, &full, Mode::Max, now).burn_rate.limit_eta_minutes,
-            Some(0)
-        );
-    }
-
-    #[test]
-    fn snapshot_carries_no_daily_budget() {
-        let mut db = Db::open_in_memory().unwrap();
-        let now = DAY0 + 12 * HOUR;
-        db.upsert_messages(&[rec("d1", "s", DAY0 - DAY + HOUR, 1000, 0, 0, 0)])
-            .unwrap();
-        let current = LimitReading {
-            five_hour: None,
-            weekly: Some(LimitWindow {
-                utilization: 37.0,
-                resets_at: Some(now + 3 * DAY),
-            }),
-            fetched_at: now - MIN,
-        };
-        let s = snap(&db, &limits_with(current), Mode::Max, now);
-        assert!(s.daily_budget.is_none());
-        assert!(snap(&db, &LimitState::default(), Mode::Max, now)
-            .daily_budget
-            .is_none());
     }
 
     #[test]

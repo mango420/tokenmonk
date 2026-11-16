@@ -3,7 +3,7 @@
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::Value;
 
-use super::{Db, DbError, DbResult};
+use super::{Db, DbResult};
 use crate::contracts::settings::{Mode, Settings, SettingsPatch};
 
 const KEY_MODE: &str = "mode";
@@ -80,14 +80,9 @@ impl Db {
     }
 
     /// Applies the present fields of `patch` in one transaction and returns
-    /// the resulting settings. Validation (for example rejecting
-    /// `mode = noneYet`) is the caller's job.
+    /// the resulting settings. Validation is the caller's job.
     pub fn apply_settings_patch(&self, patch: &SettingsPatch) -> DbResult<Settings> {
         let tx = self.conn().unchecked_transaction()?;
-        if let Some(mode) = patch.mode {
-            let v = serde_json::to_value(mode).map_err(|e| DbError::Invalid(e.to_string()))?;
-            set(&tx, "settings", KEY_MODE, &v)?;
-        }
         if let Some(b) = patch.sound {
             set(&tx, "settings", KEY_SOUND, &Value::Bool(b))?;
         }
@@ -143,7 +138,6 @@ mod tests {
         assert_eq!(db.settings().unwrap(), Settings::default());
         let s = db
             .apply_settings_patch(&SettingsPatch {
-                mode: Some(Mode::Diy),
                 sound: Some(false),
                 autostart: None,
                 update_check: None,
@@ -153,7 +147,7 @@ mod tests {
                 claude_folder: None,
             })
             .unwrap();
-        assert_eq!(s.mode, Mode::Diy);
+        assert_eq!(s.mode, Mode::NoneYet);
         assert!(!s.sound);
         assert!(!s.autostart);
         let s = db
@@ -162,7 +156,7 @@ mod tests {
                 ..SettingsPatch::default()
             })
             .unwrap();
-        assert_eq!((s.mode, s.sound, s.autostart), (Mode::Diy, false, true));
+        assert_eq!((s.mode, s.sound, s.autostart), (Mode::NoneYet, false, true));
     }
 
     #[test]

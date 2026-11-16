@@ -5,10 +5,8 @@
 //! | `get_dashboard`       | none                      | `DashboardSnapshot`|
 //! | `get_settings`        | none                      | `Settings`         |
 //! | `update_settings`     | `UpdateSettingsArgs`      | `Settings`         |
-//! | `complete_onboarding` | `CompleteOnboardingArgs`  | `Settings`         |
 //! | `get_game_state`      | none                      | `GameState`        |
 //! | `get_app_info`        | none                      | `AppInfo`          |
-//! | `get_limit_setup`     | none                      | `LimitSetup`       |
 //! | `get_update_status`   | none                      | `UpdateStatus`     |
 //! | `check_for_updates`   | none                      | `UpdateStatus`     |
 //! | `install_update`      | none                      | `UpdateStatus`     |
@@ -39,15 +37,13 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-use super::settings::{Mode, SettingsPatch};
+use super::settings::SettingsPatch;
 
 pub const GET_DASHBOARD: &str = "get_dashboard";
 pub const GET_SETTINGS: &str = "get_settings";
 pub const UPDATE_SETTINGS: &str = "update_settings";
-pub const COMPLETE_ONBOARDING: &str = "complete_onboarding";
 pub const GET_GAME_STATE: &str = "get_game_state";
 pub const GET_APP_INFO: &str = "get_app_info";
-pub const GET_LIMIT_SETUP: &str = "get_limit_setup";
 pub const GET_UPDATE_STATUS: &str = "get_update_status";
 pub const CHECK_FOR_UPDATES: &str = "check_for_updates";
 pub const INSTALL_UPDATE: &str = "install_update";
@@ -57,14 +53,12 @@ pub const CONNECT_LIMITS: &str = "connect_limits";
 pub const DISCONNECT_LIMITS: &str = "disconnect_limits";
 
 /// Every command name, for registration checks in tests.
-pub const ALL: [&str; 14] = [
+pub const ALL: [&str; 12] = [
     GET_DASHBOARD,
     GET_SETTINGS,
     UPDATE_SETTINGS,
-    COMPLETE_ONBOARDING,
     GET_GAME_STATE,
     GET_APP_INFO,
-    GET_LIMIT_SETUP,
     GET_UPDATE_STATUS,
     CHECK_FOR_UPDATES,
     INSTALL_UPDATE,
@@ -79,16 +73,6 @@ pub const ALL: [&str; 14] = [
 #[serde(rename_all = "camelCase")]
 pub struct UpdateSettingsArgs {
     pub patch: SettingsPatch,
-}
-
-/// Arguments of `complete_onboarding`: `{ "mode": "max" }`.
-/// `noneYet` is rejected with `invalidArgument`. `diy` is removed by
-/// TKM-287 and accepted only until TKM-301 and TKM-306 drop it. Completing onboarding also
-/// starts the retroactive levelling replay if it has not run yet.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CompleteOnboardingArgs {
-    pub mode: Mode,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

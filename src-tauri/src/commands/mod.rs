@@ -4,8 +4,8 @@
 //! Handlers read the cache in [`AppState`]; they never parse logs. Writes go
 //! through the command connection. The testable logic sits in plain
 //! functions below the handlers; the handlers only add Tauri plumbing
-//! (events, autostart plugin, ingest worker). Argument names (`patch`,
-//! `mode`) are the wire names from the contracts.
+//! (events, autostart plugin, ingest worker). Argument names (`patch`) are
+//! the wire names from the contracts.
 
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -17,11 +17,11 @@ use crate::app::{AppState, DbGameStore, IngestSupervisor, UpdateState};
 use crate::contracts::events::{APP_INFO_CHANGED, LIMITS_CONNECTION_CHANGED, SETTINGS_CHANGED};
 use crate::contracts::{
     AppInfo, ClaudeFolder, CommandError, CommandErrorCode, DashboardSnapshot, EpochMs, GameState,
-    LimitSetup, LimitsConnection, Mode, Settings, SettingsPatch, UpdateStatus,
+    LimitsConnection, Settings, SettingsPatch, UpdateStatus,
 };
 use crate::db::DbError;
 use crate::game::{evaluate, Facts, GameStore};
-use crate::limits::setup::{current_statusline_command, current_statusline_file};
+use crate::limits::setup::current_statusline_command;
 use crate::limits::{bridge, connect};
 use crate::watcher::{claude_folder, IngestConfig};
 
@@ -50,12 +50,6 @@ pub(crate) fn apply_update(
     patch: &SettingsPatch,
     set_autostart: impl FnOnce(bool) -> Result<(), String>,
 ) -> Result<(Settings, Settings), CommandError> {
-    if patch.mode == Some(Mode::NoneYet) {
-        return Err(error(
-            CommandErrorCode::InvalidArgument,
-            "mode cannot be set back to noneYet",
-        ));
-    }
     if let Some(Some(path)) = &patch.claude_folder {
         if path.trim().is_empty() || !std::path::Path::new(path).is_absolute() {
             return Err(error(
@@ -75,20 +69,6 @@ pub(crate) fn apply_update(
         .map_err(storage)?;
     state.set_settings(after.clone());
     Ok((before, after))
-}
-
-/// Mode of onboarding: `noneYet` is rejected.
-pub(crate) fn onboarding_patch(mode: Mode) -> Result<SettingsPatch, CommandError> {
-    if mode == Mode::NoneYet {
-        return Err(error(
-            CommandErrorCode::InvalidArgument,
-            "choose max or diy",
-        ));
-    }
-    Ok(SettingsPatch {
-        mode: Some(mode),
-        ..SettingsPatch::default()
-    })
 }
 
 /// The cached game state; before the first evaluation it is derived from
@@ -208,19 +188,6 @@ pub fn update_settings(
 }
 
 #[tauri::command]
-pub fn complete_onboarding(
-    app: AppHandle,
-    state: State<'_, Arc<AppState>>,
-    mode: Mode,
-) -> Result<Settings, CommandError> {
-    let patch = onboarding_patch(mode)?;
-    let (before, after) = apply_update(&state, &patch, |on| set_autostart(&app, on))?;
-    // Starts the retroactive replay if it has not run yet.
-    settings_applied(&app, &before, &after, true);
-    Ok(after)
-}
-
-#[tauri::command]
 pub fn get_game_state(state: State<'_, Arc<AppState>>) -> Result<GameState, CommandError> {
     game_state(&state, now_ms(), &Local)
 }
@@ -228,14 +195,6 @@ pub fn get_game_state(state: State<'_, Arc<AppState>>) -> Result<GameState, Comm
 #[tauri::command]
 pub fn get_app_info(state: State<'_, Arc<AppState>>) -> Result<AppInfo, CommandError> {
     Ok(state.info())
-}
-
-#[tauri::command]
-pub fn get_limit_setup() -> Result<LimitSetup, CommandError> {
-    Ok(LimitSetup {
-        statusline_command: current_statusline_command(),
-        statusline_file: current_statusline_file(),
-    })
 }
 
 fn connection_dirs(app: &AppHandle) -> (Option<std::path::PathBuf>, Option<std::path::PathBuf>) {
@@ -308,7 +267,7 @@ pub async fn install_update(app: AppHandle) -> Result<UpdateStatus, CommandError
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contracts::Platform;
+    use crate::contracts::{Mode, Platform};
     use crate::db::Db;
     use chrono::FixedOffset;
 
@@ -320,11 +279,8 @@ mod tests {
             logs_found: true,
         };
         let db = Db::open_in_memory().unwrap();
-        db.apply_settings_patch(&SettingsPatch {
-            mode: Some(mode),
-            ..SettingsPatch::default()
-        })
-        .ok();
+        db.set_setting("mode", &serde_json::to_value(mode).unwrap())
+            .unwrap();
         let settings = db.settings().unwrap();
         AppState::new(db, settings, info)
     }
@@ -334,27 +290,9 @@ mod tests {
     }
 
     #[test]
-    fn noneyet_is_rejected_everywhere() {
-        let s = state(Mode::Max);
-        let patch = SettingsPatch {
-            mode: Some(Mode::NoneYet),
-            ..SettingsPatch::default()
-        };
-        let err = apply_update(&s, &patch, |_| Ok(())).unwrap_err();
-        assert_eq!(err.code, CommandErrorCode::InvalidArgument);
-        assert_eq!(s.settings().mode, Mode::Max);
-        assert_eq!(
-            onboarding_patch(Mode::NoneYet).unwrap_err().code,
-            CommandErrorCode::InvalidArgument
-        );
-        assert_eq!(onboarding_patch(Mode::Diy).unwrap().mode, Some(Mode::Diy));
-    }
-
-    #[test]
     fn update_persists_and_updates_the_cache() {
         let s = state(Mode::NoneYet);
         let patch = SettingsPatch {
-            mode: Some(Mode::Diy),
             sound: Some(false),
             autostart: None,
             update_check: None,
@@ -364,8 +302,8 @@ mod tests {
             claude_folder: None,
         };
         let (before, after) = apply_update(&s, &patch, |_| Ok(())).unwrap();
-        assert_eq!(before.mode, Mode::NoneYet);
-        assert_eq!(after.mode, Mode::Diy);
+        assert!(before.sound);
+        assert_eq!(after.mode, Mode::NoneYet);
         assert!(!after.sound);
         assert_eq!(s.settings(), after);
         assert_eq!(s.with_db(|db| db.settings()).unwrap(), after);
@@ -426,13 +364,5 @@ mod tests {
         assert!(!g.retro_done);
         // Nothing was written.
         assert!(s.with_db(|db| db.xp_events()).unwrap().is_empty());
-    }
-
-    #[test]
-    fn setup_command_is_provided() {
-        let setup = get_limit_setup().unwrap();
-        if let Some(cmd) = setup.statusline_command {
-            assert!(cmd.ends_with(" --statusline"));
-        }
     }
 }

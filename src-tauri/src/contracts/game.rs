@@ -61,11 +61,6 @@ pub struct AchievementProgress {
     pub description: String,
     /// Hidden until unlocked (only Boo, which can no longer be earned).
     pub secret: bool,
-    /// `Some(mode)` if it can only be earned in that mode, `None` for both.
-    ///
-    /// Removed by TKM-287 (one mode, no other-mode hint): kept until TKM-302
-    /// stops using it (cleanup in TKM-300).
-    pub mode: Option<Mode>,
     /// XP granted on unlock.
     pub xp: u32,
     pub unlocked_at: Option<EpochMs>,
@@ -99,7 +94,7 @@ pub struct AchievementUnlocked {
 pub struct LevelUp {
     pub level: u32,
     pub previous_level: u32,
-    /// Title at the new level (titles depend on mode and level).
+    /// Title at the new level.
     pub title: String,
     pub title_changed: bool,
     pub retroactive: bool,
@@ -110,12 +105,13 @@ pub struct LevelUp {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GameState {
+    /// `max`, or `noneYet` while no mode is stored; never `diy`.
     pub mode: Mode,
     pub level: u32,
-    /// Tier title for the current mode and level, for example "Token
-    /// Tourist" (Max it out, levels 1 to 4).
+    /// Tier title for the level, for example "Token Tourist" (levels 1
+    /// to 4).
     pub title: String,
-    /// All XP ever earned (one pool for both modes).
+    /// All XP ever earned, legacy `diy` ledger rows included.
     pub xp_total: u64,
     /// XP earned inside the current level.
     pub xp_into_level: u64,
@@ -123,13 +119,6 @@ pub struct GameState {
     pub xp_for_level: u64,
     /// `xp_into_level / xp_for_level`, `0.0..=1.0`.
     pub progress: f64,
-    /// Do it yourself only: XP today's usage would earn if it stopped now
-    /// ("+78 XP if you stop now"). `Some(0)` when over budget, `None` in
-    /// Max it out or without a daily budget.
-    ///
-    /// Removed by TKM-287 (no Do it yourself, no budget): kept until TKM-302
-    /// and TKM-306 stop using it (cleanup in TKM-300).
-    pub daily_xp_preview: Option<u32>,
     /// Newest first, at most a handful.
     pub recent_unlocks: Vec<AchievementUnlocked>,
     /// Every achievement, in display order.

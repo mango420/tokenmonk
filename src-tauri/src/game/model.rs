@@ -53,9 +53,6 @@ pub struct DayFacts {
     pub first_at: Option<EpochMs>,
     /// Earliest usage record inside the Night Owl window.
     pub night_at: Option<EpochMs>,
-    /// Unused since the Do it yourself mode was removed; kept so callers keep
-    /// compiling until the field is dropped in a cleanup.
-    pub budget_used_percent: Option<f64>,
 }
 
 impl DayFacts {
@@ -65,7 +62,6 @@ impl DayFacts {
     pub fn from_usage<Tz: TimeZone>(
         day: NaiveDate,
         usage: impl IntoIterator<Item = (EpochMs, u64)>,
-        budget_used_percent: Option<f64>,
         tz: &Tz,
     ) -> Self {
         let mut facts = DayFacts {
@@ -73,7 +69,6 @@ impl DayFacts {
             tokens: 0,
             first_at: None,
             night_at: None,
-            budget_used_percent,
         };
         for (ts, tokens) in usage {
             facts.tokens += tokens;

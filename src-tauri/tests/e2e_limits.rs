@@ -165,7 +165,6 @@ fn a_window_that_resets_is_dropped_and_the_next_one_takes_over() {
         "last status line was 2 hours ago"
     );
     assert_eq!(halo_percent(&s), None, "nothing to gauge");
-    assert_eq!(s.burn_rate.limit_eta_minutes, None);
 
     // Peak 99.4 % in a finished window: So Close, announced once.
     assert_eq!(rig.rec.achievements(), ["soClose"]);
@@ -193,8 +192,7 @@ fn a_window_that_resets_is_dropped_and_the_next_one_takes_over() {
         hit,
     );
     rig.limit(bridge.source().fetch_at(hit));
-    let s = rig.snap(hit, SnapshotCause::Limits);
-    assert_eq!(s.burn_rate.limit_eta_minutes, Some(0));
+    rig.snap(hit, SnapshotCause::Limits);
     assert_eq!(rig.rec.achievements(), ["soClose", "rateLimitRambo"]);
     rig.limit(bridge.source().fetch_at(hit + MIN));
     rig.snap(hit + MIN, SnapshotCause::Limits);

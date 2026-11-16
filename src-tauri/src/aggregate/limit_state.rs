@@ -124,34 +124,6 @@ impl LimitState {
     }
 }
 
-/// Minutes until the 5-hour limit at the current pace, rounded down
-/// (docs/ARCHITECTURE.md, "Limit ETA").
-///
-/// `window_tokens` are the headline tokens since the window started; the
-/// percent per token is `utilization / window_tokens`. `None` without
-/// tokens in the window or without burn; `Some(0)` at or above 100 %.
-pub fn limit_eta_minutes(
-    five_hour: &LimitWindow,
-    now: EpochMs,
-    tokens_per_minute: f64,
-    window_tokens: u64,
-) -> Option<u32> {
-    if five_hour.resets_at.is_some_and(|r| r <= now) {
-        // The window has ended; the reading says nothing about the next one.
-        return None;
-    }
-    if five_hour.utilization >= 100.0 {
-        return Some(0);
-    }
-    if window_tokens == 0 || tokens_per_minute <= 0.0 || five_hour.utilization <= 0.0 {
-        return None;
-    }
-    let percent_per_token = five_hour.utilization / window_tokens as f64;
-    let percent_per_minute = tokens_per_minute * percent_per_token;
-    let minutes = (100.0 - five_hour.utilization) / percent_per_minute;
-    minutes.is_finite().then(|| minutes.floor() as u32)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -290,36 +262,5 @@ mod tests {
         let v = s.view(0);
         assert_eq!(v.status, LimitStatus::Unavailable);
         assert_eq!(v.reason, Some(LimitReason::NotSignedIn));
-    }
-
-    #[test]
-    fn eta_extrapolates_percent_per_token() {
-        // 40 % used by 4000 tokens: 0.01 %/token. 100 tokens/min -> 1 %/min -> 60 min left.
-        let w = LimitWindow {
-            utilization: 40.0,
-            resets_at: Some(10_000 * MIN),
-        };
-        assert_eq!(limit_eta_minutes(&w, 0, 100.0, 4000), Some(60));
-        // Rounds down.
-        assert_eq!(limit_eta_minutes(&w, 0, 99.0, 4000), Some(60));
-        assert_eq!(limit_eta_minutes(&w, 0, 101.0, 4000), Some(59));
-    }
-
-    #[test]
-    fn eta_edge_cases() {
-        let mut w = LimitWindow {
-            utilization: 40.0,
-            resets_at: Some(10 * MIN),
-        };
-        assert_eq!(limit_eta_minutes(&w, 0, 0.0, 4000), None);
-        assert_eq!(limit_eta_minutes(&w, 0, 10.0, 0), None);
-        // Window already over.
-        assert_eq!(limit_eta_minutes(&w, 10 * MIN, 10.0, 4000), None);
-        w.utilization = 100.0;
-        assert_eq!(limit_eta_minutes(&w, 0, 0.0, 0), Some(0));
-        w.utilization = 140.0;
-        assert_eq!(limit_eta_minutes(&w, 0, 10.0, 10), Some(0));
-        w.utilization = 0.0;
-        assert_eq!(limit_eta_minutes(&w, 0, 10.0, 10), None);
     }
 }

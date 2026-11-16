@@ -182,7 +182,7 @@ mod tests {
         let day = NaiveDate::from_ymd_opt(2026, 10, 28).unwrap();
         let ts = 1_793_232_000_000;
         let facts = Facts {
-            days: vec![DayFacts::from_usage(day, [(ts, 250_000)], None, &tz())],
+            days: vec![DayFacts::from_usage(day, [(ts, 250_000)], &tz())],
             ..Facts::default()
         };
         let now = ts + 3_600_000;
