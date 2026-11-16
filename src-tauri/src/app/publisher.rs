@@ -34,9 +34,11 @@ pub trait Sink: Send {
     fn app_info(&self, info: &AppInfo);
     fn halo(&self, percent: Option<f64>, mode: Mode);
     /// `true` while the popup is shown.
-    fn popup_visible(&self) -> bool;
-    /// A system notification.
-    fn notify(&self, title: &str, body: &str);
+    fn popup_visible(&self) -> bool {
+        false
+    }
+    /// A system notification (default: none).
+    fn notify(&self, _title: &str, _body: &str) {}
 }
 
 /// Tray halo value for a snapshot: the 5-hour percent LEFT, in every mode
