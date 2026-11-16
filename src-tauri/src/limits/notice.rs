@@ -1,10 +1,11 @@
 //! The single limit notification: 10 % left, once per window and reset cycle
 //! (docs/DESIGN.md, "Product line"). Pure logic, no I/O: the caller feeds
 //! each new [`LimitReading`] to [`LimitNotifier::check`] and shows what it
-//! returns. State is in memory only, so a restart can repeat a notification
-//! for a cycle that already fired.
+//! returns. The notified cycles ([`Cycles`]) are stored by the caller under
+//! `app_state` key [`STATE_KEY`], so a restart does not repeat a notice.
 
 use chrono::{DateTime, TimeZone};
+use serde::{Deserialize, Serialize};
 
 use crate::contracts::limits::{LimitReading, LimitWindow};
 use crate::contracts::EpochMs;
@@ -45,9 +46,42 @@ pub struct LimitNotifier {
     seven_day: Slot,
 }
 
+/// `app_state` key of the stored [`Cycles`].
+pub const STATE_KEY: &str = "limit_notice_cycles";
+
+/// The cycles that already notified, as stored: the `resetsAt` of each
+/// window's notified cycle, `null` if none (docs/ARCHITECTURE.md, "Storage").
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Cycles {
+    pub five_hour: Option<EpochMs>,
+    pub weekly: Option<EpochMs>,
+}
+
 impl LimitNotifier {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// A notifier that knows which cycles were already notified.
+    pub fn with_cycles(cycles: Cycles) -> Self {
+        let slot = |cycle: Option<EpochMs>| Slot {
+            fired: cycle.is_some(),
+            cycle,
+        };
+        Self {
+            five_hour: slot(cycles.five_hour),
+            seven_day: slot(cycles.weekly),
+        }
+    }
+
+    /// The notified cycles to store.
+    pub fn cycles(&self) -> Cycles {
+        let cycle = |s: &Slot| s.cycle.filter(|_| s.fired);
+        Cycles {
+            five_hour: cycle(&self.five_hour),
+            weekly: cycle(&self.seven_day),
+        }
     }
 
     /// Like [`Self::check`] for two windows, formatted in the local zone.

@@ -14,10 +14,12 @@ use super::facts::{build_facts, BudgetCache, Scope};
 use super::game_store::DbGameStore;
 use crate::contracts::EpochMs;
 use crate::contracts::{
-    AchievementUnlocked, AppInfo, DashboardSnapshot, DataState, GameState, LevelUp, Mode,
+    AchievementUnlocked, AppInfo, DashboardSnapshot, DataState, GameState, LevelUp, LimitStatus,
+    Mode,
 };
 use crate::db::{Db, DbError};
 use crate::game::{run_evaluation, Evaluation, Facts, GameStore};
+use crate::limits::notice::{self, Cycles, LimitNotifier};
 use crate::logs::UsageRecord;
 use crate::watcher::{ClockZone, IngestPublisher, SnapshotCause};
 
@@ -31,6 +33,10 @@ pub trait Sink: Send {
     fn level_up(&self, level_up: &LevelUp);
     fn app_info(&self, info: &AppInfo);
     fn halo(&self, percent: Option<f64>, mode: Mode);
+    /// `true` while the popup is shown.
+    fn popup_visible(&self) -> bool;
+    /// A system notification.
+    fn notify(&self, title: &str, body: &str);
 }
 
 /// Tray halo value for a snapshot: the 5-hour percent LEFT, in every mode
@@ -55,6 +61,8 @@ pub struct AppPublisher<S: Sink> {
     /// Oldest timestamp of usage seen since the last successful evaluation.
     pending_from: Option<EpochMs>,
     budget_cache: BudgetCache,
+    /// Loaded from `app_state` on the first snapshot.
+    notifier: Option<LimitNotifier>,
 }
 
 impl<S: Sink> AppPublisher<S> {
@@ -66,6 +74,7 @@ impl<S: Sink> AppPublisher<S> {
             import_done: false,
             pending_from: None,
             budget_cache: HashMap::new(),
+            notifier: None,
         }
     }
 
@@ -143,6 +152,53 @@ impl<S: Sink> AppPublisher<S> {
         Ok((evaluation, retroactive))
     }
 
+    /// One notice per window and reset cycle at 10 % left. Only a fresh
+    /// reading counts: with no or old data the stored cycles stay as they are.
+    fn notify_limits(&mut self, db: &Db, snapshot: &DashboardSnapshot) {
+        if snapshot.limits.status != LimitStatus::Ok {
+            return;
+        }
+        let notifier = self.notifier.get_or_insert_with(|| {
+            let stored = db
+                .app_state(notice::STATE_KEY)
+                .ok()
+                .flatten()
+                .and_then(|v| serde_json::from_value::<Cycles>(v).ok())
+                .unwrap_or_default();
+            LimitNotifier::with_cycles(stored)
+        });
+        let before = notifier.cycles();
+        let notices = match self.zone {
+            ClockZone::Local => notifier.observe(
+                snapshot.limits.five_hour.as_ref(),
+                snapshot.limits.weekly.as_ref(),
+                snapshot.generated_at,
+            ),
+            ClockZone::Fixed(offset) => notifier.observe_in(
+                snapshot.limits.five_hour.as_ref(),
+                snapshot.limits.weekly.as_ref(),
+                snapshot.generated_at,
+                &offset,
+            ),
+        };
+        let after = notifier.cycles();
+        if after != before {
+            match serde_json::to_value(after) {
+                Ok(v) => {
+                    if let Err(e) = db.set_app_state(notice::STATE_KEY, &v) {
+                        log::warn!("could not store the notified limit cycles: {e}");
+                    }
+                }
+                Err(e) => log::warn!("could not encode the notified limit cycles: {e}"),
+            }
+        }
+        if self.state.settings().notify_limits {
+            for n in notices {
+                self.sink.notify(&n.title, &n.text);
+            }
+        }
+    }
+
     fn announce(&self, evaluation: &Evaluation, retroactive: bool) {
         // The replay stays quiet: one `game-updated` with `retroDone` follows.
         if !retroactive {
@@ -151,6 +207,10 @@ impl<S: Sink> AppPublisher<S> {
             }
             if let Some(level_up) = &evaluation.level_up {
                 self.sink.level_up(level_up);
+                if self.state.settings().notify_level_ups && !self.sink.popup_visible() {
+                    self.sink
+                        .notify(&format!("Level {}", level_up.level), &level_up.title);
+                }
             }
         }
         let changed = self.state.game().as_ref() != Some(&evaluation.state);
@@ -177,6 +237,7 @@ impl<S: Sink> IngestPublisher for AppPublisher<S> {
 
         let mode = self.state.settings().mode;
         self.sink.halo(halo_percent(snapshot), mode);
+        self.notify_limits(db, snapshot);
 
         match cause {
             SnapshotCause::Import => {}
@@ -240,6 +301,12 @@ mod tests {
         fn halo(&self, p: Option<f64>, m: Mode) {
             self.push(format!("halo {p:?} {m:?}"));
         }
+        fn popup_visible(&self) -> bool {
+            false
+        }
+        fn notify(&self, title: &str, body: &str) {
+            self.push(format!("notify {title}: {body}"));
+        }
     }
 
     fn tz() -> FixedOffset {
@@ -300,6 +367,54 @@ mod tests {
             cache_creation_tokens: 5,
             cache_read_tokens: 0,
         }
+    }
+
+    fn hot_limits(now: EpochMs, used: f64) -> LimitState {
+        let mut limits = LimitState::default();
+        limits.apply(&LimitPoll {
+            source: "statusline",
+            result: Ok(LimitReading {
+                five_hour: Some(LimitWindow {
+                    utilization: used,
+                    resets_at: Some(now + 3_600_000),
+                }),
+                weekly: None,
+                fetched_at: now,
+            }),
+        });
+        limits
+    }
+
+    #[test]
+    fn limit_notice_once_per_cycle_and_survives_a_restart() {
+        let (mut p, rec, state, mut db) = setup(Mode::Max);
+        let now = ms(28, 12);
+        let s = snap(&db, Mode::Max, now, &hot_limits(now, 92.0));
+        p.on_snapshot(&mut db, &s, SnapshotCause::Tick);
+        p.on_snapshot(&mut db, &s, SnapshotCause::Tick);
+        assert_eq!(
+            rec.count("notify Limits: 5-hour: 8% left. Resets 13:00."),
+            1
+        );
+        assert!(db.app_state("limit_notice_cycles").unwrap().is_some());
+
+        let mut again = AppPublisher::new(rec.clone(), Arc::clone(&state), ClockZone::Fixed(tz()));
+        again.on_snapshot(&mut db, &s, SnapshotCause::Tick);
+        assert_eq!(rec.count("notify"), 1, "no repeat after a restart");
+    }
+
+    #[test]
+    fn limit_notice_toggle_off_is_silent_but_remembers_the_cycle() {
+        let (mut p, rec, state, mut db) = setup(Mode::Max);
+        state.set_settings(Settings {
+            notify_limits: false,
+            ..state.settings()
+        });
+        let now = ms(28, 12);
+        let s = snap(&db, Mode::Max, now, &hot_limits(now, 95.0));
+        p.on_snapshot(&mut db, &s, SnapshotCause::Tick);
+        assert_eq!(rec.count("notify"), 0);
+        assert!(db.app_state("limit_notice_cycles").unwrap().is_some());
     }
 
     #[test]
