@@ -497,9 +497,9 @@ Implementation: TKM-304. Copy and tone: DESIGN.md, "Product line".
 - System notifications use the OS sound; `Settings.sound` covers only the
   in-app tone and does not apply to them.
 - Removed by TKM-287: the 90 % and 100 % warnings and the budget warning.
-- `SettingsPatch.notifyLimits` and `.notifyLevelUps` land in the TKM-300
-  cleanup (a `db` test lists every `SettingsPatch` field; TKM-301 rewrites
-  it). Until then both settings read as their defaults.
+- Both toggles are patchable via `SettingsPatch.notifyLimits` /
+  `.notifyLevelUps` and stored under the `settings` keys `notify_limits` /
+  `notify_level_ups`; a missing key reads as `true`.
 
 ## Game
 
@@ -769,8 +769,7 @@ optional keys), and `SettingsPatch.claudeFolder` is a double option
 (absent = unchanged, `null` = reset); `Settings.claudeFolder` is omitted
 when `None` and reads absent or `null` as `None` (TS `claudeFolder?:
 string | null`, both meaning "not set"). `Settings.notifyLimits` and
-`.notifyLevelUps` read absent as `true` (`serde(default = ...)`); in
-TypeScript they are optional only until the TKM-300 cleanup.
+`.notifyLevelUps` read absent as `true` (`serde(default = ...)`).
 
 Removed by TKM-287 and kept only until their users are gone (the TKM-300
 cleanup deletes them; never use them in new code): `Mode` value `diy`,

@@ -84,10 +84,8 @@ fn default_true() -> bool {
 /// `mode`: removed by TKM-287 (no mode picker); kept until TKM-307 stops
 /// using it (cleanup in TKM-300).
 ///
-/// `notifyLimits` and `notifyLevelUps` (`Option<bool>`, matching the two
-/// `Settings` fields) are added in the TKM-300 cleanup: a test in `db`
-/// builds this struct with every field listed, so a new field would break
-/// it until TKM-301 rewrites that test.
+/// `notify_limits` / `notify_level_ups` (`"notifyLimits"` /
+/// `"notifyLevelUps"`) toggle the two notification settings.
 ///
 /// `claude_folder` is a double option: `None` (key absent) = unchanged,
 /// `Some(None)` (JSON `null`) = reset to default, `Some(Some(path))` = set.
@@ -106,6 +104,10 @@ pub struct SettingsPatch {
     pub update_check: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_open: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notify_limits: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notify_level_ups: Option<bool>,
     #[serde(
         default,
         deserialize_with = "present_option",

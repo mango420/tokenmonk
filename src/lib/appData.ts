@@ -85,7 +85,7 @@ function mockConnection(snap: DashboardSnapshot): LimitsConnection {
 
 function placeholders(): AppData {
   return {
-    settings: { mode: "max", sound: true, autostart: false, updateCheck: true, keepOpen: false },
+    settings: { mode: "max", sound: true, autostart: false, updateCheck: true, keepOpen: false, notifyLimits: true, notifyLevelUps: true },
     appInfo: {
       version: "",
       platform: "windows",
