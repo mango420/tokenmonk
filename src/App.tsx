@@ -41,7 +41,6 @@ export default function App() {
   useBackendEvent(Events.achievementUnlocked, notices.pushUnlock, !usesMockData);
   useBackendEvent(Events.levelUp, notices.pushLevelUp, !usesMockData);
 
-
   const view = requested;
 
   let screen;
