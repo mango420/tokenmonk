@@ -185,10 +185,6 @@ html[data-maximized] .popup {
   text-underline-offset: var(--space-1);
 }
 
-.note--onboard {
-  margin-top: var(--gap-18);
-}
-
 /* Text shared with features/game (toast, level-up): keep these class names. */
 .caption {
   margin: 0;
@@ -600,58 +596,6 @@ html[data-maximized] .popup {
   margin-top: 0;
 }
 
-/* -------------------------------------------------------------- onboarding */
-
-.onboard-title {
-  margin: var(--gap-30) 0 var(--space-2);
-  font-size: var(--text-onboard-title-size);
-  line-height: var(--text-onboard-title-line);
-  font-weight: var(--weight-medium);
-  letter-spacing: var(--text-onboard-title-tracking);
-}
-
-.onboard-lead {
-  margin: 0 0 var(--gap-22);
-  color: var(--ink-2);
-}
-
-/* Two rows, each filling half of the remaining height. */
-.onboard-choice {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  width: 100%;
-  padding: var(--gap-22) 0;
-  border: 0;
-  border-top: var(--hair) solid var(--line);
-  border-radius: 0;
-  background: none;
-  text-align: left;
-}
-
-.onboard-choice:disabled {
-  cursor: default;
-}
-
-.onboard-choice__name {
-  display: block;
-  font-size: var(--text-choice-lg-size);
-  font-weight: var(--weight-medium);
-  letter-spacing: var(--text-choice-lg-tracking);
-}
-
-.onboard-choice:hover:not(:disabled) .onboard-choice__name {
-  text-decoration: underline;
-  text-underline-offset: var(--space-1);
-}
-
-.onboard-choice__description {
-  display: block;
-  margin-top: var(--half);
-  color: var(--ink-2);
-}
-
 /* ---------------------------------------------------------------- settings */
 
 .mode-row {
@@ -862,13 +806,6 @@ html[data-maximized] .popup {
   color: var(--ink-2);
 }
 
-.ach__hint {
-  display: block;
-  margin-top: var(--half);
-  font-size: var(--text-small-size);
-  color: var(--ink-2);
-}
-
 .ach__state {
   padding-top: calc(var(--space-1) - var(--hair));
   font-size: var(--text-small-size);
@@ -910,15 +847,6 @@ html[data-maximized] .popup {
   .titlebar__bar {
     transition: none;
   }
-}
-
-/* Each onboarding row shows the mark in its own mode accent. */
-.onboard-choice--max {
-  --accent: var(--saffron);
-}
-
-.onboard-choice--diy {
-  --accent: var(--jade);
 }
 
 /* ------------------------------------------------------------------- about */
