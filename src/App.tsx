@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { TextLink } from "./components/TextLink";
 import { Popup } from "./components/Popup";
 import { ScenarioSwitch } from "./dev/ScenarioSwitch";
@@ -7,8 +7,6 @@ import { AchievementsView } from "./features/achievements/AchievementsView";
 import { Dashboard } from "./features/dashboard/Dashboard";
 import { useGameNotices } from "./features/game";
 import { Header } from "./features/dashboard/Header";
-import { useOsNotifications } from "./features/notifications/useOsNotifications";
-import { Onboarding } from "./features/onboarding/Onboarding";
 import { SettingsView } from "./features/settings/SettingsView";
 import { useAppData, usesMockData } from "./lib/appData";
 import { useBackendEvent } from "./lib/backend";
@@ -43,19 +41,7 @@ export default function App() {
   useBackendEvent(Events.achievementUnlocked, notices.pushUnlock, !usesMockData);
   useBackendEvent(Events.levelUp, notices.pushLevelUp, !usesMockData);
 
-  useOsNotifications(data, app.phase === "ready" && !usesMockData);
-
-  // The mode drives the accent in tokens.css. No mode before onboarding: brand saffron.
-  const mode = data.settings.mode;
-  useLayoutEffect(() => {
-    const root = document.documentElement;
-    if (mode === "noneYet") delete root.dataset.mode;
-    else root.dataset.mode = mode;
-  }, [mode]);
-
-  // Onboarding is not a choice: it shows while no mode is picked, and only then.
-  const view: View =
-    mode === "noneYet" ? "onboarding" : requested === "onboarding" ? "dashboard" : requested;
+  const view = requested;
 
   let screen;
   if (app.phase !== "ready") {
@@ -70,8 +56,6 @@ export default function App() {
         ) : null}
       </div>
     );
-  } else if (view === "onboarding") {
-    screen = <Onboarding onChoose={actions.completeOnboarding} />;
   } else if (view === "settings") {
     screen = (
       <SettingsView

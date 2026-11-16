@@ -7,6 +7,7 @@
 //! [`UnavailableSource`] stays for tests.
 
 pub mod bridge;
+pub mod connect;
 pub mod notice;
 pub mod setup;
 pub mod statusline;

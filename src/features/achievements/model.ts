@@ -1,7 +1,7 @@
 /**
  * Pure view model of the achievements screen (docs/DESIGN.md, "Achievements").
  */
-import type { GameState, Mode } from "../../lib/contracts";
+import type { GameState } from "../../lib/contracts";
 import { clamp01, formatInt } from "../../lib/format";
 
 export interface AchievementRowModel {
@@ -9,8 +9,6 @@ export interface AchievementRowModel {
   name: string;
   description: string;
   unlocked: boolean;
-  /** One line for locked rows that only count in the other mode, else `null`. */
-  hint: string | null;
 }
 
 export interface AchievementsModel {
@@ -24,8 +22,6 @@ export interface AchievementsModel {
   rows: AchievementRowModel[];
 }
 
-const MODE_NAME: Partial<Record<Mode, string>> = { max: "Max it out", diy: "Do it yourself" };
-
 /** Every achievement except secret ones that are still locked, in display order. */
 export function buildAchievements(game: GameState): AchievementsModel {
   const rows = game.achievements
@@ -35,14 +31,6 @@ export function buildAchievements(game: GameState): AchievementsModel {
       name: a.name,
       description: a.description,
       unlocked: a.unlockedAt !== null,
-      hint:
-        a.unlockedAt === null &&
-        a.mode !== null &&
-        game.mode !== "noneYet" &&
-        a.mode !== game.mode &&
-        MODE_NAME[a.mode]
-          ? `${MODE_NAME[a.mode]} only. Not on this mode's menu.`
-          : null,
     }));
   const unlockedCount = rows.filter((r) => r.unlocked).length;
   return {

@@ -21,7 +21,7 @@ mod store;
 #[cfg(test)]
 mod tests;
 
-pub use eval::{day_start_ms, diy_day_xp, evaluate, local_date, max_block_xp};
+pub use eval::{day_start_ms, evaluate, local_date, max_block_xp};
 pub use model::{
     in_night_window, AchievementRecord, DayFacts, Evaluation, Facts, GameData, LedgerEntry,
     LimitFact,
