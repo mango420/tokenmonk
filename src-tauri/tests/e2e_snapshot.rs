@@ -16,7 +16,6 @@ use std::path::PathBuf;
 use common::pipeline::{Event, Rig};
 use common::*;
 use tokenmonk_lib::app::halo_percent;
-use tokenmonk_lib::contracts::dashboard::BudgetBasis;
 use tokenmonk_lib::contracts::limits::{LimitReading, LimitStatus, LimitWindow};
 use tokenmonk_lib::contracts::{AchievementId, DashboardSnapshot, Mode};
 use tokenmonk_lib::watcher::{discover, SnapshotCause};
@@ -92,26 +91,23 @@ fn today_session_and_burn_come_from_the_fixtures_without_cache_reads() {
 #[test]
 fn the_previous_day_is_complete_across_all_files_and_both_ends_of_the_day() {
     // Seen from the 29th, "today" is empty and the 28th is history.
-    let (_, s) = loaded(Mode::Diy, utc_ms(2026, 10, 29, 9, 0, 0));
+    let (_, s) = loaded(Mode::Max, utc_ms(2026, 10, 29, 9, 0, 0));
     assert_eq!(s.today.total, 0);
     assert_eq!(s.today.cache_read, 0);
     assert!(s.session.is_none(), "idle for more than an hour");
     assert_eq!(s.burn_rate.tokens_per_minute, 0.0);
 
-    // Seen from the 28th, the 27th is 10628 headline tokens (sessions 1, 2,
-    // the subagent lines and the two messages around the UTC midnight of +2).
-    let (_, s) = loaded(Mode::Diy, utc_ms(2026, 10, 28, 12, 0, 0));
-    let budget = s.daily_budget.expect("history of the 27th");
-    assert_eq!(budget.basis, BudgetBasis::TokenHistory);
-    assert_eq!(budget.allowance, 10_628.0);
-    assert_eq!(budget.used_today, 2_008.0);
+    // Seen from the 28th there is no history budget any more: the snapshot
+    // carries no daily budget, whatever the days before look like.
+    let (_, s) = loaded(Mode::Max, utc_ms(2026, 10, 28, 12, 0, 0));
+    assert!(s.daily_budget.is_none());
 }
 
 #[test]
 fn halo_is_the_five_hour_percent_left_in_every_mode() {
     // Without a 5-hour reading the halo shows the dotted track only, in
     // every mode, whatever the token history says.
-    for mode in [Mode::NoneYet, Mode::Max, Mode::Diy] {
+    for mode in [Mode::NoneYet, Mode::Max] {
         let (rig, s) = loaded(mode, now());
         assert_eq!(halo_percent(&s), None, "{mode:?}");
         assert!(rig.rec.events().contains(&Event::Halo(None, mode)));
@@ -119,7 +115,7 @@ fn halo_is_the_five_hour_percent_left_in_every_mode() {
 
     // With a 5-hour reading of 20 % used, 80 % is left, in every mode, and
     // the sink is told the mode so it can pick the accent.
-    for mode in [Mode::NoneYet, Mode::Max, Mode::Diy] {
+    for mode in [Mode::NoneYet, Mode::Max] {
         let (mut rig, _) = loaded(mode, now());
         rig.limit(Ok(LimitReading {
             five_hour: window(20.0, utc_ms(2026, 10, 28, 13, 40, 0)),
@@ -166,18 +162,16 @@ fn halo_is_the_five_hour_percent_left_in_every_mode() {
 }
 
 #[test]
-fn the_do_it_yourself_budget_does_not_drive_the_halo() {
-    // History budget: today against the average day of the last seven
-    // (2008 of 10628 tokens). Without a limit reading the halo stays empty.
-    let (rig, s) = loaded(Mode::Diy, utc_ms(2026, 10, 28, 12, 0, 0));
-    assert!(s.daily_budget.is_some());
+fn weekly_data_alone_gives_no_halo_and_never_a_budget() {
+    // Without a limit reading the halo stays empty.
+    let (rig, s) = loaded(Mode::Max, utc_ms(2026, 10, 28, 12, 0, 0));
+    assert!(s.daily_budget.is_none());
     assert_eq!(halo_percent(&s), None);
-    assert!(rig.rec.events().contains(&Event::Halo(None, Mode::Diy)));
+    assert!(rig.rec.events().contains(&Event::Halo(None, Mode::Max)));
 
-    // Weekly budget: weekly 30 % at the first reading of the day, 40 % now,
-    // reset on the 30th: allowance (100 - 30) / 3 days, used 10 points. The
-    // halo still follows the 5-hour window only (20 % used, 80 % left).
-    let (mut rig, _) = loaded(Mode::Diy, now());
+    // A weekly reading alone gives no halo and no budget; the halo follows
+    // the 5-hour window only (20 % used, 80 % left).
+    let (mut rig, _) = loaded(Mode::Max, now());
     let reset = utc_ms(2026, 10, 30, 18, 0, 0);
     rig.limit(Ok(LimitReading {
         five_hour: None,
@@ -185,10 +179,7 @@ fn the_do_it_yourself_budget_does_not_drive_the_halo() {
         fetched_at: utc_ms(2026, 10, 28, 0, 30, 0),
     }));
     let s = rig.snap(now(), SnapshotCause::Limits);
-    assert_eq!(
-        s.daily_budget.as_ref().unwrap().basis,
-        BudgetBasis::WeeklyLimit
-    );
+    assert!(s.daily_budget.is_none());
     assert_eq!(halo_percent(&s), None, "weekly data alone gives no halo");
 
     rig.limit(Ok(LimitReading {
@@ -197,16 +188,12 @@ fn the_do_it_yourself_budget_does_not_drive_the_halo() {
         fetched_at: now() - 5 * 60_000,
     }));
     let s = rig.snap(now(), SnapshotCause::Limits);
-    let budget = s.daily_budget.clone().expect("weekly budget");
-    assert_eq!(budget.basis, BudgetBasis::WeeklyLimit);
-    assert_eq!(budget.days_left, 3);
-    assert!((budget.allowance - 70.0 / 3.0).abs() < 1e-9);
-    assert!((budget.used_today - 10.0).abs() < 1e-9);
+    assert!(s.daily_budget.is_none());
     assert_eq!(halo_percent(&s), Some(80.0));
     assert!(rig
         .rec
         .events()
-        .contains(&Event::Halo(Some(80.0), Mode::Diy)));
+        .contains(&Event::Halo(Some(80.0), Mode::Max)));
 }
 
 #[test]
