@@ -20,7 +20,7 @@ mod api {
         pub text: String,
     }
 
-    pub struct Rig(LimitNotifier);
+    pub struct Rig(pub LimitNotifier);
 
     impl Rig {
         pub fn new() -> Self {
@@ -53,6 +53,7 @@ mod api {
 }
 
 use api::Rig;
+use tokenmonk_lib::limits::notice::{Cycles, LimitNotifier};
 
 fn t(h: u32, m: u32) -> i64 {
     utc_ms(2026, 10, 28, h, m, 0)
@@ -150,4 +151,24 @@ fn both_windows_crossing_in_the_same_reading_give_one_notice_each() {
 fn missing_windows_never_notify() {
     let mut r = Rig::new();
     assert!(r.feed(None, None, t(10, 0)).is_empty());
+}
+
+#[test]
+fn a_restart_inside_the_same_cycle_does_not_repeat_the_notice() {
+    let mut r = Rig::new();
+    assert_eq!(r.feed(Some((92.0, reset1())), None, t(11, 0)).len(), 1);
+
+    // The caller stores the cycles under app_state `limit_notice_cycles`
+    // and hands them back to a fresh notifier after the restart.
+    let stored = serde_json::to_value(r.0.cycles()).unwrap();
+    assert_eq!(stored["fiveHour"], reset1());
+    assert!(stored["weekly"].is_null());
+    let restored: Cycles = serde_json::from_value(stored).unwrap();
+    let mut after = Rig(LimitNotifier::with_cycles(restored));
+
+    assert!(after
+        .feed(Some((95.0, reset1())), None, t(11, 30))
+        .is_empty());
+    // The next cycle still notifies.
+    assert_eq!(after.feed(Some((93.0, reset2())), None, t(12, 5)).len(), 1);
 }
