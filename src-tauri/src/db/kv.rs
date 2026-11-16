@@ -11,6 +11,8 @@ const KEY_SOUND: &str = "sound";
 const KEY_AUTOSTART: &str = "autostart";
 const KEY_UPDATE_CHECK: &str = "update_check";
 const KEY_KEEP_OPEN: &str = "keep_open";
+const KEY_NOTIFY_LIMITS: &str = "notify_limits";
+const KEY_NOTIFY_LEVEL_UPS: &str = "notify_level_ups";
 const KEY_CLAUDE_FOLDER: &str = "claude_folder";
 
 fn get(conn: &Connection, table: &str, key: &str) -> DbResult<Option<Value>> {
@@ -61,6 +63,15 @@ impl Db {
         if let Some(b) = self.setting(KEY_KEEP_OPEN)?.and_then(|v| v.as_bool()) {
             s.keep_open = b;
         }
+        if let Some(b) = self.setting(KEY_NOTIFY_LIMITS)?.and_then(|v| v.as_bool()) {
+            s.notify_limits = b;
+        }
+        if let Some(b) = self
+            .setting(KEY_NOTIFY_LEVEL_UPS)?
+            .and_then(|v| v.as_bool())
+        {
+            s.notify_level_ups = b;
+        }
         s.claude_folder = self
             .setting(KEY_CLAUDE_FOLDER)?
             .and_then(|v| v.as_str().map(str::to_owned))
@@ -88,6 +99,12 @@ impl Db {
         }
         if let Some(b) = patch.keep_open {
             set(&tx, "settings", KEY_KEEP_OPEN, &Value::Bool(b))?;
+        }
+        if let Some(b) = patch.notify_limits {
+            set(&tx, "settings", KEY_NOTIFY_LIMITS, &Value::Bool(b))?;
+        }
+        if let Some(b) = patch.notify_level_ups {
+            set(&tx, "settings", KEY_NOTIFY_LEVEL_UPS, &Value::Bool(b))?;
         }
         match &patch.claude_folder {
             None => {}
@@ -146,6 +163,27 @@ mod tests {
             })
             .unwrap();
         assert_eq!((s.mode, s.sound, s.autostart), (Mode::Diy, false, true));
+    }
+
+    #[test]
+    fn notify_toggles_persist_independently() {
+        let db = Db::open_in_memory().unwrap();
+        let s = db.settings().unwrap();
+        assert!(s.notify_limits && s.notify_level_ups);
+        let s = db
+            .apply_settings_patch(&SettingsPatch {
+                notify_limits: Some(false),
+                ..SettingsPatch::default()
+            })
+            .unwrap();
+        assert!(!s.notify_limits && s.notify_level_ups);
+        db.apply_settings_patch(&SettingsPatch {
+            notify_level_ups: Some(false),
+            ..SettingsPatch::default()
+        })
+        .unwrap();
+        let s = db.settings().unwrap();
+        assert!(!s.notify_limits && !s.notify_level_ups);
     }
 
     #[test]
