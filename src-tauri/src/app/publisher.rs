@@ -5,12 +5,11 @@
 //! outside world (events, tray) sits behind [`Sink`] so the logic is
 //! testable with an in-memory database and a recording sink.
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use chrono::{Local, TimeZone};
 
-use super::facts::{build_facts, BudgetCache, Scope};
+use super::facts::{build_facts, Scope};
 use super::game_store::DbGameStore;
 use crate::contracts::EpochMs;
 use crate::contracts::{
@@ -62,7 +61,6 @@ pub struct AppPublisher<S: Sink> {
     import_done: bool,
     /// Oldest timestamp of usage seen since the last successful evaluation.
     pending_from: Option<EpochMs>,
-    budget_cache: BudgetCache,
     /// Loaded from `app_state` on the first snapshot.
     notifier: Option<LimitNotifier>,
 }
@@ -75,7 +73,6 @@ impl<S: Sink> AppPublisher<S> {
             zone,
             import_done: false,
             pending_from: None,
-            budget_cache: HashMap::new(),
             notifier: None,
         }
     }
@@ -139,16 +136,7 @@ impl<S: Sink> AppPublisher<S> {
                     touched: self.pending_from,
                 }
             };
-            let today_budget = snapshot.daily_budget.as_ref().map(|b| b.used_percent);
-            build_facts(
-                db,
-                mode,
-                scope,
-                now,
-                today_budget,
-                &mut self.budget_cache,
-                tz,
-            )?
+            build_facts(db, scope, now, tz)?
         };
         let evaluation = run_evaluation(&mut store, &facts, mode, now, tz, retroactive)?;
         Ok((evaluation, retroactive))
@@ -433,7 +421,6 @@ mod tests {
                 xp_into_level: 0,
                 xp_for_level: 100,
                 progress: 0.0,
-                daily_xp_preview: None,
                 recent_unlocks: vec![],
                 achievements: vec![],
                 retro_done: true,

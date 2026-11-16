@@ -4,24 +4,18 @@
 //! limit snapshots to `DayFacts` and `LimitFact`. All reads go through the
 //! database helpers; no SQL lives here.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use chrono::{NaiveDate, TimeZone};
 
-use crate::aggregate::{
-    add_days, day_start, days_left, history_budget, local_date, weekly_budget, HISTORY_DAYS,
-    WEEK_MS,
-};
-use crate::contracts::{EpochMs, Mode};
+use crate::aggregate::{add_days, day_start, local_date};
+use crate::contracts::EpochMs;
 use crate::db::{Db, DbResult};
 use crate::game::constants::STREAK_LOOKBACK_DAYS;
 use crate::game::{DayFacts, Facts, LimitFact};
 
 /// Live evaluations look at readings of this many hours.
 const LIVE_LIMIT_HOURS: i64 = 12;
-
-/// Per-day budget percentages of finished days, kept between evaluations.
-pub type BudgetCache = HashMap<NaiveDate, Option<f64>>;
 
 /// What range an evaluation covers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,72 +60,13 @@ fn limit_facts(db: &Db, from: EpochMs) -> DbResult<Vec<LimitFact>> {
         .collect())
 }
 
-/// Budget used (percent) by a finished `day`, on the basis that was
-/// available then: the weekly limit (last stored weekly reading of that day,
-/// if its window was still running) else the token history of the 7 days
-/// before. `None` without either.
-fn finished_day_budget<Tz: TimeZone>(
-    db: &Db,
-    day: NaiveDate,
-    tokens: u64,
-    tz: &Tz,
-) -> DbResult<Option<f64>> {
-    let start = day_start(tz, day);
-    let end = day_start(tz, add_days(day, 1));
-    let last = end - 1;
-
-    let weekly = db.last_weekly_before(end)?;
-    if let Some((pct, Some(resets_at))) = weekly.filter(|(_, r)| r.is_some_and(|r| r > last)) {
-        let window_start = resets_at.saturating_sub(WEEK_MS);
-        let w0 = if window_start > start {
-            0.0
-        } else {
-            db.weekly_baseline(start, Some(window_start))?
-                .unwrap_or(pct)
-        };
-        let left = days_left(day, local_date(tz, resets_at));
-        return Ok(Some(weekly_budget(pct, w0, left, resets_at).used_percent));
-    }
-
-    let from = day_start(tz, add_days(day, -HISTORY_DAYS));
-    let previous: Vec<u64> = db
-        .tokens_by_local_day(tz, from, start)?
-        .iter()
-        .map(|d| d.totals.headline())
-        .collect();
-    Ok(history_budget(&previous, tokens).map(|b| b.used_percent))
-}
-
 /// Facts for one evaluation.
-///
-/// * `today_budget`: the live snapshot's budget percentage for today
-///   (Do it yourself only; pass `None` otherwise).
-/// * `cache`: budgets of finished days; filled here.
-pub fn build_facts<Tz: TimeZone>(
-    db: &Db,
-    mode: Mode,
-    scope: Scope,
-    now: EpochMs,
-    today_budget: Option<f64>,
-    cache: &mut BudgetCache,
-    tz: &Tz,
-) -> DbResult<Facts> {
+pub fn build_facts<Tz: TimeZone>(db: &Db, scope: Scope, now: EpochMs, tz: &Tz) -> DbResult<Facts> {
     let today = local_date(tz, now);
     let Some(first) = first_day(db, scope, today, tz)? else {
         return Ok(Facts::default());
     };
     let first = first.min(today);
-
-    // A finished day that gained usage later (startup backlog, late flush)
-    // has a stale budget, and so has every day after it (the history basis
-    // reaches back 7 days). Drop those before they are read.
-    if let Scope::Live {
-        touched: Some(touched),
-    } = scope
-    {
-        let from = local_date(tz, touched);
-        cache.retain(|day, _| *day < from);
-    }
 
     let range_start = day_start(tz, first);
     let range_end = day_start(tz, add_days(today, 1));
@@ -147,19 +82,7 @@ pub fn build_facts<Tz: TimeZone>(
     let mut day = first;
     while day <= today {
         let rows = usage.remove(&day).unwrap_or_default();
-        let tokens: u64 = rows.iter().map(|(_, t)| t).sum();
-        let budget = if mode != Mode::Diy {
-            None
-        } else if day == today {
-            today_budget
-        } else if let Some(cached) = cache.get(&day) {
-            *cached
-        } else {
-            let b = finished_day_budget(db, day, tokens, tz)?;
-            cache.insert(day, b);
-            b
-        };
-        days.push(DayFacts::from_usage(day, rows, budget, tz));
+        days.push(DayFacts::from_usage(day, rows, tz));
         day = add_days(day, 1);
     }
 
@@ -219,9 +142,7 @@ mod tests {
         ])
         .unwrap();
         let now = ms(2026, 10, 28, 12);
-        let mut cache = BudgetCache::new();
-        let facts =
-            build_facts(&db, Mode::Max, Scope::Replay, now, None, &mut cache, &tz()).unwrap();
+        let facts = build_facts(&db, Scope::Replay, now, &tz()).unwrap();
         let days: Vec<_> = facts
             .days
             .iter()
@@ -239,108 +160,22 @@ mod tests {
         // Night Owl window is 02:00 to 04:00.
         assert_eq!(facts.days[0].night_at, Some(ms(2026, 10, 25, 3)));
         assert_eq!(facts.days[0].first_at, Some(ms(2026, 10, 25, 3)));
-        assert!(cache.is_empty(), "Max it out needs no budgets");
     }
 
     #[test]
     fn live_covers_the_lookback_and_extends_to_touched_days() {
         let db = Db::open_in_memory().unwrap();
         let now = ms(2026, 10, 28, 12);
-        let mut cache = BudgetCache::new();
         let live = |touched| Scope::Live { touched };
-        let facts = build_facts(&db, Mode::Max, live(None), now, None, &mut cache, &tz()).unwrap();
+        let facts = build_facts(&db, live(None), now, &tz()).unwrap();
         assert_eq!(facts.days.len(), STREAK_LOOKBACK_DAYS as usize);
         assert_eq!(facts.days.last().unwrap().day.to_string(), "2026-10-28");
         assert_eq!(facts.days[0].day.to_string(), "2026-10-15");
         // A record from 20 days ago extends the range.
         let old = ms(2026, 10, 8, 10);
-        let facts = build_facts(
-            &db,
-            Mode::Max,
-            live(Some(old)),
-            now,
-            None,
-            &mut cache,
-            &tz(),
-        )
-        .unwrap();
+        let facts = build_facts(&db, live(Some(old)), now, &tz()).unwrap();
         assert_eq!(facts.days[0].day.to_string(), "2026-10-08");
         assert_eq!(facts.days.len(), 21);
-    }
-
-    #[test]
-    fn late_usage_evicts_cached_budgets_from_the_touched_day_on() {
-        let mut db = Db::open_in_memory().unwrap();
-        db.upsert_messages(&[
-            msg("a", ms(2026, 10, 24, 10), 985),
-            msg("b", ms(2026, 10, 25, 10), 985),
-            msg("c", ms(2026, 10, 26, 10), 185),
-        ])
-        .unwrap();
-        let now = ms(2026, 10, 27, 12);
-        let mut cache = BudgetCache::new();
-        let day = |d| NaiveDate::from_ymd_opt(2026, 10, d).unwrap();
-        let live = |touched| Scope::Live { touched };
-        build_facts(&db, Mode::Diy, live(None), now, None, &mut cache, &tz()).unwrap();
-        let before = cache[&day(26)].unwrap();
-        assert!(cache.contains_key(&day(25)));
-
-        // The 26th gains a lot of usage afterwards.
-        db.upsert_messages(&[msg("late", ms(2026, 10, 26, 18), 4_000)])
-            .unwrap();
-        let facts = build_facts(
-            &db,
-            Mode::Diy,
-            live(Some(ms(2026, 10, 26, 18))),
-            now,
-            None,
-            &mut cache,
-            &tz(),
-        )
-        .unwrap();
-        let after = cache[&day(26)].unwrap();
-        assert!(after > before, "{after} should exceed {before}");
-        let fact = facts.days.iter().find(|d| d.day == day(26)).unwrap();
-        assert_eq!(fact.budget_used_percent, Some(after));
-        // Earlier days keep their cached value.
-        assert!(cache.contains_key(&day(25)));
-    }
-
-    #[test]
-    fn diy_budgets_use_history_for_finished_days_and_the_snapshot_for_today() {
-        let mut db = Db::open_in_memory().unwrap();
-        // Two active days, 1000 tokens each (headline 10 + 985 + 5), then a
-        // light day at 20 % of that average.
-        db.upsert_messages(&[
-            msg("a", ms(2026, 10, 24, 10), 985),
-            msg("b", ms(2026, 10, 25, 10), 985),
-            msg("c", ms(2026, 10, 26, 10), 185),
-        ])
-        .unwrap();
-        let now = ms(2026, 10, 27, 12);
-        let mut cache = BudgetCache::new();
-        let facts = build_facts(
-            &db,
-            Mode::Diy,
-            Scope::Live { touched: None },
-            now,
-            Some(42.0),
-            &mut cache,
-            &tz(),
-        )
-        .unwrap();
-        let pct = |d: &str| {
-            facts
-                .days
-                .iter()
-                .find(|x| x.day.to_string() == d)
-                .and_then(|x| x.budget_used_percent)
-        };
-        assert_eq!(pct("2026-10-24"), None, "no previous active day");
-        assert!((pct("2026-10-26").unwrap() - 20.0).abs() < 1e-6);
-        assert_eq!(pct("2026-10-27"), Some(42.0));
-        assert_eq!(cache.get(&facts.days[0].day), Some(&None));
-        assert!(!cache.contains_key(&facts.days.last().unwrap().day));
     }
 
     #[test]

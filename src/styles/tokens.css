@@ -3,14 +3,10 @@
  * the source of truth, docs/DESIGN.md describes the rules and names these
  * tokens.
  *
- * State lives in data attributes on <html>:
+ * State lives in a data attribute on <html>:
  *   data-theme  = absent (follow the OS) | "light" | "dark" (forced)
- *   data-mode   = "max" | "diy"   (absent before onboarding: brand saffron)
  *
- * TKM-287: saffron is the only accent. --jade, data-mode="diy",
- * --mode-dot-size and --text-choice-size (mode rows) are removed and stay
- * only until the popup stops using them (TKM-306, TKM-307); the TKM-300
- * cleanup deletes them. Never use them in new code.
+ * Saffron is the only accent; --accent always points to it.
  *
  * Fonts are bundled from the @fontsource packages (Schibsted Grotesk,
  * Martian Mono); this file only defines the family stacks.
@@ -31,10 +27,8 @@
 
   /* Accent: saffron, the same in both themes */
   --saffron: #e39a0b;
-  /* Removed by TKM-287, kept until TKM-306/307 (lifted in dark) */
-  --jade: #1f8a64;
 
-  /* Mode-neutral accent (overridden below by data-mode) */
+  /* Accent used for fills and rules */
   --accent: var(--saffron);
 
   /* Monk figure */
@@ -83,14 +77,11 @@
   --text-ach-title-size: 28px;
   --text-title-size: 22px;
   --text-title-tracking: -0.02em;
-  --text-choice-lg-size: 21px; /* onboarding choice name */
-  --text-choice-lg-tracking: -0.015em;
   --text-status-size: 17px;
   --text-status-tracking: -0.01em;
   --text-stat-size: 26px; /* mono, version on About */
   --text-stat-line: 1.2;
   --text-stat-tracking: -0.03em;
-  --text-choice-size: 15.5px; /* settings mode row name */
   --text-brand-size: 15px;
   --text-brand-tracking: -0.01em;
   --text-row-size: 15px; /* achievement name, About rows */
@@ -126,8 +117,7 @@
   --popup-padding: 20px; /* all four sides */
   --popup-gap: 14px; /* column gap between dashboard blocks */
   --top-row-height: 32px;
-  --mode-dot-size: 8px;
-  --mark-lg-size: 52px; /* monk, onboarding rows and About */
+  --mark-lg-size: 52px; /* monk on About */
   --card-padding: 12px;
   --bar-height: 4px; /* level bar everywhere */
   --bar-week-height: 6px; /* week bar, dashboard */
@@ -182,7 +172,6 @@
     --ink: #e8e7e0;
     --ink-2: #98a09b;
     --line: #363e3a;
-    --jade: #2fa57a;
     --monk-face: var(--ink);
     --monk-line: var(--pop);
     --monk-head-stroke: none;
@@ -197,19 +186,8 @@
   --ink: #e8e7e0;
   --ink-2: #98a09b;
   --line: #363e3a;
-  --jade: #2fa57a;
   --monk-face: var(--ink);
   --monk-line: var(--pop);
   --monk-head-stroke: none;
   --bead-empty-stroke: #7b847f;
-}
-
-/* Modes */
-:root[data-mode="max"] {
-  --accent: var(--saffron);
-}
-
-/* Removed by TKM-287, kept until TKM-306/307 */
-:root[data-mode="diy"] {
-  --accent: var(--jade);
 }

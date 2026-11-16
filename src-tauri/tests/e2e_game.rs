@@ -104,7 +104,6 @@ fn replay_awards_the_expected_xp_and_level() {
     assert_eq!(game.xp_for_level, 440);
     assert!((game.progress - 72.0 / 440.0).abs() < 1e-12);
     assert_eq!(game.title, "Token Tourist");
-    assert_eq!(game.daily_xp_preview, None, "Max it out has no preview");
 
     // The achievements unlock at the 03:10 message (not at replay time).
     let first_message = utc_ms(2026, 10, 20, 3, 10, 0);
@@ -464,12 +463,7 @@ fn an_old_ledger_is_recounted_once_keeping_achievements() {
 
     let day = |d: u32| NaiveDate::from_ymd_opt(2026, 10, d).unwrap();
     let usage = |d: u32, tokens: u64| {
-        DayFacts::from_usage(
-            day(d),
-            [(utc_ms(2026, 10, d, 10, 0, 0), tokens)],
-            None,
-            &Utc,
-        )
+        DayFacts::from_usage(day(d), [(utc_ms(2026, 10, d, 10, 0, 0), tokens)], &Utc)
     };
     let facts = Facts {
         days: vec![usage(20, 250_000), usage(21, 2_500_000), usage(22, 0)],

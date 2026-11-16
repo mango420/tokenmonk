@@ -84,46 +84,6 @@ pub struct LimitsView {
     pub fetched_at: Option<EpochMs>,
 }
 
-/// Returned by `get_limit_setup`: the bridge command and the state of the
-/// bridge file. Since TKM-287 the setup itself is one click
-/// ([`LimitsConnection`]); this stays for the bridge file check.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LimitSetup {
-    /// Ready-to-paste value for `statusLine.command` in Claude Code's
-    /// `settings.json`: this executable's path plus the bridge flag, for
-    /// example `"/Applications/Tokenmonk.app/Contents/MacOS/tokenmonk --statusline"`.
-    /// `None` if the executable path cannot be determined.
-    ///
-    /// Removed by TKM-287 (the paste-only setup gives way to one-click
-    /// connect): kept until TKM-307 stops showing the snippet (cleanup in
-    /// TKM-300).
-    pub statusline_command: Option<String>,
-    /// State of the bridge file `statusline.json`, read when the command
-    /// runs. Lets Settings tell "never arrived" from "arrived, no current
-    /// window". Defaults to "missing" when absent on input (added after
-    /// v0.1's first `LimitSetup`; output always carries it).
-    #[serde(default)]
-    pub statusline_file: StatuslineFileInfo,
-}
-
-/// What the app knows about the bridge file, without judging it. Part of
-/// [`LimitSetup`]; see docs/ARCHITECTURE.md, "Setup snippet".
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct StatuslineFileInfo {
-    /// The file exists. `false` also when the app data directory is unknown
-    /// (then the bridge cannot write it either).
-    pub exists: bool,
-    /// `receivedAt` from the file: when the bridge last ran. `None` if the
-    /// file is missing, unreadable or not a valid bridge file.
-    pub received_at: Option<EpochMs>,
-    /// File modification time. Only adds value when `received_at` is `None`
-    /// but the file exists (something arrived, but it cannot be read).
-    /// `None` if the file is missing or the OS does not report it.
-    pub modified_at: Option<EpochMs>,
-}
-
 /// Whether Claude Code's status line runs the Tokenmonk bridge, read from
 /// `settings.json` in the effective Claude folder.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

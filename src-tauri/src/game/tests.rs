@@ -20,13 +20,12 @@ fn date(y: i32, m: u32, d: u32) -> NaiveDate {
     NaiveDate::from_ymd_opt(y, m, d).unwrap()
 }
 
-fn day(d: NaiveDate, tokens: u64, budget: Option<f64>) -> DayFacts {
+fn day(d: NaiveDate, tokens: u64) -> DayFacts {
     DayFacts {
         day: d,
         tokens,
         first_at: (tokens > 0).then(|| day_start_ms(d, &Utc) + 10 * HOUR),
         night_at: None,
-        budget_used_percent: budget,
     }
 }
 
@@ -58,7 +57,7 @@ fn max_awards_token_blocks_once() {
     let mut store = MemoryStore::default();
     let d = date(2026, 10, 28);
     let now = ms(2026, 10, 28, 15, 0);
-    let f = facts(vec![day(d, 250_000, None)]);
+    let f = facts(vec![day(d, 250_000)]);
 
     let ev = apply(&mut store, &f, Mode::Max, now, false);
     let blocks: Vec<_> = ev.ledger.iter().filter(|e| e.kind == KIND_TOKENS).collect();
@@ -75,7 +74,7 @@ fn max_awards_token_blocks_once() {
     assert_eq!(again.state.xp_total, ev.state.xp_total);
 
     // More tokens later the same day: only the new blocks.
-    let f = facts(vec![day(d, 410_000, None)]);
+    let f = facts(vec![day(d, 410_000)]);
     let more = apply(&mut store, &f, Mode::Max, now + HOUR, false);
     assert_eq!(more.ledger.len(), 2);
 }
@@ -83,7 +82,7 @@ fn max_awards_token_blocks_once() {
 fn max_day_xp(tokens: u64) -> u32 {
     let ev = evaluate(
         &GameData::default(),
-        &facts(vec![day(date(2026, 10, 28), tokens, None)]),
+        &facts(vec![day(date(2026, 10, 28), tokens)]),
         Mode::Max,
         ms(2026, 10, 29, 1, 0),
         &Utc,
@@ -154,8 +153,8 @@ fn legacy_store() -> MemoryStore {
 
 fn mixed_history() -> Facts {
     facts(vec![
-        day(date(2026, 10, 20), 3_000_000, None),
-        day(date(2026, 10, 21), 400_000, Some(30.0)),
+        day(date(2026, 10, 20), 3_000_000),
+        day(date(2026, 10, 21), 400_000),
     ])
 }
 
@@ -241,23 +240,20 @@ fn current_rules_keep_a_legacy_diy_day_untouched() {
 fn recount_replay_equals_live_levelling() {
     // Live: one evaluation after every change, growing facts, not retroactive.
     let steps = [
-        (ms(2026, 10, 20, 10, 0), vec![(20, 300_000, None)]),
-        (ms(2026, 10, 20, 18, 0), vec![(20, 1_200_000, None)]),
+        (ms(2026, 10, 20, 10, 0), vec![(20, 300_000)]),
+        (ms(2026, 10, 20, 18, 0), vec![(20, 1_200_000)]),
         (
             ms(2026, 10, 21, 12, 0),
-            vec![(20, 3_000_000, None), (21, 400_000, Some(30.0))],
+            vec![(20, 3_000_000), (21, 400_000)],
         ),
-        (
-            ms(2026, 10, 22, 9, 0),
-            vec![(20, 3_000_000, None), (21, 900_000, Some(30.0))],
-        ),
+        (ms(2026, 10, 22, 9, 0), vec![(20, 3_000_000), (21, 900_000)]),
     ];
     let mut live = MemoryStore::default();
     let mut last = None;
     for (now, days) in steps {
         let f = facts(
             days.into_iter()
-                .map(|(d, tokens, pct)| day(date(2026, 10, d), tokens, pct))
+                .map(|(d, tokens)| day(date(2026, 10, d), tokens))
                 .collect(),
         );
         last = Some(apply(&mut live, &f, Mode::Max, now, false));
@@ -275,8 +271,8 @@ fn recount_replay_equals_live_levelling() {
         .for_each(|e| e.mode = Mode::Max);
     recount_if_outdated(&mut recounted).unwrap();
     let f = facts(vec![
-        day(date(2026, 10, 20), 3_000_000, None),
-        day(date(2026, 10, 21), 900_000, Some(30.0)),
+        day(date(2026, 10, 20), 3_000_000),
+        day(date(2026, 10, 21), 900_000),
     ]);
     let ev = apply(&mut recounted, &f, Mode::Max, ms(2026, 10, 22, 9, 0), true);
     assert!(ev.state.retro_done);
@@ -285,7 +281,7 @@ fn recount_replay_equals_live_levelling() {
 
 #[test]
 fn none_yet_awards_nothing() {
-    let f = facts(vec![day(date(2026, 10, 28), 900_000, None)]);
+    let f = facts(vec![day(date(2026, 10, 28), 900_000)]);
     let ev = evaluate(
         &GameData::default(),
         &f,
@@ -310,7 +306,7 @@ fn first_blood_and_night_owl_with_local_detail() {
     assert!(in_night_window(ts, &tz));
     assert!(!in_night_window(ts, &Utc));
     let usage = [(ts, 1_000u64), (ms(2026, 10, 28, 9, 0), 500)];
-    let f = facts(vec![DayFacts::from_usage(d, usage, None, &tz)]);
+    let f = facts(vec![DayFacts::from_usage(d, usage, &tz)]);
     // 03:59 and 04:00 local: the window ends at 04:00, exclusive.
     assert!(in_night_window(ms(2026, 10, 28, 2, 59), &tz));
     assert!(!in_night_window(ms(2026, 10, 28, 3, 0), &tz));
@@ -408,7 +404,7 @@ fn level_up_reports_levels_and_title_change() {
         amount: (l1 - 5) as u32,
         retroactive: false,
     });
-    let f = facts(vec![day(date(2026, 10, 28), 100_000, None)]);
+    let f = facts(vec![day(date(2026, 10, 28), 100_000)]);
     let ev = evaluate(&prev, &f, Mode::Max, ms(2026, 10, 28, 12, 0), &Utc, false);
     let up = ev.level_up.expect("level up");
     assert_eq!((up.previous_level, up.level), (1, 2));
@@ -455,7 +451,7 @@ fn level_up_reports_levels_and_title_change() {
 #[test]
 fn state_matches_the_curve() {
     let mut store = MemoryStore::default();
-    let f = facts(vec![day(date(2026, 10, 28), 1_900_000, None)]);
+    let f = facts(vec![day(date(2026, 10, 28), 1_900_000)]);
     let ev = apply(&mut store, &f, Mode::Max, ms(2026, 10, 28, 12, 0), false);
     let info = level_info(ev.state.xp_total);
     assert_eq!(ev.state.level, info.level);
@@ -523,9 +519,7 @@ fn legacy_boo_stays_unlocked_and_is_never_regranted() {
 fn retroactive_levelling_never_grants_boo() {
     let mut store = MemoryStore::default();
     let first = date(2026, 10, 1);
-    let days: Vec<_> = (0..10)
-        .map(|i| day(first + Days::new(i), 800, Some(5.0)))
-        .collect();
+    let days: Vec<_> = (0..10).map(|i| day(first + Days::new(i), 800)).collect();
     let now = day_start_ms(first + Days::new(9), &Utc) + 12 * HOUR;
     let ev = apply(&mut store, &facts(days), Mode::Max, now, true);
     assert!(!unlocked(&ev).contains(&AchievementId::Boo));
@@ -600,10 +594,7 @@ fn facts_at(h: &History, now: i64, from: NaiveDate) -> Facts {
             .copied()
             .filter(|(ts, _)| *ts >= lo && *ts < hi && *ts <= now)
             .collect();
-        let tokens: u64 = usage.iter().map(|(_, t)| t).sum();
-        // Budget share of a day: 10,000 tokens are 1 %.
-        let budget = Some(tokens as f64 / 10_000.0);
-        days.push(DayFacts::from_usage(d, usage, budget, &Utc));
+        days.push(DayFacts::from_usage(d, usage, &Utc));
         d = d + Days::new(1);
     }
     Facts {
@@ -729,7 +720,7 @@ fn replay_equals_live_for_max_it_out() {
 fn token_monk_is_retired_and_only_listed_once_unlocked() {
     let first = date(2026, 10, 1);
     let now = day_start_ms(first + Days::new(1), &Utc) + HOUR;
-    let f = facts(vec![day(first, 800, Some(5.0))]);
+    let f = facts(vec![day(first, 800)]);
     let mut store = MemoryStore::default();
     let ev = apply(&mut store, &f, Mode::Max, now, false);
     assert!(!unlocked(&ev).contains(&AchievementId::TokenMonk));
@@ -737,7 +728,7 @@ fn token_monk_is_retired_and_only_listed_once_unlocked() {
         .state
         .achievements
         .iter()
-        .all(|a| a.id != AchievementId::TokenMonk && a.mode.is_none()));
+        .all(|a| a.id != AchievementId::TokenMonk));
 
     let mut prev = GameData::default();
     prev.achievements.push(AchievementRecord {
@@ -759,11 +750,10 @@ fn token_monk_is_retired_and_only_listed_once_unlocked() {
 }
 
 #[test]
-fn no_daily_xp_preview_and_a_retired_diy_mode_value_earns_as_max() {
+fn a_retired_diy_mode_value_earns_as_max() {
     let now = ms(2026, 10, 28, 14, 0);
-    let f = facts(vec![day(date(2026, 10, 28), 300_000, Some(20.0))]);
+    let f = facts(vec![day(date(2026, 10, 28), 300_000)]);
     let ev = evaluate(&GameData::default(), &f, Mode::Diy, now, &Utc, false);
-    assert_eq!(ev.state.daily_xp_preview, None);
     assert_eq!(ev.state.mode, Mode::Max);
     assert!(ev.ledger.iter().all(|e| e.mode == Mode::Max));
     assert_eq!(ev.state.xp_total, max_day_xp(300_000) as u64 + 10);

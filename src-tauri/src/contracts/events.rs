@@ -48,8 +48,6 @@ pub enum View {
     Dashboard,
     /// `"settings"`
     Settings,
-    /// `"onboarding"`
-    Onboarding,
     /// `"achievements"`: title, level and the achievement list, opened from
     /// the dashboard's level block.
     Achievements,

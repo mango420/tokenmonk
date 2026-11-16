@@ -22,10 +22,10 @@ export type EpochMs = number;
 
 // ---------------------------------------------------------------- settings
 
-/** Play mode. `noneYet` means onboarding has not been completed. Max is the
- * only mode since TKM-287; `"diy"` is removed and stays only until
- * TKM-301/302/306/307 stop using it (cleanup in TKM-300). Never produce it
- * in new code; stored `diy` is migrated to `max` (TKM-301). */
+/** Play mode. Max is the only mode. `noneYet`: no mode stored yet (the
+ * default of a fresh install); the game awards nothing. `diy`: the retired
+ * Do it yourself mode, legacy only: it labels old XP ledger rows and never
+ * reaches the UI (`Settings.mode` and `GameState.mode` are never `diy`). */
 export type Mode = "noneYet" | "max" | "diy";
 
 export interface Settings {
@@ -55,14 +55,12 @@ export interface Settings {
   claudeFolder?: string | null;
 }
 
-/** Partial update for `update_settings`. Absent keys stay unchanged.
- * `mode: "noneYet"` is rejected. `mode` is removed by TKM-287 (no mode
- * picker) and stays only until TKM-307 stops using it. `notifyLimits` /
- * `notifyLevelUps` toggle the two notifications. `claudeFolder`: a string sets the folder
- * (non-empty, absolute, else `invalidArgument`; existence is not checked),
- * `null` resets it to the default. Rust: `Option<Option<String>>`. */
+/** Partial update for `update_settings`. Absent keys stay unchanged. The
+ * mode is not patchable. `notifyLimits` / `notifyLevelUps` toggle the two
+ * notifications. `claudeFolder`: a string sets the folder (non-empty,
+ * absolute, else `invalidArgument`; existence is not checked), `null`
+ * resets it to the default. Rust: `Option<Option<String>>`. */
 export interface SettingsPatch {
-  mode?: Mode;
   sound?: boolean;
   autostart?: boolean;
   updateCheck?: boolean;
@@ -107,31 +105,6 @@ export interface LimitsView {
   fiveHour: LimitWindow | null;
   weekly: LimitWindow | null;
   fetchedAt: EpochMs | null;
-}
-
-/** Result of `get_limit_setup`: the bridge command and the bridge file
- * state. The setup itself is one click since TKM-287 (`LimitsConnection`). */
-export interface LimitSetup {
-  /** Ready-to-paste value for `statusLine.command` in Claude Code's
-   * `settings.json` (executable path plus `--statusline`); null if the
-   * executable path is unknown. Removed by TKM-287 (paste-only setup);
-   * stays until TKM-307 stops showing the snippet. */
-  statuslineCommand: string | null;
-  /** State of the bridge file `statusline.json` when the command ran. Lets
-   * Settings tell "never arrived" from "arrived, no current window". */
-  statuslineFile: StatuslineFileInfo;
-}
-
-/** What the app knows about the bridge file, without judging it. */
-export interface StatuslineFileInfo {
-  /** The file exists (false also when the app data directory is unknown). */
-  exists: boolean;
-  /** `receivedAt` from the file: when the bridge last ran. Null if the file
-   * is missing, unreadable or not a valid bridge file. */
-  receivedAt: EpochMs | null;
-  /** File modification time; useful when the file exists but
-   * `receivedAt` is null. Null if missing or not reported by the OS. */
-  modifiedAt: EpochMs | null;
 }
 
 /** Whether Claude Code's `statusLine` runs the Tokenmonk bridge.
@@ -192,33 +165,6 @@ export interface BurnRate {
   /** Headline tokens per minute over the trailing window. */
   tokensPerMinute: number;
   windowMinutes: number;
-  /** Minutes until the 5-hour limit at this pace; null without limits or burn, 0 when reached.
-   * Removed by TKM-287 (no ETA); stays until TKM-301/304/306 stop using it. */
-  limitEtaMinutes: number | null;
-}
-
-/** Removed by TKM-287 (no budget); stays until TKM-301/306 stop using it. */
-export type BudgetBasis = "weeklyLimit" | "tokenHistory";
-
-/** Removed by TKM-287 (no budget); stays until TKM-301/302/306 stop using it. */
-export interface DailyBudget {
-  basis: BudgetBasis;
-  /** Today's allowance in the unit of `basis` (weekly % points or tokens). */
-  allowance: number;
-  usedToday: number;
-  /** usedToday / allowance * 100; may exceed 100. */
-  usedPercent: number;
-  /** Days until the weekly reset, today included (at least 1). */
-  daysLeft: number;
-  resetsAt: EpochMs | null;
-  /**
-   * Headline tokens that may still be used per day, today included, until the
-   * weekly reset; an estimate (the weekly limit also counts claude.ai chats).
-   * weeklyLimit basis only: tokens since the weekly window start per weekly
-   * percent point, times (100 - utilization) / daysLeft, at least 0.
-   * null with tokenHistory, at 0 % weekly utilization or without tokens.
-   */
-  tokensLeftPerDay: number | null;
 }
 
 export type DataState = "importing" | "ready" | "noLogs" | "error";
@@ -237,9 +183,6 @@ export interface DashboardSnapshot {
   session: SessionStats | null;
   burnRate: BurnRate;
   limits: LimitsView;
-  /** null when neither limits nor enough token history exist. Removed by
-   * TKM-287; stays until TKM-301/306 stop using it. */
-  dailyBudget: DailyBudget | null;
   data: DataStatus;
 }
 
@@ -269,9 +212,6 @@ export interface AchievementProgress {
   description: string;
   /** Hidden until unlocked (only Boo, which can no longer be earned). */
   secret: boolean;
-  /** Only earnable in this mode; null for both. Removed by TKM-287 (one
-   * mode); stays until TKM-302 stops using it. */
-  mode: Mode | null;
   xp: number;
   unlockedAt: EpochMs | null;
   current: number | null;
@@ -300,6 +240,7 @@ export interface LevelUp {
 }
 
 export interface GameState {
+  /** `max`, or `noneYet` while no mode is stored; never `diy`. */
   mode: Mode;
   level: number;
   title: string;
@@ -308,9 +249,6 @@ export interface GameState {
   xpForLevel: number;
   /** xpIntoLevel / xpForLevel, 0..1. */
   progress: number;
-  /** Do it yourself only: XP if usage stopped now; 0 over budget; null otherwise.
-   * Removed by TKM-287; stays until TKM-302/306 stop using it. */
-  dailyXpPreview: number | null;
   /** Newest first. */
   recentUnlocks: AchievementUnlocked[];
   /** Display order. */
@@ -408,10 +346,8 @@ export const Commands = {
   getDashboard: "get_dashboard",
   getSettings: "get_settings",
   updateSettings: "update_settings",
-  completeOnboarding: "complete_onboarding",
   getGameState: "get_game_state",
   getAppInfo: "get_app_info",
-  getLimitSetup: "get_limit_setup",
   getUpdateStatus: "get_update_status",
   /** Resolves when the check is done (at once while one is running). */
   checkForUpdates: "check_for_updates",
@@ -438,21 +374,13 @@ export interface UpdateSettingsArgs {
   patch: SettingsPatch;
 }
 
-/** `mode` must be "max" ("diy" is removed by TKM-287 and accepted only
- * until TKM-301/306 drop it). */
-export interface CompleteOnboardingArgs {
-  mode: Mode;
-}
-
 /** Arguments per command (`undefined`: call without arguments). */
 export interface CommandArgs {
   get_dashboard: undefined;
   get_settings: undefined;
   update_settings: UpdateSettingsArgs;
-  complete_onboarding: CompleteOnboardingArgs;
   get_game_state: undefined;
   get_app_info: undefined;
-  get_limit_setup: undefined;
   get_update_status: undefined;
   check_for_updates: undefined;
   install_update: undefined;
@@ -467,10 +395,8 @@ export interface CommandResults {
   get_dashboard: DashboardSnapshot;
   get_settings: Settings;
   update_settings: Settings;
-  complete_onboarding: Settings;
   get_game_state: GameState;
   get_app_info: AppInfo;
-  get_limit_setup: LimitSetup;
   get_update_status: UpdateStatus;
   check_for_updates: UpdateStatus;
   install_update: UpdateStatus;
@@ -515,7 +441,7 @@ export type EventName = (typeof Events)[keyof typeof Events];
 
 /** Popup views (Rust `View`, camelCase). `about`: version, licence and the
  * GitHub links, opened from the Settings footer; Back returns to Settings. */
-export type View = "dashboard" | "settings" | "onboarding" | "achievements" | "about";
+export type View = "dashboard" | "settings" | "achievements" | "about";
 
 export interface NavigateTo {
   view: View;

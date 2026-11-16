@@ -63,7 +63,6 @@ fn today_session_and_burn_come_from_the_fixtures_without_cache_reads() {
     // Burn rate: M4 only, cache read of 260000 left out.
     assert_eq!(s.burn_rate.window_minutes, 15);
     assert!((s.burn_rate.tokens_per_minute - 304.0 / 15.0).abs() < 1e-9);
-    assert_eq!(s.burn_rate.limit_eta_minutes, None, "no limit data");
 
     // Session 3 is current (last message 10 minutes ago).
     let session = s.session.clone().expect("session 3 is active");
@@ -81,7 +80,6 @@ fn today_session_and_burn_come_from_the_fixtures_without_cache_reads() {
         Some(utc_ms(2026, 10, 28, 11, 30, 0))
     );
     assert_eq!(s.limits.status, LimitStatus::Unavailable);
-    assert!(s.daily_budget.is_none(), "Max it out has no history budget");
 
     // The app cache and the event stream carry the same snapshot.
     assert_eq!(rig.state.dashboard().as_ref(), Some(&s));
@@ -102,7 +100,6 @@ fn the_previous_day_is_complete_across_all_files_and_both_ends_of_the_day() {
     // left out of the total.
     let (_, s) = loaded(Mode::Max, utc_ms(2026, 10, 27, 23, 30, 0));
     assert_eq!(s.today.total, 10_628);
-    assert!(s.daily_budget.is_none(), "no history budget any more");
 }
 
 #[test]
@@ -130,19 +127,6 @@ fn halo_is_the_five_hour_percent_left_in_every_mode() {
         assert!(rig.rec.events().contains(&Event::Halo(Some(80.0), mode)));
     }
 
-    // Max keeps its ETA: 20 % over the 304 tokens since 08:40 at 304/15
-    // tokens a minute is 1.33 %/min, so 60 minutes to go; float rounding may
-    // land on 59.
-    let (mut rig, _) = loaded(Mode::Max, now());
-    rig.limit(Ok(LimitReading {
-        five_hour: window(20.0, utc_ms(2026, 10, 28, 13, 40, 0)),
-        weekly: None,
-        fetched_at: now() - 60_000,
-    }));
-    let s = rig.snap(now(), SnapshotCause::Limits);
-    let eta = s.burn_rate.limit_eta_minutes.expect("eta with a reading");
-    assert!((59..=60).contains(&eta), "eta {eta}");
-
     // The gauge drains: a fuller window leaves less, and a window used up
     // (or over) clamps to empty, never negative.
     for (used, left) in [
@@ -164,14 +148,13 @@ fn halo_is_the_five_hour_percent_left_in_every_mode() {
 }
 
 #[test]
-fn weekly_data_alone_gives_no_halo_and_never_a_budget() {
+fn weekly_data_alone_gives_no_halo() {
     // Without a limit reading the halo stays empty.
     let (rig, s) = loaded(Mode::Max, utc_ms(2026, 10, 28, 12, 0, 0));
-    assert!(s.daily_budget.is_none());
     assert_eq!(halo_percent(&s), None);
     assert!(rig.rec.events().contains(&Event::Halo(None, Mode::Max)));
 
-    // A weekly reading alone gives no halo and no budget; the halo follows
+    // A weekly reading alone gives no halo; the halo follows
     // the 5-hour window only (20 % used, 80 % left).
     let (mut rig, _) = loaded(Mode::Max, now());
     let reset = utc_ms(2026, 10, 30, 18, 0, 0);
@@ -181,7 +164,6 @@ fn weekly_data_alone_gives_no_halo_and_never_a_budget() {
         fetched_at: utc_ms(2026, 10, 28, 0, 30, 0),
     }));
     let s = rig.snap(now(), SnapshotCause::Limits);
-    assert!(s.daily_budget.is_none());
     assert_eq!(halo_percent(&s), None, "weekly data alone gives no halo");
 
     rig.limit(Ok(LimitReading {
@@ -190,7 +172,6 @@ fn weekly_data_alone_gives_no_halo_and_never_a_budget() {
         fetched_at: now() - 5 * 60_000,
     }));
     let s = rig.snap(now(), SnapshotCause::Limits);
-    assert!(s.daily_budget.is_none());
     assert_eq!(halo_percent(&s), Some(80.0));
     assert!(rig
         .rec

@@ -71,20 +71,6 @@ impl Db {
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
-    /// The newest stored weekly reading with `fetched_at < before`, as
-    /// `(utilisation, resetsAt)`.
-    pub fn last_weekly_before(&self, before: EpochMs) -> DbResult<Option<(f64, Option<EpochMs>)>> {
-        Ok(self
-            .conn()
-            .prepare_cached(
-                "SELECT weekly_pct, weekly_resets_at FROM limit_snapshots \
-                 WHERE fetched_at < ?1 AND weekly_pct IS NOT NULL \
-                 ORDER BY fetched_at DESC, id DESC LIMIT 1",
-            )?
-            .query_row([before], |r| Ok((r.get(0)?, r.get(1)?)))
-            .optional()?)
-    }
-
     /// The newest stored reading (restores the last good value after a restart).
     pub fn latest_limit_snapshot(&self) -> DbResult<Option<StoredLimit>> {
         Ok(self
@@ -104,40 +90,6 @@ impl Db {
                         },
                     })
                 },
-            )
-            .optional()?)
-    }
-
-    /// Weekly utilisation at the start of a local day (`W0` in
-    /// docs/ARCHITECTURE.md): the last snapshot before `day_start_ms`, else
-    /// the first one at or after it. `window_start_ms` limits the search to
-    /// the current weekly window when its start is known.
-    pub fn weekly_baseline(
-        &self,
-        day_start_ms: EpochMs,
-        window_start_ms: Option<EpochMs>,
-    ) -> DbResult<Option<f64>> {
-        let floor = window_start_ms.unwrap_or(i64::MIN);
-        let conn = self.conn();
-        let before: Option<f64> = conn
-            .query_row(
-                "SELECT weekly_pct FROM limit_snapshots \
-                 WHERE fetched_at < ?1 AND fetched_at >= ?2 AND weekly_pct IS NOT NULL \
-                 ORDER BY fetched_at DESC, id DESC LIMIT 1",
-                [day_start_ms, floor],
-                |r| r.get(0),
-            )
-            .optional()?;
-        if before.is_some() {
-            return Ok(before);
-        }
-        Ok(conn
-            .query_row(
-                "SELECT weekly_pct FROM limit_snapshots \
-                 WHERE fetched_at >= ?1 AND fetched_at >= ?2 AND weekly_pct IS NOT NULL \
-                 ORDER BY fetched_at ASC, id ASC LIMIT 1",
-                [day_start_ms, floor],
-                |r| r.get(0),
             )
             .optional()?)
     }
@@ -180,31 +132,6 @@ mod tests {
         let got = db.latest_limit_snapshot().unwrap().unwrap();
         assert_eq!(got.source, "s1");
         assert_eq!(got.reading, newest);
-    }
-
-    #[test]
-    fn baseline_prefers_last_before_midnight_else_first_of_day() {
-        let db = Db::open_in_memory().unwrap();
-        assert_eq!(db.weekly_baseline(1000, None).unwrap(), None);
-        db.insert_limit_snapshot("s", &reading(1100, None, Some(50.0)))
-            .unwrap();
-        db.insert_limit_snapshot("s", &reading(1200, None, Some(55.0)))
-            .unwrap();
-        // Nothing before the day start: first snapshot of the day.
-        assert_eq!(db.weekly_baseline(1000, None).unwrap(), Some(50.0));
-        // Older readings are not stored by the helper; seed them directly.
-        for (at, pct) in [(900, 40.0), (950, 45.0)] {
-            db.conn()
-                .execute(
-                    "INSERT INTO limit_snapshots (fetched_at, source, weekly_pct) \
-                     VALUES (?1, 's', ?2)",
-                    params![at, pct],
-                )
-                .unwrap();
-        }
-        assert_eq!(db.weekly_baseline(1000, None).unwrap(), Some(45.0));
-        // A window that started at 960 excludes the older snapshots.
-        assert_eq!(db.weekly_baseline(1000, Some(960)).unwrap(), Some(50.0));
     }
 
     fn count(db: &Db) -> i64 {
@@ -277,23 +204,6 @@ mod tests {
             ]
         );
         assert_eq!(db.five_hour_snapshots_since(11).unwrap().len(), 1);
-    }
-
-    #[test]
-    fn last_weekly_before_picks_the_newest_earlier_weekly_row() {
-        let db = Db::open_in_memory().unwrap();
-        assert_eq!(db.last_weekly_before(1000).unwrap(), None);
-        for (at, five, weekly) in [
-            (10, None, Some(5.0)),
-            (20, Some(1.0), None),
-            (30, None, Some(7.0)),
-        ] {
-            db.insert_limit_snapshot("s", &reading(at, five, weekly))
-                .unwrap();
-        }
-        assert_eq!(db.last_weekly_before(31).unwrap(), Some((7.0, Some(5030))));
-        assert_eq!(db.last_weekly_before(30).unwrap(), Some((5.0, Some(5010))));
-        assert_eq!(db.last_weekly_before(10).unwrap(), None);
     }
 
     #[test]

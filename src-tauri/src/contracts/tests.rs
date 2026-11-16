@@ -150,9 +150,10 @@ fn settings_patch_omits_absent_fields() {
         ..Default::default()
     };
     assert_eq!(to_value(&patch).unwrap(), json!({ "sound": false }));
+    // The mode is not patchable any more; a stray key changes nothing.
     let parsed: SettingsPatch = serde_json::from_value(json!({ "mode": "max" })).unwrap();
-    assert_eq!(parsed.mode, Some(Mode::Max));
-    assert_eq!(parsed.sound, None);
+    assert_eq!(parsed, SettingsPatch::default());
+    assert_eq!(to_value(&parsed).unwrap(), json!({}));
     let args: UpdateSettingsArgs =
         serde_json::from_value(json!({ "patch": { "autostart": true } })).unwrap();
     assert_eq!(args.patch.autostart, Some(true));
@@ -341,18 +342,8 @@ fn dashboard_snapshot_shape() {
         burn_rate: BurnRate {
             tokens_per_minute: 1.5,
             window_minutes: 15,
-            limit_eta_minutes: None,
         },
         limits: sample_limits(),
-        daily_budget: Some(DailyBudget {
-            basis: BudgetBasis::WeeklyLimit,
-            allowance: 10.0,
-            used_today: 2.3,
-            used_percent: 23.0,
-            days_left: 6,
-            resets_at: None,
-            tokens_left_per_day: None,
-        }),
         data: DataStatus {
             state: DataState::NoLogs,
             files_total: 0,
@@ -363,14 +354,16 @@ fn dashboard_snapshot_shape() {
     };
     let v = to_value(&snapshot).unwrap();
     assert_eq!(v["today"]["cacheCreation"], json!(3));
-    assert_eq!(v["burnRate"]["limitEtaMinutes"], Value::Null);
+    assert_eq!(
+        v["burnRate"],
+        json!({ "tokensPerMinute": 1.5, "windowMinutes": 15 })
+    );
     assert_eq!(
         v["limits"]["fiveHour"]["resetsAt"],
         json!(1_700_000_000_000_i64)
     );
     assert_eq!(v["limits"]["weekly"], Value::Null);
-    assert_eq!(v["dailyBudget"]["basis"], json!("weeklyLimit"));
-    assert_eq!(v["dailyBudget"]["tokensLeftPerDay"], Value::Null);
+    assert!(v.get("dailyBudget").is_none());
     assert_eq!(v["data"]["state"], json!("noLogs"));
     assert_eq!(v["session"], Value::Null);
     let back: DashboardSnapshot = serde_json::from_value(v).unwrap();
@@ -421,7 +414,7 @@ fn app_info_and_errors_shape() {
     );
     let err = CommandError {
         code: CommandErrorCode::InvalidArgument,
-        message: "mode must be max or diy".into(),
+        message: "the Claude folder must be an absolute path".into(),
     };
     assert_eq!(to_value(err).unwrap()["code"], json!("invalidArgument"));
     assert_eq!(
@@ -437,6 +430,7 @@ fn app_info_and_errors_shape() {
         serde_json::from_value::<NavigateTo>(json!({ "view": "about" })).unwrap(),
         NavigateTo { view: View::About }
     );
+    assert!(serde_json::from_value::<NavigateTo>(json!({ "view": "onboarding" })).is_err());
 }
 
 #[test]
@@ -445,44 +439,6 @@ fn github_links_share_one_repo() {
     use super::update::RELEASE_PAGE_BASE;
     assert_eq!(ISSUES_URL, format!("{REPO_URL}/issues"));
     assert_eq!(RELEASE_PAGE_BASE, format!("{REPO_URL}/releases/tag/"));
-}
-
-#[test]
-fn limit_setup_shape() {
-    let setup = LimitSetup {
-        statusline_command: Some("/opt/example/tokenmonk --statusline".into()),
-        statusline_file: StatuslineFileInfo {
-            exists: true,
-            received_at: Some(1_767_225_600_000),
-            modified_at: Some(1_767_225_600_120),
-        },
-    };
-    assert_eq!(
-        to_value(setup).unwrap(),
-        json!({
-            "statuslineCommand": "/opt/example/tokenmonk --statusline",
-            "statuslineFile": {
-                "exists": true,
-                "receivedAt": 1_767_225_600_000_i64,
-                "modifiedAt": 1_767_225_600_120_i64
-            }
-        })
-    );
-    let none = LimitSetup {
-        statusline_command: None,
-        statusline_file: StatuslineFileInfo::default(),
-    };
-    assert_eq!(
-        to_value(none).unwrap(),
-        json!({
-            "statuslineCommand": null,
-            "statuslineFile": { "exists": false, "receivedAt": null, "modifiedAt": null }
-        })
-    );
-    // Additive: input without the block still parses, as "missing".
-    let old: LimitSetup = serde_json::from_value(json!({ "statuslineCommand": null })).unwrap();
-    assert_eq!(old.statusline_file, StatuslineFileInfo::default());
-    assert_eq!(commands::GET_LIMIT_SETUP, "get_limit_setup");
 }
 
 #[test]

@@ -23,7 +23,7 @@ Related documents: [DESIGN.md](DESIGN.md) (look and feel),
 | update | `src-tauri/src/app/update.rs` | Update check and install through `tauri-plugin-updater`; holds `UpdateStatus` and the last `Update` (see "Updates"). Part of the app layer. |
 | commands | `src-tauri/src/commands/` | `#[tauri::command]` handlers; thin, read cached state or delegate. |
 | tray, window | `src-tauri/src/{tray,window}/` | Tray icon with live ring (5-hour percent left), popup window placement and show/hide. |
-| UI | `src/` | React views: onboarding, dashboard, settings, achievements, toasts, level-up screen. |
+| UI | `src/` | React views: dashboard, settings, about, achievements, toasts, level-up screen. |
 
 The UI never touches files, the database or the network. The only network
 request of the app is the update check (see "Updates"), made by Rust.
@@ -146,30 +146,8 @@ storage.
   active one.
 - **Burn rate**: headline tokens in the trailing 15 minutes divided by 15
   (`windowMinutes = 15`).
-- Removed by TKM-287 (no estimates anywhere): the limit forecast and the
-  daily budget below. Their contract fields (`BurnRate.limitEtaMinutes`,
-  `DashboardSnapshot.dailyBudget`, `DailyBudget`, `BudgetBasis`) stay until
-  TKM-301, TKM-304 and TKM-306 stop using them; the TKM-300 cleanup
-  deletes them. Daily budget kept below as design history.
-- **Daily budget**:
-  - `weeklyLimit` basis (weekly reading available): `W0` = weekly
-    utilisation at the start of the local day (last snapshot before
-    midnight, else the first one of the day). `daysLeft` = local calendar
-    days from today to the reset day, both included (at least 1).
-    `allowance = (100 - W0) / daysLeft`; `usedToday = Wnow - W0`;
-    `usedPercent = usedToday / allowance x 100`. If the weekly window resets
-    during the day, `W0` restarts at the reset.
-    `tokensLeftPerDay` (estimate, the weekly limit also counts claude.ai
-    chats): tokens per weekly percent point = headline tokens since the
-    weekly window start (`resetsAt` minus 7 days) / `Wnow`; value =
-    `(100 - Wnow) / daysLeft` x that ratio, at least 0; `null` at
-    `Wnow = 0` or without tokens in the window.
-  - `tokenHistory` basis (no weekly reading; decided fallback, used by Do
-    it yourself when there is no limit data): `allowance` = average
-    headline tokens per active day over the previous 7 local days (today
-    excluded); `usedToday` = headline tokens today; `daysLeft = 1`,
-    `resetsAt = null`, `tokensLeftPerDay = null`. `dailyBudget` is `null` if there is no active day
-    in that range.
+- No estimates: no daily budget, no limit forecast, no ETA (DESIGN.md,
+  "Product line").
 - **Limit status**: on every snapshot build (including the minute tick)
   the aggregate first drops each window of the last good reading whose
   `resetsAt` is at or before now (`fiveHour` or `weekly` becomes `null`),
@@ -200,13 +178,12 @@ pub trait LimitSource: Send + Sync {
   credentials, no endpoint. Claude Code pipes a JSON object to its
   configured status-line command; the bridge mode of the Tokenmonk
   executable keeps only the `rate_limits` part and the app reads it from a
-  small file. Since TKM-287 the setup is one click: "Connect limits"
-  writes the `statusLine` entry (see "Connect limits" below). The paste-only
-  snippet ("Setup snippet") is design history until TKM-307 removes it.
+  small file. The setup is one click: "Connect limits" writes the
+  `statusLine` entry (see "Connect limits" below).
   Sources and verified facts: DECISIONS.md, "Limit source".
 - Without a usable reading the app runs on token data alone: tokens today
   is the full view plus one calm line, no warning, no estimate (DESIGN.md,
-  "Product line"). Removed by TKM-287: the `tokenHistory` budget.
+  "Product line").
 - Limit percentages include claude.ai chats; token statistics are Claude
   Code only. The popup footer says so permanently.
 
@@ -266,7 +243,7 @@ pub trait LimitSource: Send + Sync {
   resolves it to `data_dir/<bundle identifier>`, and the app sets no
   `appDirectoriesOverride`). Bridge and file source call the same helper
   so the paths cannot drift.
-- No `refreshInterval` in the snippet: a timer re-run resends the last
+- Connect adds no `refreshInterval`: a timer re-run resends the last
   values, which would make an old reading look fresh.
 
 Bridge file (camelCase, all timestamps `EpochMs`; invented values):
@@ -308,62 +285,21 @@ Bridge file (camelCase, all timestamps `EpochMs`; invented values):
   `fetchedAt = receivedAt`: `ok` up to 15 minutes, then `stale`. The file
   only changes while Claude Code runs, so `stale` is normal after a break.
 
-### Setup snippet
+### Bridge command
 
-- `get_limit_setup` returns `LimitSetup { statuslineCommand,
-  statuslineFile }`. `statuslineCommand` is the current executable path (`std::env::current_exe()`) plus ` --statusline`. On
-  Windows the path uses forward slashes (Claude Code runs the command
-  through Git Bash when installed, which drops unquoted backslashes, else
-  through PowerShell). The path is wrapped in double quotes only if it
-  contains a space.
-- `statuslineCommand` is always the POSIX shell form (macOS shell, Git
-  Bash on Windows). Without a space the unquoted form is the same in Git
-  Bash and PowerShell. With a space, PowerShell needs the call operator:
-  `& "C:/Example Dir/tokenmonk.exe" --statusline`, which is a syntax error
-  in Bash, so one string cannot serve both. Rule, decided in the UI with
-  no contract change: if `AppInfo.platform = windows` and
-  `statuslineCommand` starts with `"`, Settings shows the Git Bash form as
-  the default snippet and a second, alternative snippet whose command is
-  `"& " + statuslineCommand`, labelled for Claude Code without Git Bash
-  (DESIGN.md, Settings, "Limit data"). Rust never builds the PowerShell
-  form.
-- The UI builds the snippet with `JSON.stringify`, so quotes are escaped:
-  `{ "statusLine": { "type": "command", "command": <statuslineCommand> } }`,
-  to be merged into the user settings file `settings.json` in the Claude
-  folder (`ClaudeFolder.path`; `~/.claude/settings.json` by default).
-  This makes Tokenmonk the whole status line command: it replaces any
-  existing `statusLine` value.
-- Chaining an existing status line: Tokenmonk does not run other commands
-  in v0.1. A user with their own script keeps their `statusLine` setting
-  as is and adds one line inside that script, not in `settings.json`. The
-  line pipes the same input to the bridge and drops its output, for
-  scripts that keep stdin in `$input` as the official examples do:
-  `printf '%s' "$input" | <statuslineCommand> >/dev/null`. It is a Bash
-  line, so the UI shows it only if `AppInfo.platform` is not `windows`; on
-  Windows the script language is unknown (Git Bash or PowerShell) and
-  Settings says chaining is not covered there (DESIGN.md, "Limit data").
-  A built-in chain flag and PowerShell scripts are out of scope for v0.1.
-- `statuslineFile: StatuslineFileInfo { exists, receivedAt, modifiedAt }`
-  is read on every `get_limit_setup` call from the same path as the file
-  source (`limits::bridge::statusline_path()`), independent of the limits
-  worker. It reports, it does not judge:
-
-  | File state | `exists` | `receivedAt` | `modifiedAt` |
-  |---|---|---|---|
-  | No app data directory, or file missing | `false` | `null` | `null` |
-  | Exists, unreadable, not JSON, unknown `version` | `true` | `null` | mtime or `null` |
-  | Valid bridge file | `true` | file's `receivedAt` | mtime or `null` |
-
-  `modifiedAt` is `std::fs::Metadata::modified()` as epoch ms, `null` if
-  the OS does not report it. It matters only when `receivedAt` is `null`
-  (something arrived but cannot be read); for a valid file the two are
-  about the same. Expired windows do not change this block: a valid file
-  whose windows are all past reset gives `receivedAt` set while
-  `DashboardSnapshot.limits` is `unavailable` with `noSource` ("arrived, no
-  current window"). Reading the file must not fail the command; any I/O
-  error lands in the second row. Rust and TS: `statuslineFile` is always
-  serialized; on input it defaults to the first row (`#[serde(default)]`),
-  so the change is additive.
+- The command that "Connect limits" writes is the current executable path
+  (`std::env::current_exe()`) plus ` --statusline`
+  (`limits::setup::current_statusline_command`). On Windows the path uses
+  forward slashes (Claude Code runs the command through Git Bash when
+  installed, which drops unquoted backslashes, else through PowerShell).
+  The path is wrapped in double quotes only if it contains a space.
+- It is always the POSIX shell form (macOS shell, Git Bash on Windows).
+  Without a space the unquoted form is the same in Git Bash and
+  PowerShell. With a space, PowerShell would need the call operator
+  (`& "C:/Example Dir/tokenmonk.exe" --statusline`); Rust never writes
+  that form, but "Connect limits" recognises it as Tokenmonk's.
+- No command returns this string or the state of the bridge file: Settings
+  shows `LimitsConnection`, the popup `DashboardSnapshot.limits`.
 
 ### To verify during implementation
 
@@ -374,31 +310,26 @@ Bridge file (camelCase, all timestamps `EpochMs`; invented values):
   (orchestrator).
 - macOS: check that running the binary inside the ad-hoc signed `.app`
   from a shell works after the first approval.
-- Both Windows snippet forms (unquoted path, and `& "path"` with a space)
-  under the PowerShell fallback.
+- The quoted command form (path with a space) under the PowerShell
+  fallback, where only the `& "path"` form runs.
 
 ### Implementation notes
 
 For backend-platform (and the orchestrator where marked):
 
-1. `commands`: add `get_limit_setup` returning `LimitSetup` (a stub
-   returning `statuslineCommand: null` is fine until the path logic
-   lands; `statuslineFile` defaults to "missing" until the file check in
-   "Setup snippet" lands); register it in `lib.rs` next to the other commands
-   (orchestrator, shared hotspot).
-2. `lib.rs::run` (orchestrator, shared hotspot): if the first argument is
+1. `lib.rs::run` (orchestrator, shared hotspot): if the first argument is
    `--statusline`, run the bridge and return before the Tauri builder is
    created, so no plugin (single-instance included) starts.
-3. `limits/bridge.rs`: bridge mode and the shared path helper
+2. `limits/bridge.rs`: bridge mode and the shared path helper
    (`dirs::data_dir()` + `app.tokenmonk.desktop` + `statusline.json`).
-4. `limits/statusline.rs`: `StatuslineSource` (id `"statusline"`), and
+3. `limits/statusline.rs`: `StatuslineSource` (id `"statusline"`), and
    `default_source()` returns it.
-5. `limits/worker.rs`: `POLL_INTERVAL` becomes 30 s; `MIN_REFRESH_GAP`
+4. `limits/worker.rs`: `POLL_INTERVAL` becomes 30 s; `MIN_REFRESH_GAP`
    stays 1 min.
-6. Ingest worker (backend-data): store a reading in `limit_snapshots` only
+5. Ingest worker (backend-data): store a reading in `limit_snapshots` only
    if its `fetchedAt` is strictly newer than the newest stored one (one
    statement, `Db::insert_limit_snapshot`).
-7. Aggregate (backend-data): drop expired windows from the last good
+6. Aggregate (backend-data): drop expired windows from the last good
    reading on every snapshot build (Aggregates, "Limit status").
 
 ### Connect limits (TKM-287, contract TKM-300)
@@ -439,7 +370,7 @@ previous one back. Implementation: TKM-303 (backend-platform).
      in the same folder (overwritten on each write). A missing file has no
      backup and is created.
   4. Set `statusLine.type` to `"command"` and `statusLine.command` to the
-     bridge command (as in "Setup snippet"). The documented entry shape is
+     bridge command (as in "Bridge command"). The documented entry shape is
      `{ type: "command", command, padding?, refreshInterval?,
      hideVimModeIndicator? }`; every other key of a previous `statusLine`
      object, known or unknown, stays unchanged. Every other key of the
@@ -504,31 +435,31 @@ Implementation: TKM-304. Copy and tone: DESIGN.md, "Product line".
 ## Game
 
 - XP is a ledger (`xp_events`); level, progress and title derive from the
-  sum. One XP pool for both modes; each event records the mode it was
-  earned in.
+  sum. One XP pool; each event records the mode it was earned in: `max`,
+  or `diy` on legacy rows of the retired Do it yourself mode. Legacy rows
+  stay as history and keep their XP (Storage); new events are always
+  `max`.
 - XP gain (TKM-255), per local day:
-  - Max it out: 10 XP per 100k headline tokens up to 2M, 2 XP per 100k
-    from 2M to 5M, nothing above 5M; plus 10 XP per active day (at least
-    one counted reply). Ceiling 270 XP per day.
-  - Do it yourself, per finished active day by daily budget used: up to
-    50 %: 150 XP; 50 % to 100 %: linear from 150 down to 30 XP; over
-    100 %: 0 XP; no budget yet: 50 XP. No active-day bonus.
-    `daily_xp_preview` applies the same rule to today so far.
+  - 10 XP per 100k headline tokens up to 2M, 2 XP per 100k from 2M to
+    5M, nothing above 5M; plus 10 XP per active day (at least one counted
+    reply). Ceiling 270 XP per day.
+  - Days already awarded in the retired Do it yourself mode keep that
+    award (`legacyday` rows after the recount) and are not paid again.
+  - Nothing is awarded while `Settings.mode` is `noneYet`.
 - Level curve: level `n` spans `200 + 120 * (n - 1)` XP for levels 1 to 25
   (200, 320, 440, ..., 3,080), then a flat 3,080 XP per level, no cap.
   Level 2 needs 200 XP in total, level 10 needs 6,120, level 30 needs
   53,320.
-- Titles depend on the current mode (Max it out also before onboarding)
-  and the level tier:
+- Titles depend on the level tier:
 
-  | Levels | Max it out | Do it yourself |
-  |---|---|---|
-  | 1 to 4 | Token Tourist | Budget Curious |
-  | 5 to 9 | Prompt Regular | Quiet Spender |
-  | 10 to 14 | Context Hoarder | Frugal Prompter |
-  | 15 to 19 | Cache Whisperer | Token Ascetic |
-  | 20 to 29 | Limit Chaser | Zen Accountant |
-  | 30+ | Rate-Limit Royalty | Abbot of Restraint |
+  | Levels | Title |
+  |---|---|
+  | 1 to 4 | Token Tourist |
+  | 5 to 9 | Prompt Regular |
+  | 10 to 14 | Context Hoarder |
+  | 15 to 19 | Cache Whisperer |
+  | 20 to 29 | Limit Chaser |
+  | 30+ | Rate-Limit Royalty |
 - The game module defines XP rules, the level curve, titles and achievement
   thresholds. Contracts only carry ids and numbers.
 - Achievements (v0.1), name, description, rule and XP:
@@ -539,11 +470,11 @@ Implementation: TKM-304. Copy and tone: DESIGN.md, "Product line".
   | Night Owl | "Coding after midnight." | a message between 00:00 and 04:00 local time | 50 |
   | Rate-Limit Rambo | "Hit the limit. On purpose, we assume." | a 5-hour reading at or above 100 % | 100 |
   | So Close | "Stopped at 99 percent. Restraint or luck." | a finished 5-hour window peaking at 99 % or more, below 100 % | 60 |
-  | Token Monk | "A full day under budget." | one finished active local day (headline tokens > 0) with a daily budget and `usedPercent` below 100, one-shot | 150 |
 
-  Mode restrictions and the level curve are unchanged. Plus Boo (shown as
-  "Halloween 2026"): a retired, secret legacy badge that can no longer be
-  earned; existing unlocks stay valid and keep their XP. Already stored
+  Two retired badges can no longer be earned; existing unlocks stay valid
+  and keep their XP: Token Monk ("A full day under budget. Retired with
+  the budget.", 150 XP, listed only once unlocked) and Boo (shown as
+  "Halloween 2026", secret, 100 XP). Already stored
   unlocks and XP events are not rewritten when these rules change, with
   one exception: the XP rework recount below.
 - **Recount (TKM-255)**: the game stores the rules version its ledger was
@@ -555,8 +486,8 @@ Implementation: TKM-304. Copy and tone: DESIGN.md, "Product line".
   `level-up`, no OS notification, one `game-updated` at the end; the UI
   shows the retro summary once). Every new rule pays at least the old one
   for the same day, so a recount never lowers a level.
-- **Retroactive levelling**: after onboarding is completed for the first
-  time, the game replays the stored history in time order, writing
+- **Retroactive levelling**: on the first evaluation with a mode set
+  (`Settings.mode` is not `noneYet`), the game replays the stored history in time order, writing
   `xp_events` and unlocks with `retroactive = 1`. During the replay no
   `achievement-unlocked` or `level-up` events are emitted; one
   `game-updated` follows at the end with `retroDone = true`, and the UI may
@@ -731,10 +662,8 @@ Defined in the contracts (names as constants on both sides):
 | `get_dashboard` | `DashboardSnapshot` |
 | `get_settings` | `Settings` |
 | `update_settings { patch }` | `Settings` |
-| `complete_onboarding { mode }` | `Settings` |
 | `get_game_state` | `GameState` |
 | `get_app_info` | `AppInfo` |
-| `get_limit_setup` | `LimitSetup` (status-line setup command and bridge file state, see Limits) |
 | `get_update_status` | `UpdateStatus` |
 | `check_for_updates` | `UpdateStatus` after the check (see Updates) |
 | `install_update` | `UpdateStatus`, only on failure; success exits or restarts the app |
@@ -751,7 +680,7 @@ Defined in the contracts (names as constants on both sides):
 | `achievement-unlocked` | `AchievementUnlocked` |
 | `level-up` | `LevelUp` |
 | `app-info-changed` | `AppInfo` |
-| `navigate` | `NavigateTo` (tray menu opens settings etc.; views: dashboard, settings, onboarding, achievements, about) |
+| `navigate` | `NavigateTo` (tray menu opens settings etc.; views: dashboard, settings, achievements, about) |
 | `update-status-changed` | `UpdateStatus` |
 | `limits-connection-changed` | `LimitsConnection` |
 
@@ -771,12 +700,10 @@ when `None` and reads absent or `null` as `None` (TS `claudeFolder?:
 string | null`, both meaning "not set"). `Settings.notifyLimits` and
 `.notifyLevelUps` read absent as `true` (`serde(default = ...)`).
 
-Removed by TKM-287 and kept only until their users are gone (the TKM-300
-cleanup deletes them; never use them in new code): `Mode` value `diy`,
-`SettingsPatch.mode`, `BurnRate.limitEtaMinutes`,
-`DashboardSnapshot.dailyBudget`, `DailyBudget`, `BudgetBasis`,
-`GameState.dailyXpPreview`, `AchievementProgress.mode`,
-`LimitSetup.statuslineCommand`.
+One mode: `Mode` keeps the value `diy` only to read legacy ledger rows
+(`xp_events.mode`, see Storage and Game). `Settings.mode` and
+`GameState.mode` are `max` or `noneYet`, never `diy`; `SettingsPatch` has
+no `mode`, and no command sets the mode.
 
 ## Storage
 
@@ -811,7 +738,7 @@ cleanup deletes them; never use them in new code): `Mode` value `diy`,
 
 | Situation | Core behaviour | What the UI gets |
 |---|---|---|
-| First start, onboarding pending | Ingest runs, game waits; the popup opens by itself on every start while onboarding is pending | `Settings.mode = noneYet` -> onboarding view |
+| First start, no mode stored | Ingest runs, game waits; the popup opens by itself on every start while no mode is stored | `Settings.mode = noneYet`, `GameState.mode = noneYet` |
 | First import running | Import in background | `data.state = importing` with file counts |
 | No Claude folder or no logs | Keep watching the root for it to appear | `data.state = noLogs`, zero totals, `AppInfo.logsFound = false` |
 | Log folder unreadable | Retry on the rescan interval | `data.state = error`, `detail` |
@@ -822,7 +749,6 @@ cleanup deletes them; never use them in new code): `Mode` value `diy`,
 | `settings.json` unusable for connect | Touch nothing | `LimitsConnection.state = blocked`, `problem`; connect or disconnect rejects with `claudeSettings` |
 | Connect or disconnect write fails | File unchanged | `CommandError { code: claudeSettings }` |
 | No session in the last 60 min | | `session = null` |
-| No budget basis | | `dailyBudget = null` |
 | Database error in a command | | `CommandError { code: storage }` |
 | Command before the core is ready | | `CommandError { code: notReady }`; the UI retries on the first event |
 | Empty updater public key (dev, builds without updater artifacts) | No request | `UpdateStatus = unavailable` |

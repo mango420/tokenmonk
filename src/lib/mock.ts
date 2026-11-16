@@ -9,8 +9,6 @@ import type {
   AchievementUnlocked,
   GameState,
   LevelUp,
-  LimitSetup,
-  StatuslineFileInfo,
   Settings,
   TokenBreakdown,
   UpdateStatus,
@@ -69,7 +67,7 @@ function snapshot(patch: Partial<DashboardSnapshot>): DashboardSnapshot {
     generatedAt: NOW,
     today: tokens(184_230),
     session: session(38_912),
-    burnRate: { tokensPerMinute: 1_240, windowMinutes: 15, limitEtaMinutes: 41 },
+    burnRate: { tokensPerMinute: 1_240, windowMinutes: 15 },
     limits: {
       status: "ok",
       reason: null,
@@ -79,7 +77,6 @@ function snapshot(patch: Partial<DashboardSnapshot>): DashboardSnapshot {
       weekly: { utilization: 41, resetsAt: WEEKLY_RESET },
       fetchedAt: NOW,
     },
-    dailyBudget: patch.limits?.status === "unavailable" ? null : budget(23, 1_100_000),
     data: ready,
     ...patch,
   };
@@ -95,29 +92,12 @@ const noLimits: DashboardSnapshot["limits"] = {
   fetchedAt: null,
 };
 
-function budget(
-  usedPercent: number,
-  tokensLeftPerDay: number | null = null,
-): NonNullable<DashboardSnapshot["dailyBudget"]> {
-  const allowance = 50_000;
-  return {
-    basis: tokensLeftPerDay === null ? "tokenHistory" : "weeklyLimit",
-    allowance,
-    usedToday: Math.round((allowance * usedPercent) / 100),
-    usedPercent,
-    daysLeft: 7,
-    resetsAt: WEEKLY_RESET,
-    tokensLeftPerDay,
-  };
-}
-
 const achievements: AchievementProgress[] = [
   {
     id: "firstBlood",
     name: "First Blood",
     description: "Your first token, spent.",
     secret: false,
-    mode: null,
     xp: 10,
     unlockedAt: NOW - 20 * 24 * HOUR,
     current: null,
@@ -129,7 +109,6 @@ const achievements: AchievementProgress[] = [
     name: "Night Owl",
     description: "Coding after midnight.",
     secret: false,
-    mode: "max",
     xp: 50,
     unlockedAt: NIGHT_OWL_AT,
     current: null,
@@ -141,7 +120,6 @@ const achievements: AchievementProgress[] = [
     name: "Rate-Limit Rambo",
     description: "Hit the limit. On purpose, we assume.",
     secret: false,
-    mode: "max",
     xp: 100,
     unlockedAt: null,
     current: null,
@@ -153,7 +131,6 @@ const achievements: AchievementProgress[] = [
     name: "So Close",
     description: "Stopped at 99 percent. Restraint or luck.",
     secret: false,
-    mode: "max",
     xp: 60,
     unlockedAt: null,
     current: null,
@@ -165,7 +142,6 @@ const achievements: AchievementProgress[] = [
     name: "Token Monk",
     description: "A full day under budget.",
     secret: false,
-    mode: "diy",
     xp: 150,
     unlockedAt: null,
     current: null,
@@ -177,7 +153,6 @@ const achievements: AchievementProgress[] = [
     name: "Boo",
     description: "Halloween 2026.",
     secret: true,
-    mode: null,
     xp: 100,
     unlockedAt: null,
     current: null,
@@ -194,7 +169,6 @@ const maxGame: GameState = {
   xpIntoLevel: 1_240,
   xpForLevel: 1_850,
   progress: 1_240 / 1_850,
-  dailyXpPreview: null,
   recentUnlocks: [
     {
       id: "nightOwl",
@@ -252,7 +226,7 @@ const noLogsSnapshot = (): DashboardSnapshot =>
   snapshot({
     today: tokens(0),
     session: null,
-    burnRate: { tokensPerMinute: 0, windowMinutes: 15, limitEtaMinutes: null },
+    burnRate: { tokensPerMinute: 0, windowMinutes: 15 },
     limits: noLimits,
     data: noLogsData,
   });
@@ -263,26 +237,8 @@ export interface MockScenario {
   appInfo: AppInfo;
   dashboard: DashboardSnapshot;
   game: GameState;
-  /** What `get_limit_setup` answers; defaults to the unquoted Windows path. */
-  limitSetup?: LimitSetup;
   /** What `get_update_status` answers. */
   update: UpdateStatus;
-}
-
-/** Synthetic `get_limit_setup` answers for the settings preview. */
-const fileNever: StatuslineFileInfo = { exists: false, receivedAt: null, modifiedAt: null };
-const fileArrived: StatuslineFileInfo = { exists: true, receivedAt: NOW - 12 * MIN, modifiedAt: NOW - 12 * MIN };
-const fileUnreadable: StatuslineFileInfo = { exists: true, receivedAt: null, modifiedAt: NOW - 3 * 24 * 60 * MIN };
-const commandPlain = "C:/Tokenmonk/tokenmonk.exe --statusline";
-const commandQuoted = '"C:/Program Files/Tokenmonk/tokenmonk.exe" --statusline';
-const setupPlain: LimitSetup = { statuslineCommand: commandPlain, statuslineFile: fileNever };
-const setupQuoted: LimitSetup = { statuslineCommand: commandQuoted, statuslineFile: fileNever };
-const setupArrived: LimitSetup = { statuslineCommand: commandPlain, statuslineFile: fileArrived };
-const setupUnreadable: LimitSetup = { statuslineCommand: commandPlain, statuslineFile: fileUnreadable };
-const setupMissing: LimitSetup = { statuslineCommand: null, statuslineFile: fileNever };
-
-export function mockLimitSetup(scenario: MockScenario): LimitSetup {
-  return scenario.limitSetup ?? setupPlain;
 }
 
 /** Fake events for the dev notice buttons. */
@@ -340,7 +296,7 @@ const buildScenarios = () => ({
     settings: maxSettings,
     appInfo,
     dashboard: snapshot({
-      burnRate: { tokensPerMinute: 2_900, windowMinutes: 15, limitEtaMinutes: 7 },
+      burnRate: { tokensPerMinute: 2_900, windowMinutes: 15 },
       limits: {
         status: "ok",
         reason: null,
@@ -396,7 +352,7 @@ const buildScenarios = () => ({
     appInfo,
     dashboard: snapshot({
       limits: noLimits,
-      burnRate: { tokensPerMinute: 12_400, windowMinutes: 15, limitEtaMinutes: null },
+      burnRate: { tokensPerMinute: 12_400, windowMinutes: 15 },
     }),
     game: maxGame,
     update: idle,
@@ -406,7 +362,7 @@ const buildScenarios = () => ({
     settings: maxSettings,
     appInfo,
     dashboard: snapshot({
-      burnRate: { tokensPerMinute: 1_240, windowMinutes: 15, limitEtaMinutes: null },
+      burnRate: { tokensPerMinute: 1_240, windowMinutes: 15 },
       limits: {
         status: "ok",
         reason: null,
@@ -426,10 +382,9 @@ const buildScenarios = () => ({
     appInfo,
     dashboard: snapshot({
       limits: noLimits,
-      burnRate: { tokensPerMinute: 640, windowMinutes: 15, limitEtaMinutes: null },
+      burnRate: { tokensPerMinute: 640, windowMinutes: 15 },
     }),
     game: maxGame,
-    limitSetup: setupQuoted,
     update: idle,
   },
   maxSetupArrived: {
@@ -438,7 +393,6 @@ const buildScenarios = () => ({
     appInfo,
     dashboard: snapshot({ limits: noLimits }),
     game: maxGame,
-    limitSetup: setupArrived,
     update: idle,
   },
   maxSetupUnreadable: {
@@ -447,7 +401,6 @@ const buildScenarios = () => ({
     appInfo,
     dashboard: snapshot({ limits: noLimits }),
     game: maxGame,
-    limitSetup: setupUnreadable,
     update: idle,
   },
   maxSetupMissing: {
@@ -456,7 +409,6 @@ const buildScenarios = () => ({
     appInfo,
     dashboard: snapshot({ limits: noLimits }),
     game: maxGame,
-    limitSetup: setupMissing,
     update: idle,
   },
   importingMax: {

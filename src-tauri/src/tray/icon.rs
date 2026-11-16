@@ -25,10 +25,8 @@ const MONK_BOX: &str = r#"x="10.25" y="9.5" width="11.5" height="13" viewBox="76
 const ROBE_PATH: &str = "M82 216c2-46 26-74 58-74s56 28 58 74z";
 /// Head circle (cx, cy, r) of `assets/brand/tokenmonk-monk-mark.svg`.
 const HEAD_CIRCLE: (u32, u32, u32) = (140, 106, 24);
-/// `--saffron`: accent of Max and before onboarding.
+/// `--saffron`: the only accent.
 const SAFFRON: &str = "#e39a0b";
-/// `--jade`: accent of Do it yourself.
-const JADE: &str = "#1f8a64";
 /// `--tray-track`: monk head and empty beads.
 const TRACK: &str = "#8a8d8b";
 /// `--tray-bead-empty-opacity`.
@@ -87,12 +85,10 @@ impl IconStyle {
     }
 }
 
-/// Accent colour of `mode` (saffron before onboarding).
-pub fn accent(mode: Mode) -> &'static str {
-    match mode {
-        Mode::Diy => JADE,
-        Mode::Max | Mode::NoneYet => SAFFRON,
-    }
+/// Accent colour of `mode`: saffron for every mode (one accent only; the
+/// retired `diy` value has no colour of its own).
+pub fn accent(_mode: Mode) -> &'static str {
+    SAFFRON
 }
 
 /// Number of full beads for `percent` left: `0` for `None`, NaN and values at
@@ -184,7 +180,6 @@ mod tests {
         template: false,
     };
     const SAFFRON_RGB: [u8; 3] = [0xE3, 0x9A, 0x0B];
-    const JADE_RGB: [u8; 3] = [0x1F, 0x8A, 0x64];
     const GREY_RGB: [u8; 3] = [0x8A, 0x8D, 0x8B];
     /// Pixels per view box unit.
     const SCALE: f64 = ICON_SIZE as f64 / 32.0;
@@ -213,14 +208,10 @@ mod tests {
     }
 
     #[test]
-    fn accent_follows_the_mode() {
-        assert_eq!(accent(Mode::Max), "#e39a0b");
-        assert_eq!(
-            accent(Mode::NoneYet),
-            "#e39a0b",
-            "saffron before onboarding"
-        );
-        assert_eq!(accent(Mode::Diy), "#1f8a64");
+    fn accent_is_saffron_in_every_mode() {
+        for mode in [Mode::Max, Mode::NoneYet, Mode::Diy] {
+            assert_eq!(accent(mode), "#e39a0b", "{mode:?}");
+        }
     }
 
     #[test]
@@ -253,8 +244,6 @@ mod tests {
             !svg.contains(r#" opacity="0.45""#),
             "full opacity with data"
         );
-        let diy = halo_svg(COLOUR, Some(50.0), Mode::Diy);
-        assert!(diy.contains(r##"fill="#1f8a64""##));
     }
 
     #[test]
@@ -308,13 +297,6 @@ mod tests {
         }
         assert!(near(robe_px(&rgba), SAFFRON_RGB));
         assert!(near(head_px(&rgba), GREY_RGB));
-    }
-
-    #[test]
-    fn diy_draws_jade() {
-        let rgba = render_icon(COLOUR, Some(50.0), Mode::Diy).unwrap();
-        assert!(near(bead_px(&rgba, 0), JADE_RGB));
-        assert!(near(robe_px(&rgba), JADE_RGB));
     }
 
     #[test]
