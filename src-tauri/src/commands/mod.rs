@@ -13,16 +13,16 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use chrono::{Local, TimeZone};
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::app::{AppState, DbGameStore, UpdateState};
-use crate::contracts::events::SETTINGS_CHANGED;
+use crate::app::{AppState, DbGameStore, IngestSupervisor, UpdateState};
+use crate::contracts::events::{APP_INFO_CHANGED, SETTINGS_CHANGED};
 use crate::contracts::{
-    AppInfo, CommandError, CommandErrorCode, DashboardSnapshot, EpochMs, GameState, LimitSetup,
-    Mode, Settings, SettingsPatch, UpdateStatus,
+    AppInfo, ClaudeFolder, CommandError, CommandErrorCode, DashboardSnapshot, EpochMs, GameState,
+    LimitSetup, Mode, Settings, SettingsPatch, UpdateStatus,
 };
 use crate::db::DbError;
 use crate::game::{evaluate, Facts, GameStore};
 use crate::limits::setup::{current_statusline_command, current_statusline_file};
-use crate::watcher::IngestHandle;
+use crate::watcher::{claude_folder, IngestConfig};
 
 fn error(code: CommandErrorCode, message: impl Into<String>) -> CommandError {
     CommandError {
@@ -54,6 +54,14 @@ pub(crate) fn apply_update(
             CommandErrorCode::InvalidArgument,
             "mode cannot be set back to noneYet",
         ));
+    }
+    if let Some(Some(path)) = &patch.claude_folder {
+        if path.trim().is_empty() || !std::path::Path::new(path).is_absolute() {
+            return Err(error(
+                CommandErrorCode::InvalidArgument,
+                "the Claude folder must be an absolute path",
+            ));
+        }
     }
     let before = state.settings();
     if let Some(wanted) = patch.autostart {
@@ -128,9 +136,45 @@ fn settings_applied(app: &AppHandle, before: &Settings, after: &Settings, force_
         emit(app, SETTINGS_CHANGED, after);
     }
     if force_recompute || before.mode != after.mode {
-        if let Some(ingest) = app.try_state::<IngestHandle>() {
+        if let Some(ingest) = app.try_state::<IngestSupervisor>() {
             ingest.recompute();
         }
+    }
+    if before.claude_folder != after.claude_folder {
+        switch_claude_folder(app, after);
+    }
+}
+
+/// Moves the ingest to the new Claude folder and refreshes `AppInfo`. The
+/// switch waits for the old worker, so it runs on its own thread.
+fn switch_claude_folder(app: &AppHandle, settings: &Settings) {
+    let app = app.clone();
+    let settings = settings.clone();
+    let spawned = std::thread::Builder::new()
+        .name("claude-folder-switch".into())
+        .spawn(move || {
+            let setting = settings.claude_folder.as_deref();
+            let folder = claude_folder(setting);
+            if let (Some(config), Some(ingest)) = (
+                IngestConfig::for_setting(setting),
+                app.try_state::<IngestSupervisor>(),
+            ) {
+                if let Err(e) = ingest.switch(config) {
+                    log::warn!("could not switch the Claude folder: {e}");
+                    return;
+                }
+            }
+            if let Some(state) = app.try_state::<Arc<AppState>>() {
+                let mut info = state.info();
+                if info.logs_found != folder.projects_found {
+                    info.logs_found = folder.projects_found;
+                    state.set_info(info.clone());
+                    emit(&app, APP_INFO_CHANGED, &info);
+                }
+            }
+        });
+    if let Err(e) = spawned {
+        log::warn!("could not start the folder switch: {e}");
     }
 }
 
@@ -189,6 +233,11 @@ pub fn get_limit_setup() -> Result<LimitSetup, CommandError> {
         statusline_command: current_statusline_command(),
         statusline_file: current_statusline_file(),
     })
+}
+
+#[tauri::command]
+pub fn get_claude_folder(state: State<'_, Arc<AppState>>) -> Result<ClaudeFolder, CommandError> {
+    Ok(claude_folder(state.settings().claude_folder.as_deref()))
 }
 
 #[tauri::command]
@@ -268,6 +317,20 @@ mod tests {
         assert!(!after.sound);
         assert_eq!(s.settings(), after);
         assert_eq!(s.with_db(|db| db.settings()).unwrap(), after);
+    }
+
+    #[test]
+    fn relative_or_empty_claude_folder_is_rejected() {
+        let s = state(Mode::Max);
+        for bad in ["", "  ", "relative/dir"] {
+            let patch = SettingsPatch {
+                claude_folder: Some(Some(bad.to_string())),
+                ..SettingsPatch::default()
+            };
+            let err = apply_update(&s, &patch, |_| Ok(())).unwrap_err();
+            assert_eq!(err.code, CommandErrorCode::InvalidArgument);
+        }
+        assert_eq!(s.settings().claude_folder, None);
     }
 
     #[test]

@@ -9,6 +9,7 @@
 
 mod facts;
 mod game_store;
+mod ingest;
 mod publisher;
 mod state;
 mod updates;
@@ -18,6 +19,7 @@ use std::sync::Arc;
 use tauri::{App, AppHandle, Emitter, Manager};
 
 pub use game_store::DbGameStore;
+pub use ingest::IngestSupervisor;
 pub use publisher::{halo_percent, AppPublisher, Sink};
 pub use state::AppState;
 pub use updates::{check as check_update, install as install_update, UpdateState};
@@ -31,7 +33,7 @@ use crate::contracts::{
 use crate::db::Db;
 use crate::limits;
 use crate::tray;
-use crate::watcher::{spawn_ingest, ClockZone, IngestConfig, IngestHandle};
+use crate::watcher::{claude_folder, IngestConfig};
 use crate::window;
 
 /// File name of the database inside the app data directory.
@@ -99,12 +101,13 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let command_db = Db::open(&db_path)?;
     let settings = write_db.settings()?;
 
-    let config = IngestConfig::standard();
+    let folder = claude_folder(settings.claude_folder.as_deref());
+    let config = IngestConfig::for_setting(settings.claude_folder.as_deref());
     let info = AppInfo {
         version: handle.package_info().version.to_string(),
         platform: platform(),
         schema_version: write_db.schema_version()?,
-        logs_found: config.as_ref().is_some_and(|c| c.logs_root.is_dir()),
+        logs_found: folder.projects_found,
     };
     let first_run = settings.mode == Mode::NoneYet;
     let update_check = settings.update_check;
@@ -118,19 +121,15 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let limits_handle = limits::spawn(limits::default_source(), limit_tx)?;
     app.manage(limits_handle);
 
-    match config {
-        Some(config) => {
-            let publisher = AppPublisher::new(
-                TauriSink::new(handle.clone()),
-                Arc::clone(&state),
-                ClockZone::Local,
-            );
-            let ingest: IngestHandle =
-                spawn_ingest(config, write_db, limit_rx, Box::new(publisher))?;
-            app.manage(ingest);
-        }
-        None => log::warn!("home directory unknown: log ingestion is off"),
-    }
+    let ingest = IngestSupervisor::start(
+        handle.clone(),
+        Arc::clone(&state),
+        db_path,
+        limit_rx,
+        write_db,
+        config,
+    )?;
+    app.manage(ingest);
 
     updates::init(&handle, update_check);
 
