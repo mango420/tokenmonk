@@ -468,9 +468,10 @@ To verify in TKM-303 (scout, official docs; not decided here):
 - What happens to a running child when Claude Code cancels a status line
   run, and that the Windows GUI-subsystem build can pipe the child's
   stdout.
-- Key order: `serde_json` without its `preserve_order` feature reorders the
-  keys of a rewritten file. Keeping the order needs that feature enabled in
-  `Cargo.toml` (orchestrator, DECISIONS.md).
+
+Key order is settled: `serde_json` runs with its `preserve_order` feature
+(TKM-312, DECISIONS.md, "serde_json key order"), so a rewrite keeps the
+key order of the user's file.
 
 ## Notifications (TKM-287, contract TKM-300)
 

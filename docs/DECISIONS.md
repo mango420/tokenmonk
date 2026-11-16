@@ -321,3 +321,10 @@ Maintainer decision (TKM-287). Details: [DESIGN.md](DESIGN.md), "Product line".
 - Wording: "Limits" in the popup, Settings, tray and notifications; "status line" only where the setup is explained.
 - Out of scope: usage per project or model, history, API cost (TKM-208, TKM-209, TKM-210, TKM-243), any estimated budget or forecast.
 - Open: telling a plan without `rate_limits` from "not yet"; whether the desktop app and IDE extensions run the status line (TKM-242); header look (TKM-288).
+
+## serde_json key order (2026-11-16, TKM-312)
+
+Maintainer OK. The `serde_json` feature `preserve_order` is enabled so
+"Connect limits" and "Disconnect" keep the key order of the user's
+`settings.json` when they rewrite it (ARCHITECTURE.md, Limits, "Connect
+limits"). No new crate: `indexmap` was already in the dependency tree.
