@@ -16,6 +16,7 @@
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 use serde_json::{json, Map, Value};
@@ -72,6 +73,9 @@ fn split_first(command: &str) -> (&str, &str) {
 /// A `command` that runs a Tokenmonk executable with `--statusline` as its
 /// first argument.
 fn is_ours(command: &str) -> bool {
+    // PowerShell form: `& "C:/.../tokenmonk.exe" --statusline`.
+    let command = command.trim_start();
+    let command = command.strip_prefix('&').unwrap_or(command);
     let (exe, rest) = split_first(command);
     let name = exe
         .rsplit(['/', '\\'])
@@ -233,6 +237,10 @@ pub fn connect(
     let ours = old.as_ref().is_some_and(entry_is_ours);
     let mut stored_now = false;
     if !ours {
+        if old.is_none() {
+            // A record from an earlier connect must not come back later.
+            remove_previous(data_dir)?;
+        }
         if let Some(prev) = &old {
             write_atomic(
                 &data_dir.join(PREVIOUS_NAME),
@@ -297,10 +305,42 @@ pub fn previous_command(data_dir: &Path) -> Option<String> {
 /// Longest the old command may run; Claude Code cancels slow scripts anyway,
 /// and this keeps an orphan from living on after that.
 const PASSTHROUGH_TIMEOUT: Duration = Duration::from_secs(10);
+/// How long to wait for the last output after the child ended.
+const OUTPUT_GRACE: Duration = Duration::from_millis(300);
 
-/// Git Bash on Windows, if installed.
+/// Git Bash on Windows, as Claude Code finds it: `CLAUDE_CODE_GIT_BASH_PATH`
+/// (docs: env-vars), then `git.exe` on PATH (`<git>/../../bin/bash.exe`), then
+/// the usual install folders.
 #[cfg(windows)]
 fn git_bash() -> Option<PathBuf> {
+    let is_bash = |p: &PathBuf| {
+        p.is_file()
+            && matches!(
+                p.file_name()
+                    .and_then(|n| n.to_str())
+                    .map(str::to_ascii_lowercase)
+                    .as_deref(),
+                Some("bash.exe" | "sh.exe" | "bash" | "sh")
+            )
+    };
+    if let Some(p) = std::env::var_os("CLAUDE_CODE_GIT_BASH_PATH").map(PathBuf::from) {
+        if is_bash(&p) {
+            return Some(p);
+        }
+    }
+    let on_path = std::env::var_os("PATH").and_then(|paths| {
+        std::env::split_paths(&paths)
+            .map(|d| d.join("git.exe"))
+            .find(|g| g.is_file())
+            .and_then(|g| {
+                let root = g.parent()?.parent()?;
+                Some(root.join("bin").join("bash.exe"))
+            })
+            .filter(|p| p.is_file())
+    });
+    if on_path.is_some() {
+        return on_path;
+    }
     ["ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"]
         .iter()
         .filter_map(std::env::var_os)
@@ -318,18 +358,23 @@ fn git_bash() -> Option<PathBuf> {
 }
 
 /// The shell Claude Code uses: Git Bash if installed, else PowerShell on
-/// Windows; `sh -c` elsewhere.
+/// Windows; `sh -c` elsewhere. No console window flashes on Windows.
 fn shell_command(line: &str) -> Command {
     #[cfg(windows)]
     {
-        if let Some(bash) = git_bash() {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let mut c = if let Some(bash) = git_bash() {
             let mut c = Command::new(bash);
             c.arg("-c").arg(line);
-            return c;
-        }
-        let mut c = Command::new("powershell");
-        c.args(["-NoProfile", "-NonInteractive", "-Command"])
-            .arg(line);
+            c
+        } else {
+            let mut c = Command::new("powershell");
+            c.args(["-NoProfile", "-NonInteractive", "-Command"])
+                .arg(line);
+            c
+        };
+        c.creation_flags(CREATE_NO_WINDOW);
         c
     }
     #[cfg(not(windows))]
@@ -341,8 +386,10 @@ fn shell_command(line: &str) -> Command {
 }
 
 /// Runs `line` in the shell with `input` on stdin and returns its stdout and
-/// exit code. The child is killed after [`PASSTHROUGH_TIMEOUT`].
-fn run_shell(line: &str, input: &[u8]) -> Option<(Vec<u8>, i32)> {
+/// exit code. The child is killed after `timeout`. Threads are never joined:
+/// a grandchild may keep the pipes open, so output is collected from a channel
+/// for a short grace period after the child ends.
+fn run_shell(line: &str, input: &[u8], timeout: Duration) -> Option<(Vec<u8>, i32)> {
     let mut child = shell_command(line)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -352,19 +399,23 @@ fn run_shell(line: &str, input: &[u8]) -> Option<(Vec<u8>, i32)> {
     let mut stdin = child.stdin.take()?;
     let mut stdout = child.stdout.take()?;
     let data = input.to_vec();
-    let writer = std::thread::spawn(move || {
+    std::thread::spawn(move || {
         let _ = stdin.write_all(&data);
     });
-    let reader = std::thread::spawn(move || {
-        let mut buf = Vec::new();
-        let _ = stdout.read_to_end(&mut buf);
-        buf
+    let (tx, rx) = mpsc::channel::<Vec<u8>>();
+    std::thread::spawn(move || {
+        let mut chunk = [0u8; 8192];
+        while let Ok(n) = stdout.read(&mut chunk) {
+            if n == 0 || tx.send(chunk[..n].to_vec()).is_err() {
+                break;
+            }
+        }
     });
     let start = Instant::now();
     let code = loop {
         match child.try_wait() {
             Ok(Some(status)) => break status.code().unwrap_or(0),
-            Ok(None) if start.elapsed() < PASSTHROUGH_TIMEOUT => {
+            Ok(None) if start.elapsed() < timeout => {
                 std::thread::sleep(Duration::from_millis(10));
             }
             _ => {
@@ -374,15 +425,19 @@ fn run_shell(line: &str, input: &[u8]) -> Option<(Vec<u8>, i32)> {
             }
         }
     };
-    let _ = writer.join();
-    Some((reader.join().unwrap_or_default(), code))
+    let mut out = Vec::new();
+    let deadline = Instant::now() + OUTPUT_GRACE;
+    while let Ok(chunk) = rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+        out.extend_from_slice(&chunk);
+    }
+    Some((out, code))
 }
 
 /// Pass-through half of the bridge: the previous command's stdout bytes and
 /// exit code. `None` if there is no stored command or it could not start.
 pub fn run_passthrough(data_dir: &Path, input: &[u8]) -> Option<(Vec<u8>, i32)> {
     let line = previous_command(data_dir)?;
-    run_shell(&line, input)
+    run_shell(&line, input, PASSTHROUGH_TIMEOUT)
 }
 
 #[cfg(test)]
@@ -437,6 +492,9 @@ mod tests {
         assert!(is_ours("/a/tokenmonk --statusline"));
         assert!(is_ours(
             "\"C:/Program Files/Tokenmonk/tokenmonk.exe\" --statusline --passthrough"
+        ));
+        assert!(is_ours(
+            "& \"C:/Program Files/Tokenmonk/tokenmonk.exe\" --statusline"
         ));
         assert!(!is_ours("echo tokenmonk --statusline"));
         assert!(!is_ours("/a/tokenmonk --other --statusline"));
@@ -527,6 +585,21 @@ mod tests {
     }
 
     #[test]
+    fn stale_previous_record_is_dropped_when_the_entry_is_gone() {
+        let e = env(Some(
+            r#"{"statusLine":{"type":"command","command":"echo X"}}"#,
+        ));
+        e.connect().unwrap();
+        let mut s = e.settings();
+        s.as_object_mut().unwrap().remove("statusLine");
+        std::fs::write(e.claude.path().join(SETTINGS_NAME), s.to_string()).unwrap();
+        let c = e.connect().unwrap();
+        assert!(!c.previous_status_line);
+        e.disconnect().unwrap();
+        assert!(e.settings().get("statusLine").is_none());
+    }
+
+    #[test]
     fn foreign_entry_survives_disconnect_untouched() {
         let raw = r#"{"statusLine":{"type":"command","command":"echo hi"}}"#;
         let e = env(Some(raw));
@@ -579,6 +652,15 @@ mod tests {
         let (out, code) = run_passthrough(e.data.path(), b"payload").unwrap();
         assert_eq!(out, b"payload done");
         assert_eq!(code, 3);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_slow_command_is_cut_off_even_with_a_grandchild() {
+        let start = Instant::now();
+        let (out, _) = run_shell("sleep 30; echo x", b"", Duration::from_secs(1)).unwrap();
+        assert!(start.elapsed() < Duration::from_secs(5));
+        assert!(out.is_empty());
     }
 
     #[test]
