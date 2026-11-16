@@ -75,6 +75,22 @@ impl Sink for TauriSink {
     fn halo(&self, percent: Option<f64>, mode: Mode) {
         tray::set_halo(&self.app, percent, mode);
     }
+    fn popup_visible(&self) -> bool {
+        window::is_visible(&self.app)
+    }
+    fn notify(&self, title: &str, body: &str) {
+        use tauri_plugin_notification::NotificationExt;
+        if let Err(e) = self
+            .app
+            .notification()
+            .builder()
+            .title(title)
+            .body(body)
+            .show()
+        {
+            log::warn!("could not show a notification: {e}");
+        }
+    }
 }
 
 fn platform() -> Platform {
