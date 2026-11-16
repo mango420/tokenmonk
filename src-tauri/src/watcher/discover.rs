@@ -3,6 +3,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::contracts::app::{ClaudeFolder, ClaudeFolderSource, CLAUDE_CONFIG_DIR_ENV};
+
 /// Deepest directory level searched below the root. Real trees are
 /// `<project>/<session>.jsonl` and `<project>/<session>/subagents/*.jsonl`.
 const MAX_DEPTH: usize = 8;
@@ -16,9 +18,40 @@ pub enum DiscoverError {
     Unreadable(String),
 }
 
-/// `<home>/.claude/projects`, if the home directory is known.
-pub fn projects_dir() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".claude").join("projects"))
+/// Resolves the Claude config folder: `setting` (Settings value), else
+/// `env` (`CLAUDE_CONFIG_DIR`), else `<home>/.claude`. Empty values count as
+/// unset. Pure; `claude_folder` feeds it the real environment.
+pub fn resolve_claude_folder(
+    setting: Option<&str>,
+    env: Option<&str>,
+    home: Option<&Path>,
+) -> ClaudeFolder {
+    let non_empty = |v: Option<&str>| v.filter(|s| !s.is_empty()).map(PathBuf::from);
+    let (path, source) = if let Some(p) = non_empty(setting) {
+        (Some(p), ClaudeFolderSource::Setting)
+    } else if let Some(p) = non_empty(env) {
+        (Some(p), ClaudeFolderSource::Env)
+    } else {
+        (home.map(|h| h.join(".claude")), ClaudeFolderSource::Default)
+    };
+    let projects_found = path.as_ref().is_some_and(|p| p.join("projects").is_dir());
+    ClaudeFolder {
+        path: path.map(|p| p.to_string_lossy().into_owned()),
+        source,
+        projects_found,
+    }
+}
+
+/// [`resolve_claude_folder`] with the process environment and the home
+/// directory. `setting` is `Settings.claude_folder`.
+pub fn claude_folder(setting: Option<&str>) -> ClaudeFolder {
+    let env = std::env::var(CLAUDE_CONFIG_DIR_ENV).ok();
+    resolve_claude_folder(setting, env.as_deref(), dirs::home_dir().as_deref())
+}
+
+/// The log root (`<folder>/projects`) of a resolved folder.
+pub fn projects_dir(folder: &ClaudeFolder) -> Option<PathBuf> {
+    folder.path.as_ref().map(|p| Path::new(p).join("projects"))
 }
 
 /// All `*.jsonl` files below `root`, sorted. Unreadable subdirectories are
@@ -68,6 +101,49 @@ pub fn is_jsonl(path: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn folder_precedence_setting_env_default() {
+        let home = Path::new("/home/example");
+        let f = resolve_claude_folder(Some("/a"), Some("/b"), Some(home));
+        assert_eq!(
+            (f.path.as_deref(), f.source),
+            (Some("/a"), ClaudeFolderSource::Setting)
+        );
+        let f = resolve_claude_folder(None, Some("/b"), Some(home));
+        assert_eq!(
+            (f.path.as_deref(), f.source),
+            (Some("/b"), ClaudeFolderSource::Env)
+        );
+        // Empty values count as unset.
+        let f = resolve_claude_folder(Some(""), Some(""), Some(home));
+        assert_eq!(f.source, ClaudeFolderSource::Default);
+        assert_eq!(
+            f.path.as_deref().map(Path::new),
+            Some(home.join(".claude").as_path())
+        );
+        let f = resolve_claude_folder(None, None, None);
+        assert_eq!(
+            (f.path.clone(), f.source),
+            (None, ClaudeFolderSource::Default)
+        );
+        assert!(!f.projects_found);
+        assert_eq!(projects_dir(&f), None);
+    }
+
+    #[test]
+    fn missing_projects_folder_is_not_an_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().to_str().unwrap();
+        let f = resolve_claude_folder(Some(root), None, None);
+        assert!(!f.projects_found);
+        let proj = projects_dir(&f).unwrap();
+        assert_eq!(discover(&proj), Err(DiscoverError::Missing));
+        fs::create_dir(dir.path().join("projects")).unwrap();
+        let f = resolve_claude_folder(Some(root), None, None);
+        assert!(f.projects_found);
+        assert_eq!(discover(&projects_dir(&f).unwrap()), Ok(vec![]));
+    }
 
     #[test]
     fn finds_nested_jsonl_only_and_sorts() {

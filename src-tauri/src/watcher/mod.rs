@@ -15,7 +15,7 @@ mod ingest;
 mod publisher;
 mod worker;
 
-pub use discover::{discover, projects_dir, DiscoverError};
+pub use discover::{claude_folder, discover, projects_dir, resolve_claude_folder, DiscoverError};
 pub use ingest::{ingest_file, FileOutcome};
 pub use publisher::{IngestPublisher, SnapshotCause};
 pub use worker::{spawn_ingest, ClockZone, IngestConfig, IngestHandle};
