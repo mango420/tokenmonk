@@ -163,11 +163,29 @@ fn read_bounded(mut input: impl Read) -> Option<Vec<u8>> {
 }
 
 /// Bridge mode of the executable: stdin to stdout, then return (exit code 0).
-/// Never panics, never writes to stderr.
+/// With `--passthrough` (a wrapped status line, see [`super::connect`]) the
+/// limits are read first, then the previous command runs on the same input and
+/// its output and exit code are returned unchanged. Never panics, never writes
+/// to stderr itself.
 pub fn run() {
     let input = read_bounded(io::stdin().lock()).unwrap_or_default();
-    let line = process(&input, now_ms(), app_data_dir().as_deref());
+    let dir = app_data_dir();
+    let line = process(&input, now_ms(), dir.as_deref());
+    let passthrough = std::env::args().any(|a| a == super::connect::PASSTHROUGH_FLAG);
     let mut out = io::stdout().lock();
+    if passthrough {
+        if let Some((bytes, code)) = dir
+            .as_deref()
+            .and_then(|d| super::connect::run_passthrough(d, &input))
+        {
+            let _ = out.write_all(&bytes);
+            let _ = out.flush();
+            if code != 0 {
+                std::process::exit(code);
+            }
+            return;
+        }
+    }
     let _ = writeln!(out, "{line}");
     let _ = out.flush();
 }
