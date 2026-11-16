@@ -12,7 +12,7 @@ mod timeutil;
 use chrono::TimeZone;
 
 use crate::contracts::dashboard::{
-    BurnRate, DailyBudget, DashboardSnapshot, DataStatus, SessionStats, TokenBreakdown,
+    BurnRate, DashboardSnapshot, DataStatus, SessionStats, TokenBreakdown,
 };
 use crate::contracts::settings::Mode;
 use crate::contracts::EpochMs;
@@ -80,14 +80,13 @@ fn current_session(db: &Db, now: EpochMs) -> DbResult<Option<SessionStats>> {
 /// Computes the snapshot for time `now`.
 ///
 /// * `limits`: latest limit knowledge (see [`LimitState`]).
-/// * `mode`: the chosen play mode. The token-history budget is the fallback
-///   of Do it yourself only, so it is skipped in Max it out.
+/// * `_mode`: unused; there is one mode only (kept for the caller's signature).
 /// * `data`: import state from the ingest worker; `last_message_at` is
 ///   filled in here from the database.
 pub fn snapshot<Tz: TimeZone>(
     db: &Db,
     limits: &LimitState,
-    mode: Mode,
+    _mode: Mode,
     mut data: DataStatus,
     now: EpochMs,
     tz: &Tz,
@@ -116,16 +115,6 @@ pub fn snapshot<Tz: TimeZone>(
         None => None,
     };
 
-    let daily_budget: Option<DailyBudget> = match view.weekly.as_ref() {
-        Some(w) => budget::weekly_from_db(db, w, now, tz)?,
-        None => None,
-    };
-    let daily_budget = match daily_budget {
-        Some(b) => Some(b),
-        None if mode != Mode::Max => budget::history_from_db(db, today_totals.headline(), now, tz)?,
-        None => None,
-    };
-
     data.last_message_at = db.latest_message()?.map(|m| m.ts);
 
     Ok(DashboardSnapshot {
@@ -138,7 +127,7 @@ pub fn snapshot<Tz: TimeZone>(
             limit_eta_minutes: eta,
         },
         limits: view,
-        daily_budget,
+        daily_budget: None,
         data,
     })
 }
@@ -146,7 +135,7 @@ pub fn snapshot<Tz: TimeZone>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contracts::dashboard::{BudgetBasis, DataState};
+    use crate::contracts::dashboard::DataState;
     use crate::contracts::limits::{LimitReading, LimitReason, LimitStatus, LimitWindow};
     use crate::limits::LimitPoll;
     use crate::logs::UsageRecord;
@@ -365,99 +354,24 @@ mod tests {
     }
 
     #[test]
-    fn weekly_budget_uses_the_baseline_from_the_start_of_the_day() {
-        let db = Db::open_in_memory().unwrap();
+    fn snapshot_carries_no_daily_budget() {
+        let mut db = Db::open_in_memory().unwrap();
         let now = DAY0 + 12 * HOUR;
-        // Reset on the 31st at 06:00Z: 4 local days (28, 29, 30, 31).
-        let resets_at = DAY0 + 3 * DAY + 6 * HOUR;
-        let earlier = LimitReading {
-            five_hour: None,
-            weekly: Some(LimitWindow {
-                utilization: 30.0,
-                resets_at: Some(resets_at),
-            }),
-            fetched_at: DAY0 - HOUR,
-        };
-        db.insert_limit_snapshot("test", &earlier).unwrap();
+        db.upsert_messages(&[rec("d1", "s", DAY0 - DAY + HOUR, 1000, 0, 0, 0)])
+            .unwrap();
         let current = LimitReading {
+            five_hour: None,
             weekly: Some(LimitWindow {
                 utilization: 37.0,
-                resets_at: Some(resets_at),
+                resets_at: Some(now + 3 * DAY),
             }),
             fetched_at: now - MIN,
-            ..earlier
         };
-        db.insert_limit_snapshot("test", &current).unwrap();
-        let limits = limits_with(current);
-        let b = snap(&db, &limits, Mode::Diy, now).daily_budget.unwrap();
-        assert_eq!(b.basis, BudgetBasis::WeeklyLimit);
-        assert_eq!(b.days_left, 4);
-        assert!((b.allowance - 17.5).abs() < 1e-9);
-        assert!((b.used_today - 7.0).abs() < 1e-9);
-        assert!((b.used_percent - 40.0).abs() < 1e-9);
-        assert_eq!(b.resets_at, Some(resets_at));
-    }
-
-    #[test]
-    fn weekly_window_restarting_today_starts_at_zero() {
-        let db = Db::open_in_memory().unwrap();
-        let now = DAY0 + 12 * HOUR;
-        let resets_at = now + 7 * DAY - 6 * HOUR; // window started 6 h ago
-        db.insert_limit_snapshot(
-            "test",
-            &LimitReading {
-                five_hour: None,
-                weekly: Some(LimitWindow {
-                    utilization: 90.0,
-                    resets_at: Some(DAY0 + 6 * HOUR),
-                }),
-                fetched_at: DAY0 - HOUR,
-            },
-        )
-        .unwrap();
-        let current = LimitReading {
-            five_hour: None,
-            weekly: Some(LimitWindow {
-                utilization: 4.0,
-                resets_at: Some(resets_at),
-            }),
-            fetched_at: now,
-        };
-        let b = snap(&db, &limits_with(current), Mode::Diy, now)
-            .daily_budget
-            .unwrap();
-        assert!((b.used_today - 4.0).abs() < 1e-9);
-        assert!((b.allowance - 100.0 / f64::from(b.days_left)).abs() < 1e-9);
-    }
-
-    #[test]
-    fn token_history_fallback_for_diy_only() {
-        let mut db = Db::open_in_memory().unwrap();
-        let now = DAY0 + 12 * HOUR;
-        db.upsert_messages(&[
-            rec("d1", "s", DAY0 - DAY + HOUR, 1000, 0, 0, 0),
-            rec("d3", "s", DAY0 - 3 * DAY + HOUR, 3000, 0, 0, 0),
-            rec("far", "s", DAY0 - 8 * DAY + HOUR, 999_999, 0, 0, 0),
-            rec("today", "s", DAY0 + HOUR, 500, 0, 0, 0),
-        ])
-        .unwrap();
-        let none = LimitState::default();
-        let b = snap(&db, &none, Mode::Diy, now).daily_budget.unwrap();
-        assert_eq!(b.basis, BudgetBasis::TokenHistory);
-        assert_eq!(b.allowance, 2000.0);
-        assert_eq!(b.used_today, 500.0);
-        assert_eq!(b.used_percent, 25.0);
-        assert_eq!((b.days_left, b.resets_at), (1, None));
-        assert!(snap(&db, &none, Mode::Max, now).daily_budget.is_none());
-    }
-
-    #[test]
-    fn no_history_means_no_budget() {
-        let mut db = Db::open_in_memory().unwrap();
-        db.upsert_messages(&[rec("t", "s", DAY0 + HOUR, 500, 0, 0, 0)])
-            .unwrap();
-        let s = snap(&db, &LimitState::default(), Mode::Diy, DAY0 + 2 * HOUR);
+        let s = snap(&db, &limits_with(current), Mode::Max, now);
         assert!(s.daily_budget.is_none());
+        assert!(snap(&db, &LimitState::default(), Mode::Max, now)
+            .daily_budget
+            .is_none());
     }
 
     #[test]
