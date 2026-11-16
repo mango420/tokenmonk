@@ -60,7 +60,7 @@ output unchanged. "Disconnect" restores the previous entry.
 - **Tray**: the beads always follow the 5-hour window.
 - **Game**: level and title in the popup header; XP and levels as before.
 - **Settings**: only Limits (connect, disconnect), Claude folder,
-  autostart and updates, notifications.
+  autostart and updates, notifications, sound, keep popup open.
 - **Notifications**: once per window and reset cycle at 10 % left, dry
   tone ("10% left. Resets 16:40."). Level-ups as system notifications,
   with a toggle.
@@ -314,9 +314,8 @@ until the follow-up issues land):
   state. The 5-hour gauge as the single hero gives way to both windows at
   equal size; layout by the TKM-288 mockup.
 - Onboarding: the mode choice.
-- Settings: the "Mode" radio group and every row not listed under
-  "Settings" in "Product line"; the "Limit data" paste-only setup gives
-  way to one-click connect.
+- Settings: the "Mode" radio group; the "Limit data" paste-only setup
+  gives way to one-click connect. Sound and "Keep popup open" stay.
 - Achievements: the other-mode hint.
 - Notifications: the 90 % and 100 % warnings, the budget warning and the
   ETA body give way to one warning at 10 % left per window; level-ups get
