@@ -141,36 +141,36 @@ fn settings_applied(app: &AppHandle, before: &Settings, after: &Settings, force_
         }
     }
     if before.claude_folder != after.claude_folder {
-        switch_claude_folder(app, after);
+        switch_claude_folder(app);
     }
 }
 
-/// Moves the ingest to the new Claude folder and refreshes `AppInfo`. The
-/// switch waits for the old worker, so it runs on its own thread.
-fn switch_claude_folder(app: &AppHandle, settings: &Settings) {
+/// Moves the ingest to the Claude folder in the settings and refreshes
+/// `AppInfo`. The switch waits for the old worker, so it runs on its own
+/// thread. The thread reads the settings itself once it holds the switch
+/// lock, so the last change wins whatever order the threads run in.
+fn switch_claude_folder(app: &AppHandle) {
     let app = app.clone();
-    let settings = settings.clone();
     let spawned = std::thread::Builder::new()
         .name("claude-folder-switch".into())
         .spawn(move || {
-            let setting = settings.claude_folder.as_deref();
-            let folder = claude_folder(setting);
-            if let (Some(config), Some(ingest)) = (
-                IngestConfig::for_setting(setting),
-                app.try_state::<IngestSupervisor>(),
-            ) {
-                if let Err(e) = ingest.switch(config) {
-                    log::warn!("could not switch the Claude folder: {e}");
-                    return;
+            let Some(state) = app.try_state::<Arc<AppState>>() else {
+                return;
+            };
+            let current = || state.settings().claude_folder;
+            if let Some(ingest) = app.try_state::<IngestSupervisor>() {
+                let result = ingest.switch(|| IngestConfig::for_setting(current().as_deref()));
+                if let Err(e) = result {
+                    log::warn!("could not switch the Claude folder, ingest is now off: {e}");
                 }
             }
-            if let Some(state) = app.try_state::<Arc<AppState>>() {
-                let mut info = state.info();
-                if info.logs_found != folder.projects_found {
-                    info.logs_found = folder.projects_found;
-                    state.set_info(info.clone());
-                    emit(&app, APP_INFO_CHANGED, &info);
-                }
+            // Also after a failure: the folder in use changed either way.
+            let folder = claude_folder(current().as_deref());
+            let mut info = state.info();
+            if info.logs_found != folder.projects_found {
+                info.logs_found = folder.projects_found;
+                state.set_info(info.clone());
+                emit(&app, APP_INFO_CHANGED, &info);
             }
         });
     if let Err(e) = spawned {

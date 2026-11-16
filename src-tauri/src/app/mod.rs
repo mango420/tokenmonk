@@ -33,7 +33,7 @@ use crate::contracts::{
 use crate::db::Db;
 use crate::limits;
 use crate::tray;
-use crate::watcher::{claude_folder, IngestConfig};
+use crate::watcher::{claude_folder, ClockZone, IngestConfig};
 use crate::window;
 
 /// File name of the database inside the app data directory.
@@ -121,10 +121,17 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let limits_handle = limits::spawn(limits::default_source(), limit_tx)?;
     app.manage(limits_handle);
 
+    let publisher_app = handle.clone();
+    let publisher_state = Arc::clone(&state);
     let ingest = IngestSupervisor::start(
-        handle.clone(),
-        Arc::clone(&state),
-        db_path,
+        Box::new(move || {
+            Box::new(AppPublisher::new(
+                TauriSink::new(publisher_app.clone()),
+                Arc::clone(&publisher_state),
+                ClockZone::Local,
+            ))
+        }),
+        Box::new(move || Db::open(&db_path).map_err(|e| e.to_string())),
         limit_rx,
         write_db,
         config,
