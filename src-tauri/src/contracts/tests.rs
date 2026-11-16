@@ -84,6 +84,78 @@ fn settings_patch_omits_absent_fields() {
 }
 
 #[test]
+fn claude_folder_setting_and_patch() {
+    // Older stored settings and the default omit the key.
+    let parsed: Settings = serde_json::from_value(json!({
+        "mode": "max",
+        "sound": true,
+        "autostart": false,
+        "updateCheck": true,
+        "keepOpen": false
+    }))
+    .unwrap();
+    assert_eq!(parsed.claude_folder, None);
+    let null: Settings = serde_json::from_value(json!({
+        "mode": "max",
+        "sound": true,
+        "autostart": false,
+        "updateCheck": true,
+        "claudeFolder": null
+    }))
+    .unwrap();
+    assert_eq!(null.claude_folder, None);
+    assert!(to_value(Settings::default())
+        .unwrap()
+        .get("claudeFolder")
+        .is_none());
+    let set = Settings {
+        claude_folder: Some("/home/example/.claude-work".into()),
+        ..Settings::default()
+    };
+    assert_eq!(
+        to_value(&set).unwrap()["claudeFolder"],
+        json!("/home/example/.claude-work")
+    );
+
+    // Patch: absent = unchanged, null = reset, string = set.
+    let absent: SettingsPatch = serde_json::from_value(json!({ "sound": true })).unwrap();
+    assert_eq!(absent.claude_folder, None);
+    let reset: SettingsPatch = serde_json::from_value(json!({ "claudeFolder": null })).unwrap();
+    assert_eq!(reset.claude_folder, Some(None));
+    let chosen: SettingsPatch =
+        serde_json::from_value(json!({ "claudeFolder": "/home/example/.claude-work" })).unwrap();
+    assert_eq!(
+        chosen.claude_folder,
+        Some(Some("/home/example/.claude-work".to_string()))
+    );
+    assert_eq!(to_value(&reset).unwrap(), json!({ "claudeFolder": null }));
+    assert_eq!(to_value(SettingsPatch::default()).unwrap(), json!({}));
+}
+
+#[test]
+fn claude_folder_shape() {
+    let folder = ClaudeFolder {
+        path: Some("/home/example/.claude".into()),
+        source: ClaudeFolderSource::Env,
+        projects_found: false,
+    };
+    assert_eq!(
+        to_value(&folder).unwrap(),
+        json!({ "path": "/home/example/.claude", "source": "env", "projectsFound": false })
+    );
+    assert_eq!(
+        to_value(ClaudeFolderSource::Setting).unwrap(),
+        json!("setting")
+    );
+    assert_eq!(
+        to_value(ClaudeFolderSource::Default).unwrap(),
+        json!("default")
+    );
+    assert_eq!(commands::GET_CLAUDE_FOLDER, "get_claude_folder");
+    assert_eq!(app::CLAUDE_CONFIG_DIR_ENV, "CLAUDE_CONFIG_DIR");
+}
+
+#[test]
 fn update_status_is_tagged_by_kind() {
     assert_eq!(UpdateStatus::default(), UpdateStatus::Idle);
     assert_eq!(

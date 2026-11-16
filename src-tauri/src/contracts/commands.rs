@@ -12,12 +12,15 @@
 //! | `get_update_status`   | none                      | `UpdateStatus`     |
 //! | `check_for_updates`   | none                      | `UpdateStatus`     |
 //! | `install_update`      | none                      | `UpdateStatus`     |
+//! | `get_claude_folder`   | none                      | `ClaudeFolder`     |
 //!
 //! `check_for_updates` resolves when the check is done (or at once with the
 //! current status while a check or install is running). `install_update`
 //! resolves only on failure (`installFailed`): on success the app exits or
 //! restarts. Without an installable version it rejects with
 //! `invalidArgument`. Update failures are statuses, never `CommandError`s.
+//! `get_claude_folder` has no event of its own: the UI calls it again after
+//! `settings-changed` and `app-info-changed`.
 //!
 //! Every command returns `Result<T, CommandError>`; on the TS side a failed
 //! `invoke` rejects with a `CommandError` object.
@@ -37,9 +40,10 @@ pub const GET_LIMIT_SETUP: &str = "get_limit_setup";
 pub const GET_UPDATE_STATUS: &str = "get_update_status";
 pub const CHECK_FOR_UPDATES: &str = "check_for_updates";
 pub const INSTALL_UPDATE: &str = "install_update";
+pub const GET_CLAUDE_FOLDER: &str = "get_claude_folder";
 
 /// Every command name, for registration checks in tests.
-pub const ALL: [&str; 10] = [
+pub const ALL: [&str; 11] = [
     GET_DASHBOARD,
     GET_SETTINGS,
     UPDATE_SETTINGS,
@@ -50,6 +54,7 @@ pub const ALL: [&str; 10] = [
     GET_UPDATE_STATUS,
     CHECK_FOR_UPDATES,
     INSTALL_UPDATE,
+    GET_CLAUDE_FOLDER,
 ];
 
 /// Arguments of `update_settings`: `{ "patch": { ... } }`.
