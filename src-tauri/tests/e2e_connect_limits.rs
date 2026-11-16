@@ -12,28 +12,34 @@ use std::fs;
 use std::path::Path;
 
 use serde_json::{json, Value};
+use tokenmonk_lib::limits::bridge::FILE_NAME;
 
-/// Assumed API of TKM-303 (names to verify after the coder PR is merged).
+/// Thin wrappers over `limits::connect` (TKM-303). The claude folder and the
+/// app data folder are both temp dirs, so nothing outside them is touched.
 mod api {
     use std::path::Path;
 
+    use tokenmonk_lib::limits::bridge;
     use tokenmonk_lib::limits::connect;
 
-    /// Connect: write our status-line entry into `<claude_dir>/settings.json`.
-    pub fn connect(claude_dir: &Path, command: &str) -> Result<(), String> {
-        connect::connect_limits(claude_dir, command).map_err(|e| e.to_string())
+    pub fn connect(claude_dir: &Path, data_dir: &Path, command: &str) -> Result<(), String> {
+        connect::connect(Some(claude_dir), data_dir, command)
+            .map(|_| ())
+            .map_err(|e| e.to_string())
     }
 
-    /// Disconnect: restore the entry that was there before.
-    pub fn disconnect(claude_dir: &Path) -> Result<(), String> {
-        connect::disconnect_limits(claude_dir).map_err(|e| e.to_string())
+    pub fn disconnect(claude_dir: &Path, data_dir: &Path) -> Result<(), String> {
+        connect::disconnect(Some(claude_dir), data_dir)
+            .map(|_| ())
+            .map_err(|e| e.to_string())
     }
 
-    /// What the connected status line prints for one payload: the bridge
-    /// records the limits into `data_dir`, then the old command (if any)
-    /// runs and its output is returned unchanged.
-    pub fn run_connected(claude_dir: &Path, data_dir: &Path, input: &[u8], now: i64) -> String {
-        connect::run_wrapped(claude_dir, data_dir, input, now)
+    /// What the connected status line does for one payload (`--statusline
+    /// --passthrough`): the bridge records the limits into `data_dir`, then
+    /// the old command runs; returns its stdout and exit code.
+    pub fn run_connected(data_dir: &Path, input: &[u8], now: i64) -> Option<(Vec<u8>, i32)> {
+        bridge::process(input, now, Some(data_dir));
+        connect::run_passthrough(data_dir, input)
     }
 }
 
@@ -77,9 +83,10 @@ fn base_settings() -> Value {
 #[test]
 fn connect_without_existing_status_line_adds_ours_and_keeps_the_rest() {
     let dir = tempfile::tempdir().unwrap();
+    let data = tempfile::tempdir().unwrap();
     let original = write_settings(dir.path(), &base_settings());
 
-    api::connect(dir.path(), OUR_COMMAND).unwrap();
+    api::connect(dir.path(), data.path(), OUR_COMMAND).unwrap();
 
     let s = read_settings(dir.path());
     assert_eq!(s["statusLine"]["type"], "command");
@@ -96,10 +103,11 @@ fn connect_without_existing_status_line_adds_ours_and_keeps_the_rest() {
 #[test]
 fn disconnect_without_prior_status_line_removes_ours() {
     let dir = tempfile::tempdir().unwrap();
+    let data = tempfile::tempdir().unwrap();
     write_settings(dir.path(), &base_settings());
 
-    api::connect(dir.path(), OUR_COMMAND).unwrap();
-    api::disconnect(dir.path()).unwrap();
+    api::connect(dir.path(), data.path(), OUR_COMMAND).unwrap();
+    api::disconnect(dir.path(), data.path()).unwrap();
 
     assert_eq!(read_settings(dir.path()), base_settings());
 }
@@ -107,14 +115,15 @@ fn disconnect_without_prior_status_line_removes_ours() {
 #[test]
 fn connect_creates_settings_json_when_missing_and_disconnect_leaves_valid_json() {
     let dir = tempfile::tempdir().unwrap();
+    let data = tempfile::tempdir().unwrap();
 
-    api::connect(dir.path(), OUR_COMMAND).unwrap();
+    api::connect(dir.path(), data.path(), OUR_COMMAND).unwrap();
     assert_eq!(
         read_settings(dir.path())["statusLine"]["command"],
         OUR_COMMAND
     );
 
-    api::disconnect(dir.path()).unwrap();
+    api::disconnect(dir.path(), data.path()).unwrap();
     // Either the file is gone or it is valid JSON without a status line.
     if settings_path(dir.path()).exists() {
         assert!(read_settings(dir.path()).get("statusLine").is_none());
@@ -124,11 +133,12 @@ fn connect_creates_settings_json_when_missing_and_disconnect_leaves_valid_json()
 #[test]
 fn existing_status_line_is_wrapped_backed_up_and_restored_exactly() {
     let dir = tempfile::tempdir().unwrap();
+    let data = tempfile::tempdir().unwrap();
     let mut with_old = base_settings();
     with_old["statusLine"] = json!({ "type": "command", "command": OLD_COMMAND, "padding": 1 });
     let original = write_settings(dir.path(), &with_old);
 
-    api::connect(dir.path(), OUR_COMMAND).unwrap();
+    api::connect(dir.path(), data.path(), OUR_COMMAND).unwrap();
 
     let s = read_settings(dir.path());
     assert_ne!(s["statusLine"], with_old["statusLine"], "now ours");
@@ -141,7 +151,7 @@ fn existing_status_line_is_wrapped_backed_up_and_restored_exactly() {
         "backup holds the old entry"
     );
 
-    api::disconnect(dir.path()).unwrap();
+    api::disconnect(dir.path(), data.path()).unwrap();
     assert_eq!(read_settings(dir.path()), with_old, "entry restored 1:1");
 }
 
@@ -152,45 +162,49 @@ fn wrapped_status_line_passes_the_old_output_through_unchanged() {
     let mut with_old = base_settings();
     with_old["statusLine"] = json!({ "type": "command", "command": OLD_COMMAND });
     write_settings(claude.path(), &with_old);
-    api::connect(claude.path(), OUR_COMMAND).unwrap();
+    api::connect(claude.path(), data.path(), OUR_COMMAND).unwrap();
 
-    let out = api::run_connected(claude.path(), data.path(), &payload(), 1_793_185_200_000);
+    let (out, code) =
+        api::run_connected(data.path(), &payload(), 1_793_185_200_000).expect("old command ran");
 
     // Same bytes the old command prints on its own (echo adds the newline).
     assert!(
-        out == "old-status-line-synthetic\n" || out == "old-status-line-synthetic",
+        out == b"old-status-line-synthetic
+" || out
+            == b"old-status-line-synthetic
+",
         "got {out:?}"
     );
+    assert_eq!(code, 0);
     // And the limits were still recorded.
     assert!(
-        fs::read_dir(data.path()).unwrap().next().is_some(),
+        data.path().join(FILE_NAME).is_file(),
         "bridge file written next to the pass-through"
     );
 }
 
 #[test]
-fn without_an_old_status_line_nothing_else_is_printed_but_limits_are_recorded() {
+fn without_an_old_status_line_there_is_nothing_to_pass_through_but_limits_are_recorded() {
     let claude = tempfile::tempdir().unwrap();
     let data = tempfile::tempdir().unwrap();
     write_settings(claude.path(), &base_settings());
-    api::connect(claude.path(), OUR_COMMAND).unwrap();
+    api::connect(claude.path(), data.path(), OUR_COMMAND).unwrap();
 
-    let out = api::run_connected(claude.path(), data.path(), &payload(), 1_793_185_200_000);
-
-    assert!(!out.contains("old-status-line"));
-    assert!(fs::read_dir(data.path()).unwrap().next().is_some());
+    assert!(api::run_connected(data.path(), &payload(), 1_793_185_200_000).is_none());
+    assert!(data.path().join(FILE_NAME).is_file());
 }
 
 #[test]
 fn connecting_twice_does_not_wrap_our_own_entry_and_disconnect_still_restores() {
     let dir = tempfile::tempdir().unwrap();
+    let data = tempfile::tempdir().unwrap();
     let mut with_old = base_settings();
     with_old["statusLine"] = json!({ "type": "command", "command": OLD_COMMAND });
     write_settings(dir.path(), &with_old);
 
-    api::connect(dir.path(), OUR_COMMAND).unwrap();
-    api::connect(dir.path(), OUR_COMMAND).unwrap();
-    api::disconnect(dir.path()).unwrap();
+    api::connect(dir.path(), data.path(), OUR_COMMAND).unwrap();
+    api::connect(dir.path(), data.path(), OUR_COMMAND).unwrap();
+    api::disconnect(dir.path(), data.path()).unwrap();
 
     assert_eq!(read_settings(dir.path()), with_old);
 }
@@ -198,10 +212,11 @@ fn connecting_twice_does_not_wrap_our_own_entry_and_disconnect_still_restores() 
 #[test]
 fn unreadable_settings_json_is_never_overwritten() {
     let dir = tempfile::tempdir().unwrap();
+    let data = tempfile::tempdir().unwrap();
     let broken = "{ not json, \"statusLine\": ";
     fs::write(settings_path(dir.path()), broken).unwrap();
 
-    assert!(api::connect(dir.path(), OUR_COMMAND).is_err());
+    assert!(api::connect(dir.path(), data.path(), OUR_COMMAND).is_err());
     assert_eq!(
         fs::read_to_string(settings_path(dir.path())).unwrap(),
         broken
@@ -211,11 +226,12 @@ fn unreadable_settings_json_is_never_overwritten() {
 #[test]
 fn disconnect_when_never_connected_changes_nothing() {
     let dir = tempfile::tempdir().unwrap();
+    let data = tempfile::tempdir().unwrap();
     let mut with_old = base_settings();
     with_old["statusLine"] = json!({ "type": "command", "command": OLD_COMMAND });
     let text = write_settings(dir.path(), &with_old);
 
-    let _ = api::disconnect(dir.path());
+    let _ = api::disconnect(dir.path(), data.path());
 
     assert_eq!(fs::read_to_string(settings_path(dir.path())).unwrap(), text);
 }
