@@ -24,7 +24,7 @@ tauri = { version = "2", features = ["image-png", "tray-icon"] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2.8.4"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", features = ["preserve_order"] }
 chrono = { version = "0.4.45", features = ["serde"] }
 rusqlite = { version = "0.41.1", features = ["bundled"] }
 notify = "8.2.1"
