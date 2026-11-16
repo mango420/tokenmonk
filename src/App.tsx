@@ -7,7 +7,6 @@ import { AchievementsView } from "./features/achievements/AchievementsView";
 import { Dashboard } from "./features/dashboard/Dashboard";
 import { useGameNotices } from "./features/game";
 import { Header } from "./features/dashboard/Header";
-import { useOsNotifications } from "./features/notifications/useOsNotifications";
 import { SettingsView } from "./features/settings/SettingsView";
 import { useAppData, usesMockData } from "./lib/appData";
 import { useBackendEvent } from "./lib/backend";
@@ -42,7 +41,6 @@ export default function App() {
   useBackendEvent(Events.achievementUnlocked, notices.pushUnlock, !usesMockData);
   useBackendEvent(Events.levelUp, notices.pushLevelUp, !usesMockData);
 
-  useOsNotifications(data, app.phase === "ready" && !usesMockData);
 
   const view = requested;
 
