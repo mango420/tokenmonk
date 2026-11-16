@@ -97,10 +97,12 @@ fn the_previous_day_is_complete_across_all_files_and_both_ends_of_the_day() {
     assert!(s.session.is_none(), "idle for more than an hour");
     assert_eq!(s.burn_rate.tokens_per_minute, 0.0);
 
-    // Seen from the 28th there is no history budget any more: the snapshot
-    // carries no daily budget, whatever the days before look like.
-    let (_, s) = loaded(Mode::Max, utc_ms(2026, 10, 28, 12, 0, 0));
-    assert!(s.daily_budget.is_none());
+    // Seen from late on the 27th, that day is complete: sessions 1 and 2, the
+    // subagent lines and the messages at both ends of the day, cache reads
+    // left out of the total.
+    let (_, s) = loaded(Mode::Max, utc_ms(2026, 10, 27, 23, 30, 0));
+    assert_eq!(s.today.total, 10_628);
+    assert!(s.daily_budget.is_none(), "no history budget any more");
 }
 
 #[test]
