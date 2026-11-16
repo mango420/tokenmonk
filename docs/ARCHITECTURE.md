@@ -438,17 +438,27 @@ previous one back. Implementation: TKM-303 (backend-platform).
   3. Copy the current file byte for byte to `settings.json.tokenmonk.bak`
      in the same folder (overwritten on each write). A missing file has no
      backup and is created.
-  4. Set `statusLine` to `{ "type": "command", "command": <bridge command> }`
-     (the bridge command as in "Setup snippet"), keeping every other key of
-     a previous `statusLine` object (for example `padding`) unchanged.
-     Every other key of the file stays as it was, in its order.
+  4. Set `statusLine.type` to `"command"` and `statusLine.command` to the
+     bridge command (as in "Setup snippet"). The documented entry shape is
+     `{ type: "command", command, padding?, refreshInterval?,
+     hideVimModeIndicator? }`; every other key of a previous `statusLine`
+     object, known or unknown, stays unchanged. Every other key of the
+     file stays as it was, in its order. A kept `refreshInterval` re-runs
+     the bridge on a timer and can make an old reading look fresh
+     ("Bridge mode"); accepted, the user's status line comes first.
   5. Write atomically (temp file in the same folder, then rename). Any
      failure rejects with `claudeSettings` and leaves the file as it was.
 - Wrapping (pass-through): with a stored previous entry, the bridge writes
   the limits file as before, then runs the previous command with the same
   stdin bytes and prints its stdout unchanged, exiting with its exit code.
   Tokenmonk's own line is printed only when nothing is wrapped. A failing
-  previous command never stops the limits file write.
+  previous command never stops the limits file write. The limits file is
+  written before the previous command starts, because Claude Code cancels
+  an in-flight status line run when a new update starts.
+- Shell (verified, code.claude.com/docs/en/statusline): on Windows Claude
+  Code runs `statusLine.command` through Git Bash if installed, else
+  through PowerShell. The bridge runs the previous command through the
+  same shell Claude Code would use, so its output stays the same.
 - Disconnect (explicit click only; idempotent): when `connected`, back up
   as in step 3, then set `statusLine` to the stored previous entry, or
   remove the key if there is none, write atomically, and delete the
@@ -463,11 +473,10 @@ previous one back. Implementation: TKM-303 (backend-platform).
 
 To verify in TKM-303 (scout, official docs; not decided here):
 
-- How Claude Code runs `statusLine.command` on each platform (which shell),
-  so the bridge runs the previous command the same way.
-- What happens to a running child when Claude Code cancels a status line
-  run, and that the Windows GUI-subsystem build can pipe the child's
-  stdout.
+- Which shell Claude Code uses for `statusLine.command` on macOS.
+- That the previous command's process ends when Claude Code cancels the
+  bridge mid-run, and that the Windows GUI-subsystem build can pipe the
+  child's stdout.
 
 Key order is settled: `serde_json` runs with its `preserve_order` feature
 (TKM-312, DECISIONS.md, "serde_json key order"), so a rewrite keeps the
@@ -481,7 +490,8 @@ Implementation: TKM-304. Copy and tone: DESIGN.md, "Product line".
   notification per window (`fiveHour`, `weekly`) and reset cycle, when the
   window's `utilization` reaches 90 or more while `limits.status` is `ok`.
   The cycle is the window's `resetsAt`; a window without `resetsAt` sends
-  nothing. Already sent cycles survive a restart.
+  nothing. Sent cycles survive a restart: they are stored in the
+  `app_state` key `limit_notice_cycles` (see Storage).
 - Level-ups (`Settings.notifyLevelUps`, default on): one system
   notification per `level-up` with `retroactive = false`.
 - System notifications use the OS sound; `Settings.sound` covers only the
@@ -786,6 +796,13 @@ cleanup deletes them; never use them in new code): `Mode` value `diy`,
   reset deletes the key. `notify_limits`, `notify_level_ups` (JSON
   boolean, TKM-300): missing key = `true`. A stored `mode` of `"diy"` is
   migrated to `"max"` (TKM-301); `xp_events.mode` keeps its history.
+- `app_state` key `limit_notice_cycles` (TKM-300, owned by backend-data,
+  read and written through `Db` by the notification code of TKM-304):
+  JSON `{ "fiveHour": <resetsAt> | null, "weekly": <resetsAt> | null }`,
+  the `resetsAt` (epoch ms) of the last cycle whose 10 % notification was
+  sent per window. A notification is due when the window's current
+  `resetsAt` differs from the stored one; missing key or `null` = none
+  sent. No migration needed.
 - `UpdateStatus` is not stored; every start begins at `idle`.
 - If the database is corrupt or from a newer version, it is moved aside
   (renamed with a timestamp) and rebuilt from the logs; game progress is
