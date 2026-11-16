@@ -40,8 +40,9 @@ Tauri plugins (Rust crate and matching npm package):
 | `opener` | Open links in the default browser |
 | `single-instance` | Only one tray instance at a time (Rust only, no JS API) |
 | `positioner` (`tray-icon`) | Place the popup next to the tray icon |
+| `dialog` | Native folder picker for the Claude folder setting (TKM-291) |
 
-npm: `react`, `react-dom` (UI), `@tauri-apps/api` (IPC), the six plugin packages above (without single-instance), `@fontsource/schibsted-grotesk`, `@fontsource/martian-mono` (bundled fonts, no network requests at runtime; they replace `@fontsource/fraunces`, `@fontsource/manrope` and `@fontsource/jetbrains-mono`, see "Design refresh").
+npm: `react`, `react-dom` (UI), `@tauri-apps/api` (IPC), the seven plugin packages above (without single-instance), `@fontsource/schibsted-grotesk`, `@fontsource/martian-mono` (bundled fonts, no network requests at runtime; they replace `@fontsource/fraunces`, `@fontsource/manrope` and `@fontsource/jetbrains-mono`, see "Design refresh").
 Dev: `typescript`, `vite`, `@vitejs/plugin-react`, `@types/react`, `@types/react-dom`, `@tauri-apps/cli`.
 
 `updater`, `autostart` and `single-instance` are desktop-only crates (target-gated in `Cargo.toml`), registered under `#[cfg(desktop)]`.
