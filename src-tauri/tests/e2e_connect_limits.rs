@@ -2,9 +2,8 @@
 //! Claude folder's `settings.json` (with a backup), wraps an existing
 //! status line with pass-through, and "Disconnect" restores the old entry.
 //!
-//! Everything runs against a temp folder with a fake `settings.json`.
-//! The assumed library API is isolated in `api` below so it can be adapted
-//! in one place once TKM-303 has landed.
+//! Everything runs against temp folders: a fake Claude folder with a fake
+//! `settings.json` and a fake app data folder.
 
 mod common;
 
@@ -13,6 +12,7 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 use tokenmonk_lib::limits::bridge::FILE_NAME;
+use tokenmonk_lib::limits::connect;
 
 /// Thin wrappers over `limits::connect` (TKM-303). The claude folder and the
 /// app data folder are both temp dirs, so nothing outside them is touched.
@@ -60,12 +60,36 @@ fn write_settings(dir: &Path, v: &Value) -> String {
     text
 }
 
-/// Any file next to `settings.json` that holds exactly `original`.
-fn has_backup_of(dir: &Path, original: &str) -> bool {
-    fs::read_dir(dir).unwrap().flatten().any(|e| {
-        e.file_name() != "settings.json"
-            && fs::read_to_string(e.path()).is_ok_and(|s| s == original)
-    })
+/// The backup written before the first change holds the original text.
+fn assert_backup_of(dir: &Path, original: &str) {
+    assert_eq!(
+        fs::read_to_string(dir.join(connect::BACKUP_NAME)).expect("backup file"),
+        original
+    );
+}
+
+/// The entry stored for pass-through, if any.
+fn previous_entry(data: &Path) -> Option<Value> {
+    fs::read_to_string(data.join(connect::PREVIOUS_NAME))
+        .ok()
+        .map(|t| serde_json::from_str(&t).unwrap())
+}
+
+fn keys(v: &Value) -> Vec<String> {
+    v.as_object().unwrap().keys().cloned().collect()
+}
+
+/// Equal values and the same key order at the top level and in `statusLine`.
+fn assert_same_with_order(got: &Value, want: &Value) {
+    assert_eq!(got, want);
+    assert_eq!(keys(got), keys(want), "top-level key order");
+    if want.get("statusLine").is_some() {
+        assert_eq!(
+            keys(&got["statusLine"]),
+            keys(&want["statusLine"]),
+            "statusLine key order"
+        );
+    }
 }
 
 fn payload() -> Vec<u8> {
@@ -94,9 +118,10 @@ fn connect_without_existing_status_line_adds_ours_and_keeps_the_rest() {
     for key in ["theme", "permissions", "env"] {
         assert_eq!(s[key], base_settings()[key], "{key} must survive");
     }
+    assert_backup_of(dir.path(), &original);
     assert!(
-        has_backup_of(dir.path(), &original),
-        "backup of the original"
+        previous_entry(data.path()).is_none(),
+        "nothing to pass through"
     );
 }
 
@@ -109,7 +134,8 @@ fn disconnect_without_prior_status_line_removes_ours() {
     api::connect(dir.path(), data.path(), OUR_COMMAND).unwrap();
     api::disconnect(dir.path(), data.path()).unwrap();
 
-    assert_eq!(read_settings(dir.path()), base_settings());
+    assert_same_with_order(&read_settings(dir.path()), &base_settings());
+    assert!(previous_entry(data.path()).is_none());
 }
 
 #[test]
@@ -141,18 +167,31 @@ fn existing_status_line_is_wrapped_backed_up_and_restored_exactly() {
     api::connect(dir.path(), data.path(), OUR_COMMAND).unwrap();
 
     let s = read_settings(dir.path());
-    assert_ne!(s["statusLine"], with_old["statusLine"], "now ours");
+    assert_eq!(s["statusLine"]["type"], "command");
+    assert_eq!(
+        s["statusLine"]["padding"], 1,
+        "unknown keys of the entry stay"
+    );
     assert!(s["statusLine"]["command"]
         .as_str()
         .unwrap()
         .contains("--statusline"));
-    assert!(
-        has_backup_of(dir.path(), &original),
-        "backup holds the old entry"
+    assert_ne!(s["statusLine"]["command"], OLD_COMMAND, "now ours");
+    // Other top-level keys keep their order, statusLine stays last.
+    assert_eq!(keys(&s), keys(&with_old), "top-level key order");
+    assert_backup_of(dir.path(), &original);
+    assert_eq!(
+        previous_entry(data.path()).expect("old entry stored"),
+        with_old["statusLine"],
+        "old entry kept unchanged for pass-through"
     );
 
     api::disconnect(dir.path(), data.path()).unwrap();
-    assert_eq!(read_settings(dir.path()), with_old, "entry restored 1:1");
+    assert_same_with_order(&read_settings(dir.path()), &with_old);
+    assert!(
+        previous_entry(data.path()).is_none(),
+        "record gone after disconnect"
+    );
 }
 
 #[test]
@@ -167,11 +206,10 @@ fn wrapped_status_line_passes_the_old_output_through_unchanged() {
     let (out, code) =
         api::run_connected(data.path(), &payload(), 1_793_185_200_000).expect("old command ran");
 
-    // Same bytes the old command prints on its own (echo adds the newline).
-    assert!(
-        out == b"old-status-line-synthetic
-" || out
-            == b"old-status-line-synthetic
+    // Same bytes the old command prints on its own.
+    assert_eq!(
+        out,
+        b"old-status-line-synthetic
 ",
         "got {out:?}"
     );
@@ -206,7 +244,7 @@ fn connecting_twice_does_not_wrap_our_own_entry_and_disconnect_still_restores() 
     api::connect(dir.path(), data.path(), OUR_COMMAND).unwrap();
     api::disconnect(dir.path(), data.path()).unwrap();
 
-    assert_eq!(read_settings(dir.path()), with_old);
+    assert_same_with_order(&read_settings(dir.path()), &with_old);
 }
 
 #[test]

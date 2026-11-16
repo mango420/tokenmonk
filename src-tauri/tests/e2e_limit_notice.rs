@@ -1,15 +1,13 @@
 //! TKM-304: one notification at 10 percent left, once per window and reset
 //! cycle. The old 90 percent and 100 percent warnings are gone.
 //!
-//! Utilization is "used percent", so 10 percent left is 90.0 used. The
-//! assumed library API is isolated in `api` so it can be adapted in one
-//! place once TKM-304 has landed.
+//! Utilization is "used percent", so 10 percent left is 90.0 used.
 
 mod common;
 
 use common::utc_ms;
 
-/// Assumed API of TKM-304 (names to verify after the coder PR is merged).
+/// Thin wrapper over `limits::notice` (TKM-304).
 mod api {
     use tokenmonk_lib::contracts::limits::LimitWindow;
     use tokenmonk_lib::limits::notice::{LimitNotifier, WindowKind};

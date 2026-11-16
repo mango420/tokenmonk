@@ -102,7 +102,7 @@ fn diy_install_becomes_max_and_keeps_xp_levels_and_history() {
         level_before
     );
 
-    // No ledger row is left claiming the removed mode.
+    // The ledger keeps its history: the rows still say what they said.
     let diy_rows: i64 = db
         .conn()
         .query_row(
@@ -111,7 +111,7 @@ fn diy_install_becomes_max_and_keeps_xp_levels_and_history() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(diy_rows, 0);
+    assert_eq!(diy_rows, XP_ROWS.len() as i64);
 
     // Achievements and internal flags survive.
     let a = db.achievement("firstBlood").unwrap().expect("kept");
