@@ -420,10 +420,10 @@ fn one_title_per_tier_at_every_level() {
     let game = rig.state.game().unwrap();
     assert_eq!((game.level, game.title.as_str()), (3, "Token Tourist"));
 
-    // One title per tier, no second set: a fresh replay in Max lands on the
-    // same level and title.
-    let (_dir, _file, rig) = replayed(Mode::Max);
+    // A stored DIY setting lands silently on Max: same level, same title.
+    let (_dir, _file, rig) = replayed(Mode::Diy);
     let game = rig.state.game().unwrap();
+    assert_eq!(game.mode, Mode::Max);
     assert!(game.retro_done);
     assert_eq!((game.level, game.title.as_str()), (3, "Token Tourist"));
 }
