@@ -154,7 +154,7 @@ function tokensOnly(
   connection: LimitsConnection,
   week: WeekModel | null,
 ): DashboardModel {
-  const notConnected = connection.state === "notConnected";
+  const notConnected = connection.state !== "connected";
   return {
     gauge: tokensGauge(
       snap,
