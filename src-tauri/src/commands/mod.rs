@@ -359,6 +359,8 @@ mod tests {
             autostart: None,
             update_check: None,
             keep_open: None,
+            notify_limits: None,
+            notify_level_ups: None,
             claude_folder: None,
         };
         let (before, after) = apply_update(&s, &patch, |_| Ok(())).unwrap();
