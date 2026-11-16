@@ -12,6 +12,7 @@ import {
   Commands,
   Events,
   type AppInfo,
+  type ClaudeFolder,
   type DashboardSnapshot,
   type GameState,
   type LimitSetup,
@@ -49,6 +50,8 @@ export interface AppActions {
   completeOnboarding: (mode: Mode) => Promise<boolean>;
   /** Reads the status-line setup values. Rejects when the core can't answer. */
   loadLimitSetup: () => Promise<LimitSetup>;
+  /** Reads the effective Claude folder. Rejects when the core can't answer. */
+  loadClaudeFolder: () => Promise<ClaudeFolder>;
   /** "Check now". A rejected call reads as `checkFailed`. */
   checkForUpdates: () => Promise<void>;
   /** "Update" / "Try again". Resolves when it failed; a stale status is re-read. */
@@ -195,6 +198,7 @@ function useLiveAppData(enabled: boolean): AppState {
   );
 
   const loadLimitSetup = useCallback(() => call(Commands.getLimitSetup), []);
+  const loadClaudeFolder = useCallback(() => call(Commands.getClaudeFolder), []);
 
   const checkForUpdates = useCallback(async () => {
     try {
@@ -223,7 +227,7 @@ function useLiveAppData(enabled: boolean): AppState {
   return {
     phase,
     data,
-    actions: { updateSettings, completeOnboarding, loadLimitSetup, checkForUpdates, installUpdate },
+    actions: { updateSettings, completeOnboarding, loadLimitSetup, loadClaudeFolder, checkForUpdates, installUpdate },
     retry,
   };
 }
@@ -264,6 +268,15 @@ function useMockAppData(scenario: MockScenarioId): AppState {
     [scenario],
   );
 
+  const loadClaudeFolder = useCallback(async (): Promise<ClaudeFolder> => {
+    const chosen = settings.claudeFolder ?? null;
+    return {
+      path: chosen ?? "D:\\mock\\.claude",
+      source: chosen === null ? "default" : "setting",
+      projectsFound: source.appInfo.logsFound,
+    };
+  }, [settings.claudeFolder, source.appInfo.logsFound]);
+
   return {
     phase: "ready",
     data: {
@@ -273,7 +286,7 @@ function useMockAppData(scenario: MockScenarioId): AppState {
       game: source.game,
       update,
     },
-    actions: { updateSettings, completeOnboarding, loadLimitSetup, checkForUpdates, installUpdate },
+    actions: { updateSettings, completeOnboarding, loadLimitSetup, loadClaudeFolder, checkForUpdates, installUpdate },
     retry: () => undefined,
   };
 }

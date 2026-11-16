@@ -82,3 +82,11 @@ export async function openExternal(url: string): Promise<void> {
     console.warn(`could not open ${url}: ${describeError(error)}`);
   }
 }
+
+/** System folder picker. `null` when cancelled (or in the plain-browser preview). */
+export async function pickFolder(): Promise<string | null> {
+  if (!insideTauri()) return null;
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const picked = await open({ directory: true, multiple: false });
+  return typeof picked === "string" ? picked : null;
+}
