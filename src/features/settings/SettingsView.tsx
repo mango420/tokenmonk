@@ -7,7 +7,6 @@ import { describeError, openExternal, pickFolder } from "../../lib/backend";
 import type { ClaudeFolder, SettingsPatch, UpdateStatus } from "../../lib/contracts";
 import { formatClock } from "../../lib/format";
 import { useEscape } from "../../lib/useEscape";
-import { MODE_DESCRIPTION, MODE_LABEL, type PopupMode } from "../dashboard/model";
 import { ClaudeFolderRow } from "./ClaudeFolderRow";
 import { LimitData } from "./LimitData";
 
@@ -15,12 +14,10 @@ interface SettingsViewProps {
   data: AppData;
   actions: AppActions;
   onBack: () => void;
-  /** Scroll to "Limit data" on open (the dashboard's setup hint asks for it). */
+  /** Scroll to "Limits" on open (the dashboard's setup hint asks for it). */
   scrollToLimits?: boolean;
   onOpenAbout: () => void;
 }
-
-const MODES: readonly PopupMode[] = ["max", "diy"];
 
 /**
  * Settings: every change applies at once through `update_settings`. While the
@@ -85,31 +82,26 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false, on
       <div className="scroll">
         <h1 className="title">Settings</h1>
 
-        <span id="settings-mode" className="label">
-          Mode
-        </span>
-        <div role="radiogroup" aria-labelledby="settings-mode">
-          {MODES.map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              role="radio"
-              aria-checked={shown.mode === mode}
-              className="mode-row"
-              onClick={() => {
-                if (shown.mode !== mode) void change({ mode });
-              }}
-            >
-              <span className="mode-row__name">
-                <span className={`mode-dot mode-dot--${mode}`} aria-hidden="true" />
-                {MODE_LABEL[mode]}
-              </span>
-              <span className="mode-row__description">{MODE_DESCRIPTION[mode]}</span>
-            </button>
-          ))}
-        </div>
-
         <div className="switch-list">
+          <div className="switch-row">
+            <span className="switch-row__text">
+              <span>10% Limits notification</span>
+              <span className="caption">Once per window, when 10% is left.</span>
+            </span>
+            <Switch
+              label="10% Limits notification"
+              checked={shown.notifyLimits}
+              onChange={(notifyLimits) => void change({ notifyLimits })}
+            />
+          </div>
+          <div className="switch-row">
+            <span>Level-up notifications</span>
+            <Switch
+              label="Level-up notifications"
+              checked={shown.notifyLevelUps}
+              onChange={(notifyLevelUps) => void change({ notifyLevelUps })}
+            />
+          </div>
           <div className="switch-row">
             <span>Sound</span>
             <Switch label="Sound" checked={shown.sound} onChange={(sound) => void change({ sound })} />
@@ -157,10 +149,10 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false, on
 
         <LimitData
           ref={limitsRef}
-          folderPath={folder?.path ?? null}
           limits={data.dashboard.limits}
-          platform={data.appInfo.platform}
-          loadLimitSetup={actions.loadLimitSetup}
+          connection={data.limitsConnection}
+          connectLimits={actions.connectLimits}
+          disconnectLimits={actions.disconnectLimits}
         />
 
         <div className="bottom-group">

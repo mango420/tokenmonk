@@ -436,22 +436,6 @@ html[data-maximized] .popup {
   color: var(--ink-2);
 }
 
-.mode-dot {
-  flex: none;
-  width: var(--mode-dot-size);
-  height: var(--mode-dot-size);
-  border-radius: 50%;
-  background: var(--accent);
-}
-
-.mode-dot--max {
-  background: var(--saffron);
-}
-
-.mode-dot--diy {
-  background: var(--jade);
-}
-
 .hero-block {
   flex: none;
   text-align: center;
@@ -598,48 +582,6 @@ html[data-maximized] .popup {
 
 /* ---------------------------------------------------------------- settings */
 
-.mode-row {
-  position: relative;
-  display: block;
-  width: 100%;
-  padding: var(--gap-14) 0;
-  border: 0;
-  border-top: var(--hair) solid var(--line);
-  border-radius: 0;
-  background: none;
-  text-align: left;
-}
-
-/* Checked: a bar flush with the popup's left edge, full row height. */
-.mode-row::before {
-  content: "";
-  position: absolute;
-  top: calc(-1 * var(--hair));
-  bottom: 0;
-  left: calc(-1 * var(--popup-padding));
-  width: var(--accent-rule);
-  background: var(--accent);
-  opacity: 0;
-}
-
-.mode-row[aria-checked="true"]::before {
-  opacity: 1;
-}
-
-.mode-row__name {
-  display: flex;
-  align-items: center;
-  gap: var(--gap-6);
-  font-size: var(--text-choice-size);
-  font-weight: var(--weight-medium);
-}
-
-.mode-row__description {
-  display: block;
-  font-size: var(--text-caption-size);
-  color: var(--ink-2);
-}
-
 .switch-list {
   margin-top: var(--gap-18);
 }
@@ -715,42 +657,15 @@ html[data-maximized] .popup {
   margin: 0;
 }
 
-.limit-data__check {
-  margin-top: calc(var(--space-1) - var(--space-3));
+.limit-data__actions {
+  display: flex;
+  gap: var(--gap-14);
 }
 
 .limit-data__path {
   font-family: var(--font-mono);
   font-size: var(--text-small-size);
   color: var(--ink);
-}
-
-.snippet {
-  position: relative;
-  padding: var(--space-3);
-  border: var(--hair) solid var(--line);
-  border-radius: var(--radius-toast);
-}
-
-.snippet__text {
-  margin: 0;
-  /* Room for the "Copy" link in the top right corner. */
-  padding-right: calc(var(--space-6) + var(--space-5));
-  color: var(--ink);
-  font-family: var(--font-mono);
-  font-size: var(--text-small-size);
-  line-height: var(--text-body-line);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  user-select: text;
-}
-
-.snippet__copy {
-  position: absolute;
-  top: var(--space-3);
-  right: var(--space-3);
-  font-size: var(--text-small-size);
-  line-height: var(--text-body-line);
 }
 
 /* ------------------------------------------------------------ achievements */
