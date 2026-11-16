@@ -42,7 +42,7 @@ estimate, plus one calm line.
 | Connected, limits in | Both windows: percent left and reset time |
 | Connected, no limits yet | Tokens today, "Limits after your next reply." |
 | Not connected | Tokens today, "Connect limits in Settings." |
-| Plan without `rate_limits` | As "no limits yet" until it can be told apart (open point) |
+| Plan without `rate_limits` | As "no limits yet" until it can be told apart (open point, derived) |
 
 **Limit source**: the Claude Code status line (`rate_limits`) only. No
 undocumented endpoints. "Connect limits" in Settings: after an explicit
@@ -82,7 +82,7 @@ even with 1 % left.
   Chaser*, *Rate-Limit Rambo*) carry the jokes; the rest stays plain.
 - **Mode-aware.** Max it out talks like a coach ("Make it count."), Do it
   yourself like a friend with a walking habit ("Go for a walk.").
-  Removed by TKM-287: one mode only, the coach voice stays.
+  Removed by TKM-287: one mode only.
 - **Number first.** The dashboard leads with one big number: percent left.
   TKM-287: two numbers of equal size, one per limit window ("Product
   line").
@@ -199,9 +199,11 @@ dependency.
   Thu"); under 24 h away the duration as above ("resets in 5h 12m",
   derived).
 - Estimates carry `~` directly before the number, no space ("~84.2k",
-  "~25 min"); the `~` uses the number's own style.
+  "~25 min"); the `~` uses the number's own style. Removed by TKM-287:
+  no estimates anywhere.
 - Limit ETA: `burnRate.limitEtaMinutes` rounded to 5, at least 5, as
-  "~N min" (same rule as the OS notification, "While hidden").
+  "~N min" (same rule as the OS notification, "While hidden"). Removed by
+  TKM-287.
 - XP: full numbers with thousands commas ("1,240 / 1,880 XP").
 
 ## Spacing, radius, motion
@@ -874,6 +876,10 @@ Each limit warning fires once per upward crossing: once per 5-hour window
 `fiveHour = null`. The 90 % body uses `burnRate.limitEtaMinutes` (N rounded
 to 5, at least 5); without an ETA the body is omitted. Level-ups get no OS
 notification; the level-up screen waits for the next open.
+
+Removed by TKM-287: the 90 % and 100 % warnings, the budget warning and the
+ETA body; one warning at 10 % left per window and reset cycle instead.
+Level-ups get a system notification, with a toggle ("Product line").
 
 Fed by: `AchievementUnlocked`, `GameState.achievements`, `Settings.sound`;
 limit warnings from `DashboardSnapshot.limits`, `burnRate`, `dailyBudget`.
