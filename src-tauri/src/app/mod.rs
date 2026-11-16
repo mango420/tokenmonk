@@ -103,6 +103,28 @@ fn platform() -> Platform {
     }
 }
 
+/// `app_state` key set once the first-start popup has been decided.
+const KEY_FIRST_START_DONE: &str = "first_start_done";
+
+/// True exactly once: on the very first start of a new install. A database
+/// that already existed before this start belongs to an install that ran
+/// before the flag was introduced, so it is marked done without a popup.
+fn claim_first_start(db: &Db, db_existed: bool) -> bool {
+    match db.app_state(KEY_FIRST_START_DONE) {
+        Ok(Some(_)) => return false,
+        Ok(None) => {}
+        Err(e) => {
+            log::warn!("could not read the first-start flag: {e}");
+            return false;
+        }
+    }
+    if let Err(e) = db.set_app_state(KEY_FIRST_START_DONE, &serde_json::Value::Bool(true)) {
+        log::warn!("could not store the first-start flag: {e}");
+        return false;
+    }
+    !db_existed
+}
+
 /// Startup wiring, called from `lib.rs` once the plugins are registered.
 pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let handle = app.handle().clone();
@@ -110,6 +132,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let dir = handle.path().app_data_dir()?;
     std::fs::create_dir_all(&dir)?;
     let db_path = dir.join(DB_FILE);
+    let db_existed = db_path.exists();
     let (write_db, moved_aside) = Db::open_or_rebuild(&db_path)?;
     if moved_aside.is_some() {
         log::warn!("the database was unusable and has been rebuilt from the logs");
@@ -125,7 +148,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         schema_version: write_db.schema_version()?,
         logs_found: folder.projects_found,
     };
-    let first_run = settings.mode == Mode::NoneYet;
+    let first_run = claim_first_start(&command_db, db_existed);
     let update_check = settings.update_check;
     let state = Arc::new(AppState::new(command_db, settings, info));
     app.manage(Arc::clone(&state));
@@ -156,9 +179,28 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
 
     updates::init(&handle, update_check);
 
-    // Onboarding waits in the popup; a tray icon alone would hide it.
+    // A brand-new install opens the popup once; a tray icon alone would hide it.
     if first_run {
         window::show(&handle);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn popup_opens_once_on_a_new_install() {
+        let db = Db::open_in_memory().unwrap();
+        assert!(claim_first_start(&db, false));
+        assert!(!claim_first_start(&db, false));
+    }
+
+    #[test]
+    fn existing_install_gets_no_popup() {
+        let db = Db::open_in_memory().unwrap();
+        assert!(!claim_first_start(&db, true));
+        assert!(!claim_first_start(&db, false));
+    }
 }
