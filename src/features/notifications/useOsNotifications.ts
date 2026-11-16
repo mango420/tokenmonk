@@ -28,15 +28,15 @@ export function useOsNotifications(data: AppData, enabled: boolean): void {
     enabled,
   );
 
-  const { dashboard, settings } = data;
+  const { dashboard } = data;
   useEffect(() => {
     if (!enabled) return;
-    const result = evaluateWarnings(warnings.current, dashboard, settings.mode);
+    const result = evaluateWarnings(warnings.current, dashboard);
     warnings.current = result.state;
     if (result.notices.length === 0) return;
     void isPopupHidden().then((hidden) => {
       if (!hidden) return;
       for (const notice of result.notices) void notify(notice.title, notice.body);
     });
-  }, [dashboard, settings.mode, enabled]);
+  }, [dashboard, enabled]);
 }

@@ -16,7 +16,6 @@ import {
   type DashboardSnapshot,
   type GameState,
   type LimitSetup,
-  type Mode,
   type Settings,
   type SettingsPatch,
   type UpdateStatus,
@@ -46,8 +45,6 @@ export type Phase = "loading" | "ready" | "error";
 export interface AppActions {
   /** Applies a settings patch. Resolves `false` when the command was rejected. */
   updateSettings: (patch: SettingsPatch) => Promise<boolean>;
-  /** Picks the first mode (`max` or `diy`). Resolves `false` when rejected. */
-  completeOnboarding: (mode: Mode) => Promise<boolean>;
   /** Reads the status-line setup values. Rejects when the core can't answer. */
   loadLimitSetup: () => Promise<LimitSetup>;
   /** Reads the effective Claude folder. Rejects when the core can't answer. */
@@ -74,7 +71,7 @@ const EMPTY_TOKENS = { input: 0, output: 0, cacheCreation: 0, cacheRead: 0, tota
 
 function placeholders(): AppData {
   return {
-    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true, keepOpen: false },
+    settings: { mode: "max", sound: true, autostart: false, updateCheck: true, keepOpen: false },
     appInfo: {
       version: "",
       platform: "windows",
@@ -99,7 +96,7 @@ function placeholders(): AppData {
       data: { state: "noLogs", filesTotal: 0, filesDone: 0, lastMessageAt: null, detail: null },
     },
     game: {
-      mode: "noneYet",
+      mode: "max",
       level: 1,
       title: "",
       xpTotal: 0,
@@ -184,19 +181,6 @@ function useLiveAppData(enabled: boolean): AppState {
     [apply],
   );
 
-  const completeOnboarding = useCallback(
-    async (mode: Mode) => {
-      try {
-        apply("settings", await call(Commands.completeOnboarding, { mode }));
-        return true;
-      } catch (error) {
-        console.warn(`complete_onboarding failed: ${describeError(error)}`);
-        return false;
-      }
-    },
-    [apply],
-  );
-
   const loadLimitSetup = useCallback(() => call(Commands.getLimitSetup), []);
   const loadClaudeFolder = useCallback(() => call(Commands.getClaudeFolder), []);
 
@@ -227,7 +211,7 @@ function useLiveAppData(enabled: boolean): AppState {
   return {
     phase,
     data,
-    actions: { updateSettings, completeOnboarding, loadLimitSetup, loadClaudeFolder, checkForUpdates, installUpdate },
+    actions: { updateSettings, loadLimitSetup, loadClaudeFolder, checkForUpdates, installUpdate },
     retry,
   };
 }
@@ -243,10 +227,6 @@ function useMockAppData(scenario: MockScenarioId): AppState {
 
   const updateSettings = useCallback(async (patch: SettingsPatch) => {
     setSettings((s) => ({ ...s, ...patch, mode: patch.mode ?? s.mode }));
-    return true;
-  }, []);
-  const completeOnboarding = useCallback(async (mode: Mode) => {
-    setSettings((s) => ({ ...s, mode }));
     return true;
   }, []);
 
@@ -286,7 +266,7 @@ function useMockAppData(scenario: MockScenarioId): AppState {
       game: source.game,
       update,
     },
-    actions: { updateSettings, completeOnboarding, loadLimitSetup, loadClaudeFolder, checkForUpdates, installUpdate },
+    actions: { updateSettings, loadLimitSetup, loadClaudeFolder, checkForUpdates, installUpdate },
     retry: () => undefined,
   };
 }

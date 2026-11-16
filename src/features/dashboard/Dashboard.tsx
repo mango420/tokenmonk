@@ -4,7 +4,7 @@ import { TextLink } from "../../components/TextLink";
 import type { AppActions, AppData } from "../../lib/appData";
 import { Header } from "./Header";
 import { LevelBlock } from "./LevelBlock";
-import { buildDashboard, buildLevel, buildNote, toPopupMode } from "./model";
+import { buildDashboard, buildLevel, buildNote } from "./model";
 
 interface DashboardProps {
   data: AppData;
@@ -17,9 +17,8 @@ interface DashboardProps {
 
 /** The popup's dashboard: bead gauge, one big number, meta row, week bar, level card. */
 export function Dashboard({ data, actions, onOpenSettings, onOpenLimitSetup, onOpenAchievements }: DashboardProps) {
-  const { settings, dashboard, game } = data;
-  const mode = toPopupMode(settings.mode);
-  const { gauge, week } = buildDashboard(mode, dashboard);
+  const { dashboard, game } = data;
+  const { gauge, week } = buildDashboard(dashboard);
   const note = buildNote(dashboard, data.update);
   const [installing, setInstalling] = useState(false);
   const install = () => {
@@ -29,7 +28,7 @@ export function Dashboard({ data, actions, onOpenSettings, onOpenLimitSetup, onO
 
   return (
     <div className="screen screen--dashboard">
-      <Header mode={mode} onOpenSettings={onOpenSettings} />
+      <Header onOpenSettings={onOpenSettings} />
       <p className="caption dash-caption">{gauge.caption}</p>
       <BeadGauge percentLeft={gauge.percentLeft} stale={gauge.stale} compact={week !== null && week.low} />
       <div className="hero-block">
@@ -39,7 +38,9 @@ export function Dashboard({ data, actions, onOpenSettings, onOpenLimitSetup, onO
           </span>
           <span className="hero-label">{gauge.heroLabel}</span>
         </div>
-        <p className="status">{gauge.status}</p>
+        <p className="status">
+          {gauge.statusLink ? <TextLink onClick={onOpenLimitSetup}>{gauge.status}</TextLink> : gauge.status}
+        </p>
       </div>
       <div className="meta-row meta live-number">
         <span>{gauge.metaLeft}</span>
@@ -62,30 +63,22 @@ export function Dashboard({ data, actions, onOpenSettings, onOpenLimitSetup, onO
       <div className="spacer" />
       <LevelBlock model={buildLevel(game)} onOpen={onOpenAchievements} />
       <p className="note">
-        {note.kind === "limitSetup" ? (
-          <TextLink small onClick={onOpenLimitSetup}>
-            {note.text}
-          </TextLink>
-        ) : (
-          <>
-            {note.segments.map((segment, index) =>
-              segment.mono ? (
-                <span key={index} className="live-number">
-                  {segment.text}
-                </span>
-              ) : (
-                segment.text
-              ),
-            )}
-            {note.kind === "update" && note.action !== null ? (
-              <span className="note__action">
-                <TextLink small onClick={installing ? undefined : install} disabled={installing}>
-                  {note.action}
-                </TextLink>
-              </span>
-            ) : null}
-          </>
+        {note.segments.map((segment, index) =>
+          segment.mono ? (
+            <span key={index} className="live-number">
+              {segment.text}
+            </span>
+          ) : (
+            segment.text
+          ),
         )}
+        {note.kind === "update" && note.action !== null ? (
+          <span className="note__action">
+            <TextLink small onClick={installing ? undefined : install} disabled={installing}>
+              {note.action}
+            </TextLink>
+          </span>
+        ) : null}
       </p>
     </div>
   );
