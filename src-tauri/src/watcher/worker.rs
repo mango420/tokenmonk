@@ -17,7 +17,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use chrono::{FixedOffset, Local};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 
-use super::discover::{discover, is_jsonl, projects_dir, DiscoverError};
+use super::discover::{claude_folder, discover, is_jsonl, projects_dir, DiscoverError};
 use super::ingest::{ingest_file, needs_work};
 use super::publisher::{IngestPublisher, SnapshotCause};
 use crate::aggregate::{snapshot, LimitState};
@@ -70,9 +70,18 @@ impl IngestConfig {
         }
     }
 
-    /// Config for `<home>/.claude/projects`; `None` if the home directory is unknown.
+    /// Config for the Claude folder from the environment or the default
+    /// (no Settings value); `None` if no folder can be resolved.
     pub fn standard() -> Option<Self> {
-        projects_dir().map(Self::new)
+        Self::for_setting(None)
+    }
+
+    /// Config for the effective Claude folder: `setting`
+    /// (`Settings.claude_folder`), else `CLAUDE_CONFIG_DIR`, else
+    /// `~/.claude`; the root is its `projects/`. For a live switch, stop the
+    /// old `IngestHandle` and spawn a new one with this config.
+    pub fn for_setting(setting: Option<&str>) -> Option<Self> {
+        projects_dir(&claude_folder(setting)).map(Self::new)
     }
 }
 

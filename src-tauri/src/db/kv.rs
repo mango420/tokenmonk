@@ -11,6 +11,7 @@ const KEY_SOUND: &str = "sound";
 const KEY_AUTOSTART: &str = "autostart";
 const KEY_UPDATE_CHECK: &str = "update_check";
 const KEY_KEEP_OPEN: &str = "keep_open";
+const KEY_CLAUDE_FOLDER: &str = "claude_folder";
 
 fn get(conn: &Connection, table: &str, key: &str) -> DbResult<Option<Value>> {
     let sql = format!("SELECT value FROM {table} WHERE key = ?1");
@@ -60,6 +61,10 @@ impl Db {
         if let Some(b) = self.setting(KEY_KEEP_OPEN)?.and_then(|v| v.as_bool()) {
             s.keep_open = b;
         }
+        s.claude_folder = self
+            .setting(KEY_CLAUDE_FOLDER)?
+            .and_then(|v| v.as_str().map(str::to_owned))
+            .filter(|p| !p.is_empty());
         Ok(s)
     }
 
@@ -83,6 +88,18 @@ impl Db {
         }
         if let Some(b) = patch.keep_open {
             set(&tx, "settings", KEY_KEEP_OPEN, &Value::Bool(b))?;
+        }
+        match &patch.claude_folder {
+            None => {}
+            Some(None) => {
+                tx.execute("DELETE FROM settings WHERE key = ?1", [KEY_CLAUDE_FOLDER])?;
+            }
+            Some(Some(path)) => set(
+                &tx,
+                "settings",
+                KEY_CLAUDE_FOLDER,
+                &Value::from(path.as_str()),
+            )?,
         }
         tx.commit()?;
         self.settings()
@@ -127,6 +144,40 @@ mod tests {
             })
             .unwrap();
         assert_eq!((s.mode, s.sound, s.autostart), (Mode::Diy, false, true));
+    }
+
+    #[test]
+    fn claude_folder_set_keep_reset() {
+        let db = Db::open_in_memory().unwrap();
+        let set_it = SettingsPatch {
+            claude_folder: Some(Some("/home/example/.claude-work".into())),
+            ..SettingsPatch::default()
+        };
+        let s = db.apply_settings_patch(&set_it).unwrap();
+        assert_eq!(
+            s.claude_folder.as_deref(),
+            Some("/home/example/.claude-work")
+        );
+        // Absent key leaves it alone.
+        let s = db
+            .apply_settings_patch(&SettingsPatch {
+                sound: Some(false),
+                ..SettingsPatch::default()
+            })
+            .unwrap();
+        assert_eq!(
+            s.claude_folder.as_deref(),
+            Some("/home/example/.claude-work")
+        );
+        // null resets it.
+        let s = db
+            .apply_settings_patch(&SettingsPatch {
+                claude_folder: Some(None),
+                ..SettingsPatch::default()
+            })
+            .unwrap();
+        assert_eq!(s.claude_folder, None);
+        assert_eq!(db.setting("claude_folder").unwrap(), None);
     }
 
     #[test]
