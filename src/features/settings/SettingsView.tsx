@@ -153,7 +153,7 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false, on
         <LimitData
           ref={limitsRef}
           limits={data.dashboard.limits}
-          loadLimitsConnection={actions.loadLimitsConnection}
+          connection={data.limitsConnection}
           connectLimits={actions.connectLimits}
           disconnectLimits={actions.disconnectLimits}
         />

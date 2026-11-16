@@ -1,13 +1,11 @@
-//! Daily budget (docs/ARCHITECTURE.md, "Daily budget").
+//! Compatibility shim: the pure budget helpers still used by `app/facts.rs`.
+//! The daily budget is gone from the snapshot (TKM-301); delete this module
+//! once its last caller is removed.
 
-use chrono::{NaiveDate, TimeZone};
+use chrono::NaiveDate;
 
 use crate::contracts::dashboard::{BudgetBasis, DailyBudget};
 use crate::contracts::EpochMs;
-use crate::db::{Db, DbResult};
-
-use super::timeutil::{add_days, day_start, local_date};
-use super::{HISTORY_DAYS, WEEK_MS};
 
 fn percent(used: f64, allowance: f64) -> f64 {
     if allowance > 0.0 {
@@ -45,21 +43,6 @@ pub fn weekly_budget(w_now: f64, w0: f64, days_left: u32, resets_at: EpochMs) ->
     }
 }
 
-/// Headline tokens that may still be used per day until the weekly reset
-/// (estimate: the weekly limit also counts claude.ai chats).
-///
-/// The ratio is tokens per weekly percent point: `window_tokens` (headline
-/// tokens since the weekly window start) divided by `w_now`. `None` at 0 %
-/// utilisation or without tokens in the window.
-pub fn tokens_left_per_day(w_now: f64, days_left: u32, window_tokens: u64) -> Option<f64> {
-    if w_now <= 0.0 || window_tokens == 0 {
-        return None;
-    }
-    let per_point = window_tokens as f64 / w_now;
-    let left = (100.0 - w_now) / f64::from(days_left.max(1)) * per_point;
-    Some(left.max(0.0))
-}
-
 /// Budget in headline tokens from the average active day of the previous
 /// seven local days. `None` without an active day.
 pub fn history_budget(previous_days: &[u64], today_tokens: u64) -> Option<DailyBudget> {
@@ -78,51 +61,6 @@ pub fn history_budget(previous_days: &[u64], today_tokens: u64) -> Option<DailyB
         resets_at: None,
         tokens_left_per_day: None,
     })
-}
-
-/// Weekly-limit budget from the stored snapshots, if the weekly reading
-/// carries a reset time that is still ahead.
-pub fn weekly_from_db<Tz: TimeZone>(
-    db: &Db,
-    weekly: &crate::contracts::limits::LimitWindow,
-    now: EpochMs,
-    tz: &Tz,
-) -> DbResult<Option<DailyBudget>> {
-    let Some(resets_at) = weekly.resets_at.filter(|&r| r > now) else {
-        return Ok(None);
-    };
-    let today = local_date(tz, now);
-    let start = day_start(tz, today);
-    let window_start = resets_at.saturating_sub(WEEK_MS);
-    let w0 = if window_start > start {
-        // The weekly window restarted during today.
-        0.0
-    } else {
-        db.weekly_baseline(start, Some(window_start))?
-            .unwrap_or(weekly.utilization)
-    };
-    let left = days_left(today, local_date(tz, resets_at));
-    let mut budget = weekly_budget(weekly.utilization, w0, left, resets_at);
-    let window_tokens = db
-        .tokens_between(window_start, now.saturating_add(1))?
-        .headline();
-    budget.tokens_left_per_day = tokens_left_per_day(weekly.utilization, left, window_tokens);
-    Ok(Some(budget))
-}
-
-/// Token-history budget from the database (previous days, today excluded).
-pub fn history_from_db<Tz: TimeZone>(
-    db: &Db,
-    today_tokens: u64,
-    now: EpochMs,
-    tz: &Tz,
-) -> DbResult<Option<DailyBudget>> {
-    let today = local_date(tz, now);
-    let from = day_start(tz, add_days(today, -HISTORY_DAYS));
-    let to = day_start(tz, today);
-    let days = db.tokens_by_local_day(tz, from, to)?;
-    let tokens: Vec<u64> = days.iter().map(|d| d.totals.headline()).collect();
-    Ok(history_budget(&tokens, today_tokens))
 }
 
 #[cfg(test)]
@@ -164,19 +102,6 @@ mod tests {
         assert_eq!(b.allowance, 0.0);
         assert_eq!(b.used_percent, 100.0);
         assert!(b.used_percent.is_finite());
-    }
-
-    #[test]
-    fn tokens_left_per_day_scales_by_tokens_per_point() {
-        // 40 % used with 4 000 tokens: 100 tokens per point; 60 points over
-        // 3 days is 20 points per day, so 2 000 tokens per day.
-        let v = tokens_left_per_day(40.0, 3, 4000).unwrap();
-        assert!((v - 2000.0).abs() < 1e-9);
-        // Over the limit never goes negative.
-        assert_eq!(tokens_left_per_day(120.0, 2, 500), Some(0.0));
-        // No utilisation or no tokens: unavailable.
-        assert_eq!(tokens_left_per_day(0.0, 3, 4000), None);
-        assert_eq!(tokens_left_per_day(40.0, 3, 0), None);
     }
 
     #[test]

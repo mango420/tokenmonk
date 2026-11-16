@@ -10,7 +10,6 @@ import type {
   GameState,
   LevelUp,
   LimitSetup,
-  LimitsConnection,
   StatuslineFileInfo,
   Settings,
   TokenBreakdown,
@@ -218,29 +217,6 @@ const maxGame: GameState = {
   retroDone: true,
 };
 
-const diyGame: GameState = {
-  mode: "diy",
-  level: 4,
-  title: "Quiet Spender",
-  xpTotal: 1_900,
-  xpIntoLevel: 560,
-  xpForLevel: 1_160,
-  progress: 560 / 1_160,
-  dailyXpPreview: 77,
-  recentUnlocks: [
-    {
-      id: "firstBlood",
-      name: "First Blood",
-      detail: null,
-      xp: 10,
-      unlockedAt: NOW - 20 * 24 * HOUR,
-      retroactive: false,
-    },
-  ],
-  achievements,
-  retroDone: true,
-};
-
 /** A fresh install: nothing unlocked, nothing counted yet. */
 const freshGame = (): GameState => ({
   ...maxGame,
@@ -309,16 +285,6 @@ export function mockLimitSetup(scenario: MockScenario): LimitSetup {
   return scenario.limitSetup ?? setupPlain;
 }
 
-/** Dev-only Limits connection: connected when limits flow, blocked in the "missing" scenario. */
-export function mockLimitsConnection(scenario: MockScenario): LimitsConnection {
-  const settingsPath = "D:\\mock\\.claude\\settings.json";
-  if (scenario.limitSetup?.statuslineCommand === null) {
-    return { state: "blocked", settingsPath: null, previousStatusLine: false, problem: "noClaudeFolder", detail: null };
-  }
-  const connected = scenario.dashboard.limits.status !== "unavailable";
-  return { state: connected ? "connected" : "notConnected", settingsPath, previousStatusLine: false, problem: null, detail: null };
-}
-
 /** Fake events for the dev notice buttons. */
 export const mockUnlock: AchievementUnlocked = {
   id: "nightOwl",
@@ -351,7 +317,6 @@ const booGame: GameState = {
 };
 
 const maxSettings: Settings = { mode: "max", sound: true, autostart: false, updateCheck: true, keepOpen: false };
-const diySettings: Settings = { mode: "diy", sound: true, autostart: false, updateCheck: true, keepOpen: false };
 
 const buildScenarios = () => ({
   max: {
@@ -492,77 +457,6 @@ const buildScenarios = () => ({
     dashboard: snapshot({ limits: noLimits }),
     game: maxGame,
     limitSetup: setupMissing,
-    update: idle,
-  },
-  diy: {
-    label: "Do it yourself, 23 %",
-    settings: diySettings,
-    appInfo,
-    dashboard: snapshot({
-      today: tokens(12_480),
-      session: session(1_920),
-      dailyBudget: budget(23, 480_000),
-      limits: {
-        status: "ok",
-        reason: null,
-        detail: null,
-        source: "mock",
-        fiveHour: { utilization: 18, resetsAt: NOW + 134 * MIN },
-        weekly: { utilization: 9, resetsAt: WEEKLY_RESET },
-        fetchedAt: NOW,
-      },
-    }),
-    game: diyGame,
-    update: idle,
-  },
-  diyOver: {
-    label: "Do it yourself, over budget",
-    settings: diySettings,
-    appInfo,
-    dashboard: snapshot({
-      today: tokens(61_300),
-      session: session(24_800),
-      dailyBudget: budget(112),
-      limits: noLimits,
-    }),
-    game: { ...diyGame, dailyXpPreview: 0 },
-    update: idle,
-  },
-  diyLearning: {
-    label: "Do it yourself, no history",
-    settings: diySettings,
-    appInfo,
-    dashboard: snapshot({
-      today: tokens(3_450),
-      session: session(3_450),
-      dailyBudget: null,
-      limits: noLimits,
-    }),
-    game: { ...diyGame, dailyXpPreview: null },
-    update: idle,
-  },
-  onboarding: {
-    label: "Onboarding, importing",
-    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true, keepOpen: false },
-    appInfo,
-    dashboard: snapshot({ data: importing(24), limits: noLimits }),
-    game: { ...freshGame(), retroDone: false },
-    update: idle,
-  },
-  onboardingReady: {
-    label: "Onboarding, logs found",
-    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true, keepOpen: false },
-    appInfo,
-    dashboard: snapshot({ limits: noLimits }),
-    game: { ...freshGame(), retroDone: false },
-    update: idle,
-  },
-  onboardingNoLogs: {
-    label: "Onboarding, no logs",
-    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true, keepOpen: false },
-    appInfo: { ...appInfo, logsFound: false },
-    dashboard: noLogsSnapshot(),
-    game: freshGame(),
     update: idle,
   },
   importingMax: {

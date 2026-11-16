@@ -14,9 +14,8 @@ import {
   type AppInfo,
   type ClaudeFolder,
   type DashboardSnapshot,
-  type GameState,
   type LimitsConnection,
-  type Mode,
+  type GameState,
   type Settings,
   type SettingsPatch,
   type UpdateStatus,
@@ -24,7 +23,6 @@ import {
 import {
   defaultScenario,
   getMockScenarios,
-  mockLimitsConnection,
   type MockScenarioId,
 } from "./mock";
 
@@ -34,6 +32,7 @@ export interface AppData {
   dashboard: DashboardSnapshot;
   game: GameState;
   update: UpdateStatus;
+  limitsConnection: LimitsConnection;
 }
 
 /**
@@ -46,11 +45,7 @@ export type Phase = "loading" | "ready" | "error";
 export interface AppActions {
   /** Applies a settings patch. Resolves `false` when the command was rejected. */
   updateSettings: (patch: SettingsPatch) => Promise<boolean>;
-  /** Picks the first mode (`max` or `diy`). Resolves `false` when rejected. */
-  completeOnboarding: (mode: Mode) => Promise<boolean>;
-  /** Reads the Limits connection. Rejects when the core can't answer. */
-  loadLimitsConnection: () => Promise<LimitsConnection>;
-  /** "Connect". Resolves the new state; rejects when the core refuses. */
+  /** "Connect limits". Resolves the new state; rejects when the core refuses. */
   connectLimits: () => Promise<LimitsConnection>;
   /** "Disconnect". Resolves the new state; rejects when the core refuses. */
   disconnectLimits: () => Promise<LimitsConnection>;
@@ -76,9 +71,21 @@ export const usesMockData: boolean = import.meta.env.DEV && !insideTauri();
 
 const EMPTY_TOKENS = { input: 0, output: 0, cacheCreation: 0, cacheRead: 0, total: 0 };
 
+/** Mock only: a missing limit source reads as "not connected". */
+function mockConnection(snap: DashboardSnapshot): LimitsConnection {
+  const notConnected = snap.limits.reason === "noSource";
+  return {
+    state: notConnected ? "notConnected" : "connected",
+    settingsPath: null,
+    previousStatusLine: false,
+    problem: null,
+    detail: null,
+  };
+}
+
 function placeholders(): AppData {
   return {
-    settings: { mode: "noneYet", sound: true, autostart: false, updateCheck: true, keepOpen: false },
+    settings: { mode: "max", sound: true, autostart: false, updateCheck: true, keepOpen: false },
     appInfo: {
       version: "",
       platform: "windows",
@@ -103,7 +110,7 @@ function placeholders(): AppData {
       data: { state: "noLogs", filesTotal: 0, filesDone: 0, lastMessageAt: null, detail: null },
     },
     game: {
-      mode: "noneYet",
+      mode: "max",
       level: 1,
       title: "",
       xpTotal: 0,
@@ -116,6 +123,7 @@ function placeholders(): AppData {
       retroDone: true,
     },
     update: { kind: "idle" },
+    limitsConnection: { state: "notConnected", settingsPath: null, previousStatusLine: false, problem: null, detail: null },
   };
 }
 
@@ -139,6 +147,7 @@ function useLiveAppData(enabled: boolean): AppState {
   useBackendEvent(Events.gameUpdated, (v) => apply("game", v), enabled);
   useBackendEvent(Events.appInfoChanged, (v) => apply("appInfo", v), enabled);
   useBackendEvent(Events.updateStatusChanged, (v) => apply("update", v), enabled);
+  useBackendEvent(Events.limitsConnectionChanged, (v) => apply("limitsConnection", v), enabled);
 
   useEffect(() => {
     if (!enabled) return;
@@ -152,6 +161,7 @@ function useLiveAppData(enabled: boolean): AppState {
       ["dashboard", call(Commands.getDashboard)],
       ["game", call(Commands.getGameState)],
       ["update", call(Commands.getUpdateStatus)],
+      ["limitsConnection", call(Commands.getLimitsConnection)],
     ] as const;
 
     void Promise.allSettled(reads.map(([, promise]) => promise)).then((results) => {
@@ -188,22 +198,16 @@ function useLiveAppData(enabled: boolean): AppState {
     [apply],
   );
 
-  const completeOnboarding = useCallback(
-    async (mode: Mode) => {
-      try {
-        apply("settings", await call(Commands.completeOnboarding, { mode }));
-        return true;
-      } catch (error) {
-        console.warn(`complete_onboarding failed: ${describeError(error)}`);
-        return false;
-      }
-    },
-    [apply],
-  );
-
-  const loadLimitsConnection = useCallback(() => call(Commands.getLimitsConnection), []);
-  const connectLimits = useCallback(() => call(Commands.connectLimits), []);
-  const disconnectLimits = useCallback(() => call(Commands.disconnectLimits), []);
+  const connectLimits = useCallback(async () => {
+    const next = await call(Commands.connectLimits);
+    apply("limitsConnection", next);
+    return next;
+  }, [apply]);
+  const disconnectLimits = useCallback(async () => {
+    const next = await call(Commands.disconnectLimits);
+    apply("limitsConnection", next);
+    return next;
+  }, [apply]);
   const loadClaudeFolder = useCallback(() => call(Commands.getClaudeFolder), []);
 
   const checkForUpdates = useCallback(async () => {
@@ -233,7 +237,7 @@ function useLiveAppData(enabled: boolean): AppState {
   return {
     phase,
     data,
-    actions: { updateSettings, completeOnboarding, loadLimitsConnection, connectLimits, disconnectLimits, loadClaudeFolder, checkForUpdates, installUpdate },
+    actions: { updateSettings, connectLimits, disconnectLimits, loadClaudeFolder, checkForUpdates, installUpdate },
     retry,
   };
 }
@@ -251,10 +255,6 @@ function useMockAppData(scenario: MockScenarioId): AppState {
     setSettings((s) => ({ ...s, ...patch, mode: patch.mode ?? s.mode }));
     return true;
   }, []);
-  const completeOnboarding = useCallback(async (mode: Mode) => {
-    setSettings((s) => ({ ...s, mode }));
-    return true;
-  }, []);
 
   const [update, setUpdate] = useState<UpdateStatus>(source.update);
   useEffect(() => {
@@ -269,21 +269,20 @@ function useMockAppData(scenario: MockScenarioId): AppState {
     setUpdate((u) => (u.kind === "available" || u.kind === "installFailed" ? { kind: "downloading", version: u.version, percent: null } : u));
   }, []);
 
-  const [connection, setConnection] = useState<LimitsConnection>(() => mockLimitsConnection(source));
+  const [connection, setConnection] = useState<LimitsConnection | null>(null);
   useEffect(() => {
-    setConnection(mockLimitsConnection(getMockScenarios()[scenario]));
+    setConnection(null);
   }, [scenario]);
-  const loadLimitsConnection = useCallback(async () => connection, [connection]);
   const connectLimits = useCallback(async () => {
-    const next: LimitsConnection = { ...connection, state: "connected", problem: null };
+    const next: LimitsConnection = { ...mockConnection(source.dashboard), state: "connected", problem: null };
     setConnection(next);
     return next;
-  }, [connection]);
+  }, [source.dashboard]);
   const disconnectLimits = useCallback(async () => {
-    const next: LimitsConnection = { ...connection, state: "notConnected", problem: null };
+    const next: LimitsConnection = { ...mockConnection(source.dashboard), state: "notConnected", problem: null };
     setConnection(next);
     return next;
-  }, [connection]);
+  }, [source.dashboard]);
 
   const loadClaudeFolder = useCallback(async (): Promise<ClaudeFolder> => {
     const chosen = settings.claudeFolder ?? null;
@@ -302,8 +301,9 @@ function useMockAppData(scenario: MockScenarioId): AppState {
       dashboard: source.dashboard,
       game: source.game,
       update,
+      limitsConnection: connection ?? mockConnection(source.dashboard),
     },
-    actions: { updateSettings, completeOnboarding, loadLimitsConnection, connectLimits, disconnectLimits, loadClaudeFolder, checkForUpdates, installUpdate },
+    actions: { updateSettings, connectLimits, disconnectLimits, loadClaudeFolder, checkForUpdates, installUpdate },
     retry: () => undefined,
   };
 }

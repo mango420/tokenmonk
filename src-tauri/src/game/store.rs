@@ -7,7 +7,9 @@ use std::convert::Infallible;
 
 use chrono::TimeZone;
 
-use super::constants::{KIND_DAY_MODE, RECOUNT_DROP_KINDS, RULES_VERSION};
+use super::constants::{
+    KIND_DAY, KIND_DAY_LEGACY, KIND_DAY_MODE, RECOUNT_DROP_KINDS, RULES_VERSION,
+};
 use super::eval::{day_modes, evaluate};
 use super::model::{AchievementRecord, Evaluation, Facts, GameData, LedgerEntry};
 use crate::contracts::{EpochMs, Mode};
@@ -49,7 +51,8 @@ pub trait GameStore {
 /// Recount the ledger once per rules version. Call it before reading
 /// `retro_done`. When the stored version is older than `RULES_VERSION`:
 /// every day keeps the mode it was earned in (zero-XP `daymode` rows), the
-/// `tokens` and `day` rows are dropped, achievements and their XP stay,
+/// `tokens` and `day` rows are dropped (Do it yourself day awards move to
+/// `legacyday` and keep their XP), achievements and their XP stay,
 /// `retro_done` is cleared so the next evaluation is a retroactive replay
 /// (no toasts, one summary), and the version is stored. Returns whether a
 /// recount ran. Idempotent.
@@ -92,7 +95,19 @@ pub fn recount_if_outdated<S: GameStore>(store: &mut S) -> Result<bool, S::Error
             });
     }
     let markers: Vec<LedgerEntry> = markers.into_values().collect();
+    // Day awards of the retired Do it yourself mode are not recomputed, so
+    // they move to their own kind and keep their XP.
+    let legacy: Vec<LedgerEntry> = data
+        .ledger
+        .iter()
+        .filter(|e| e.kind == KIND_DAY && e.mode != Mode::Max)
+        .map(|e| LedgerEntry {
+            kind: KIND_DAY_LEGACY.to_string(),
+            ..e.clone()
+        })
+        .collect();
     store.append_ledger(&markers)?;
+    store.append_ledger(&legacy)?;
     store.delete_ledger_kinds(&RECOUNT_DROP_KINDS)?;
     store.set_retro_done(false)?;
     store.set_rules_version(RULES_VERSION)?;

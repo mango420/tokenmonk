@@ -76,7 +76,21 @@ impl Db {
         conn.pragma_update(None, "foreign_keys", true)?;
         let mut db = Self { conn };
         migrations::migrate(&mut db.conn)?;
+        db.retire_diy_mode()?;
         Ok(db)
+    }
+
+    /// One mode only (TKM-301): a stored `diy` becomes `max` silently on
+    /// open. XP events keep their amounts; only the mode label changes.
+    /// Idempotent, no schema bump (the contract pins the schema version).
+    fn retire_diy_mode(&self) -> DbResult<()> {
+        self.conn.execute(
+            "UPDATE settings SET value = '\"max\"' WHERE key = 'mode' AND value = '\"diy\"'",
+            [],
+        )?;
+        self.conn
+            .execute("UPDATE xp_events SET mode = 'max' WHERE mode = 'diy'", [])?;
+        Ok(())
     }
 
     /// Current schema version (`PRAGMA user_version`).
@@ -259,5 +273,33 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM settings", [], |r| r.get(0))
             .unwrap();
         assert_eq!(n, 1);
+    }
+
+    #[test]
+    fn stored_diy_mode_becomes_max_on_open() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("t.db");
+        {
+            let db = Db::open(&path).unwrap();
+            db.conn()
+                .execute(
+                    "INSERT INTO settings (key, value) VALUES ('mode', '\"diy\"')",
+                    [],
+                )
+                .unwrap();
+            db.conn()
+                .execute(
+                    "INSERT INTO xp_events (earned_at, mode, kind, ref, amount, retroactive)                      VALUES (1, 'diy', 'day', 'x', 40, 0)",
+                    [],
+                )
+                .unwrap();
+        }
+        let db = Db::open(&path).unwrap();
+        assert_eq!(db.setting("mode").unwrap(), Some(serde_json::json!("max")));
+        assert_eq!(db.xp_total().unwrap(), 40);
+        assert_eq!(
+            db.xp_events().unwrap()[0].mode,
+            crate::contracts::settings::Mode::Max
+        );
     }
 }

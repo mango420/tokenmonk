@@ -8,8 +8,8 @@ import type {
   DashboardSnapshot,
   GameState,
   LimitWindow,
+  LimitsConnection,
   LimitsView,
-  Mode,
   UpdateStatus,
 } from "../../lib/contracts";
 import {
@@ -22,24 +22,6 @@ import {
   formatWeekday,
   percentLeft,
 } from "../../lib/format";
-import { roundEtaMinutes } from "../notifications/limitWarnings";
-
-export type PopupMode = "max" | "diy";
-
-/** Before onboarding (`noneYet`) the popup falls back to Max it out. */
-export function toPopupMode(mode: Mode): PopupMode {
-  return mode === "diy" ? "diy" : "max";
-}
-
-export const MODE_LABEL: Record<PopupMode, string> = {
-  max: "Max it out",
-  diy: "Do it yourself",
-};
-
-export const MODE_DESCRIPTION: Record<PopupMode, string> = {
-  max: "Use the whole limit, every window.",
-  diy: "Use less. Keep it calm.",
-};
 
 // ------------------------------------------------------------------ gauge
 
@@ -57,6 +39,8 @@ export interface GaugeModel {
   small: boolean;
   heroLabel: string;
   status: string;
+  /** The status line opens Settings ("Connect limits in Settings."). */
+  statusLink: boolean;
   /** Meta row, left; empty string keeps the row's height. */
   metaLeft: string;
   metaRight: string;
@@ -78,34 +62,22 @@ export interface DashboardModel {
   week: WeekModel | null;
 }
 
-type StatusRows = readonly [string, string, string, string, string];
-
-const STATUS: Record<PopupMode, StatusRows> = {
+const STATUS = [
   // 60 and more, 30 to 59, 10 to 29, 1 to 9, exactly 0
-  max: [
-    "Barely touched. Use it.",
-    "Good pace.",
-    "Nearly there. As planned.",
-    "Almost gone. Make it count.",
-    "Limit reached. Breathe.",
-  ],
-  diy: [
-    "Light day. Nicely done.",
-    "Mid-range. Breathe.",
-    "Getting thin. Slow down.",
-    "Nearly out. Go for a walk.",
-    "All out. Good time for a walk.",
-  ],
-};
+  "Barely touched. Use it.",
+  "Good pace.",
+  "Nearly there. As planned.",
+  "Almost gone. Make it count.",
+  "Limit reached. Breathe.",
+] as const;
 
-/** Status line under the hero from percent left and the mode. */
-export function statusLine(mode: PopupMode, left: number): string {
-  const lines = STATUS[mode];
-  if (left >= 60) return lines[0];
-  if (left >= 30) return lines[1];
-  if (left >= 10) return lines[2];
-  if (left >= 1) return lines[3];
-  return lines[4];
+/** Status line under the hero from percent left. */
+export function statusLine(left: number): string {
+  if (left >= 60) return STATUS[0];
+  if (left >= 30) return STATUS[1];
+  if (left >= 10) return STATUS[2];
+  if (left >= 1) return STATUS[3];
+  return STATUS[4];
 }
 
 /** `limits.status = unavailable`: no limit data at all. */
@@ -115,37 +87,17 @@ export function hasNoLimitData(limits: LimitsView): boolean {
 
 const tokensPerMinute = (snap: DashboardSnapshot) => `${formatCompact(snap.burnRate.tokensPerMinute)} tokens/min`;
 
-/** Meta row, right: tokens per minute; in Do it yourself the daily budget replaces it. */
-function metaRight(mode: PopupMode, snap: DashboardSnapshot): string {
-  const budget = snap.dailyBudget;
-  if (mode === "diy" && budget !== null) {
-    if (budget.basis === "tokenHistory") {
-      return `${formatCompact(Math.max(budget.allowance - budget.usedToday, 0))} left today`;
-    }
-    if (budget.tokensLeftPerDay !== null) return `~${formatCompact(budget.tokensLeftPerDay)} left today`;
-  }
-  return tokensPerMinute(snap);
-}
-
-/** Meta row, left: the limit ETA when it applies, else the reset. */
+/** Meta row, left: the reset time. */
 function metaLeft(snap: DashboardSnapshot, window: LimitWindow): string {
-  const { limits, burnRate } = snap;
-  const toReset = window.resetsAt === null ? null : window.resetsAt - snap.generatedAt;
-  const eta = burnRate.limitEtaMinutes;
-  if (limits.status === "ok" && eta !== null && eta >= 1) {
-    const n = roundEtaMinutes(eta);
-    const minutesToReset = toReset === null ? null : Math.floor(Math.max(0, toReset) / 60_000);
-    if (minutesToReset === null || n < minutesToReset) return `Limit in ~${n} min`;
-  }
-  return toReset === null ? "" : `resets in ${formatResetIn(toReset)}`;
+  if (window.resetsAt === null) return "";
+  return `resets in ${formatResetIn(window.resetsAt - snap.generatedAt)}`;
 }
 
 function tokensGauge(
   snap: DashboardSnapshot,
   caption: string,
   status: string,
-  left: string,
-  right: string,
+  statusLink = false,
 ): GaugeModel {
   return {
     caption,
@@ -155,8 +107,9 @@ function tokensGauge(
     small: true,
     heroLabel: "tokens today",
     status,
-    metaLeft: left,
-    metaRight: right,
+    statusLink,
+    metaLeft: "",
+    metaRight: tokensPerMinute(snap),
   };
 }
 
@@ -179,42 +132,36 @@ function weekModel(snap: DashboardSnapshot): WeekModel | null {
   };
 }
 
-export function buildDashboard(mode: PopupMode, snap: DashboardSnapshot): DashboardModel {
+const LIMITS_NEXT_REPLY = "Limits after your next reply.";
+const LIMITS_CONNECT = "Connect limits in Settings.";
+
+/** No limits: tokens today is the full view, no warning, one calm line. */
+function tokensOnly(
+  snap: DashboardSnapshot,
+  connection: LimitsConnection,
+  week: WeekModel | null,
+): DashboardModel {
+  const notConnected = connection.state !== "connected";
+  return {
+    gauge: tokensGauge(
+      snap,
+      "Your Claude Code tokens, today",
+      notConnected ? LIMITS_CONNECT : LIMITS_NEXT_REPLY,
+      notConnected,
+    ),
+    week,
+  };
+}
+
+export function buildDashboard(snap: DashboardSnapshot, connection: LimitsConnection): DashboardModel {
   const { limits } = snap;
-  if (hasNoLimitData(limits)) {
-    const budget = snap.dailyBudget;
-    if (budget !== null && budget.basis === "tokenHistory") {
-      const left = Math.max(0, Math.round(100 - budget.usedPercent));
-      const status = budget.usedPercent > 100 ? "Over budget. The AI wins today." : statusLine(mode, left);
-      const average = `average day ${formatCompact(budget.allowance)}`;
-      return {
-        gauge: {
-          ...tokensGauge(snap, "Your token budget, today", status, average, metaRight(mode, snap)),
-          percentLeft: left,
-        },
-        week: null,
-      };
-    }
-    return {
-      gauge: tokensGauge(
-        snap,
-        "Your Claude Code tokens, today",
-        "No limit data. Showing tokens only.",
-        "",
-        tokensPerMinute(snap),
-      ),
-      week: null,
-    };
-  }
+  if (hasNoLimitData(limits)) return tokensOnly(snap, connection, null);
 
   const week = weekModel(snap);
-  const caption = "Your Claude Code limit, this 5-hour window";
   const window = limits.fiveHour;
-  if (window === null) {
-    const status = "Fresh window. Numbers on your next reply.";
-    return { gauge: tokensGauge(snap, caption, status, "", metaRight(mode, snap)), week };
-  }
+  if (window === null) return tokensOnly(snap, connection, week);
 
+  const caption = "Your Claude Code limit, this 5-hour window";
   const left = percentLeft(window.utilization);
   const stale = limits.status === "stale";
   let metaLeftText = metaLeft(snap, window);
@@ -227,9 +174,10 @@ export function buildDashboard(mode: PopupMode, snap: DashboardSnapshot): Dashbo
       hero: `${left}%`,
       small: false,
       heroLabel: "of your limit left",
-      status: week !== null && week.low ? WEEK_FIRST_STATUS : statusLine(mode, left),
+      status: week !== null && week.low ? WEEK_FIRST_STATUS : statusLine(left),
+      statusLink: false,
       metaLeft: metaLeftText,
-      metaRight: metaRight(mode, snap),
+      metaRight: tokensPerMinute(snap),
     },
     week,
   };
@@ -267,13 +215,12 @@ export type NoteSegment = { text: string; mono?: boolean };
 
 export type NoteModel =
   | { kind: "text"; segments: NoteSegment[] }
-  | { kind: "limitSetup"; text: string }
   /** Update line: `action` is the text link after the sentence, if any. */
   | { kind: "update"; segments: NoteSegment[]; action: string | null };
 
 /** One line, first match wins (docs/DESIGN.md, "Note line"). */
 export function buildNote(snap: DashboardSnapshot, update: UpdateStatus): NoteModel {
-  const { data, limits } = snap;
+  const { data } = snap;
   if (data.state === "importing") {
     return {
       kind: "text",
@@ -332,9 +279,6 @@ export function buildNote(snap: DashboardSnapshot, update: UpdateStatus): NoteMo
       segments: [{ text: update.version, mono: true }, { text: " didn’t install." }],
       action: "Try again",
     };
-  }
-  if (limits.reason === "noSource") {
-    return { kind: "limitSetup", text: "No limit data. It comes from the status line, see Settings." };
   }
   return {
     kind: "text",

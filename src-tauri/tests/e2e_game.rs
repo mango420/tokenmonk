@@ -405,7 +405,7 @@ fn a_busy_day_pays_a_soft_rate_up_to_five_million_and_nothing_above() {
 }
 
 #[test]
-fn the_title_follows_the_mode_at_every_level() {
+fn one_title_per_tier_at_every_level() {
     // Pre-onboarding: level 1, no history read yet, the first Max title.
     let (_dir, file) = full_history();
     let mut rig = Rig::new(Mode::NoneYet);
@@ -420,14 +420,12 @@ fn the_title_follows_the_mode_at_every_level() {
     let game = rig.state.game().unwrap();
     assert_eq!((game.level, game.title.as_str()), (3, "Token Tourist"));
 
-    // Do it yourself: the other title set. Days are paid by the budget they
-    // used (150 XP up to 50 %, 0 above 100 %, 50 unmeasured), plus 160 XP of
-    // achievements.
+    // A stored DIY setting lands silently on Max: same level, same title.
     let (_dir, _file, rig) = replayed(Mode::Diy);
     let game = rig.state.game().unwrap();
+    assert_eq!(game.mode, Mode::Max);
     assert!(game.retro_done);
-    assert_eq!(game.xp_total, 510);
-    assert_eq!((game.level, game.title.as_str()), (2, "Budget Curious"));
+    assert_eq!((game.level, game.title.as_str()), (3, "Token Tourist"));
 }
 
 #[test]

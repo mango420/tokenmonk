@@ -7,7 +7,7 @@ import "./game.css";
 
 interface LevelUpScreenProps {
   model: LevelScreenModel;
-  /** The state that follows the level-up (XP line, mode line). */
+  /** The state that follows the level-up (XP line). */
   game: GameState;
   /** `false` fades the screen out. */
   open: boolean;

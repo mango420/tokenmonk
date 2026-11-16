@@ -10,7 +10,8 @@ use crate::contracts::{AchievementId, AchievementUnlocked, EpochMs, GameState, L
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LedgerEntry {
     pub earned_at: EpochMs,
-    /// The mode the XP was earned in. Never `NoneYet`.
+    /// The mode the XP was earned in (`Diy` only for rows from before the mode
+    /// was removed). Never `NoneYet`.
     pub mode: Mode,
     pub kind: String,
     /// The `ref` column.
@@ -52,8 +53,8 @@ pub struct DayFacts {
     pub first_at: Option<EpochMs>,
     /// Earliest usage record inside the Night Owl window.
     pub night_at: Option<EpochMs>,
-    /// Do it yourself: how much of the daily budget the day used, in percent
-    /// (`DailyBudget::used_percent` of that day). `None` without a budget.
+    /// Unused since the Do it yourself mode was removed; kept so callers keep
+    /// compiling until the field is dropped in a cleanup.
     pub budget_used_percent: Option<f64>,
 }
 
