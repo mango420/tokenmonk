@@ -135,7 +135,13 @@ mod tests {
     #[test]
     fn settings_default_then_patch() {
         let db = Db::open_in_memory().unwrap();
-        assert_eq!(db.settings().unwrap(), Settings::default());
+        assert_eq!(
+            db.settings().unwrap(),
+            Settings {
+                mode: Mode::Max,
+                ..Settings::default()
+            }
+        );
         let s = db
             .apply_settings_patch(&SettingsPatch {
                 sound: Some(false),
