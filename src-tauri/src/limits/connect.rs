@@ -14,9 +14,10 @@
 //! Only the `statusLine` key is touched. A settings file that is not a JSON
 //! object is never modified.
 
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -28,7 +29,7 @@ pub const PASSTHROUGH_FLAG: &str = "--passthrough";
 /// Settings file inside the Claude folder.
 pub const SETTINGS_NAME: &str = "settings.json";
 /// Copy of the original settings, next to the settings file.
-pub const BACKUP_NAME: &str = "settings.json.tokenmonk-backup";
+pub const BACKUP_NAME: &str = "settings.json.tokenmonk.bak";
 /// The replaced entry, inside the app data directory.
 pub const PREVIOUS_NAME: &str = "statusline-previous.json";
 
@@ -184,10 +185,10 @@ pub fn connect(
                 return Err(ConnectError::UnsupportedExisting);
             }
         }
-        let mut e = json!({"type": "command", "command": command_for(command, wrapped)});
-        if let Some(p) = old.as_ref().and_then(|o| o.get("padding")) {
-            e["padding"] = p.clone();
-        }
+        // Keep unknown keys of the old entry (padding, refreshInterval, ...).
+        let mut e = old.clone().unwrap_or_else(|| json!({}));
+        e["type"] = json!("command");
+        e["command"] = Value::String(command_for(command, wrapped));
         // Backup first, then the previous entry, then the settings.
         if existing.is_some() {
             std::fs::copy(&path, claude_dir.join(BACKUP_NAME))?;
@@ -255,38 +256,88 @@ pub fn previous_command(data_dir: &Path) -> Option<String> {
     command_of(p.entry.as_ref()).map(str::to_owned)
 }
 
-fn shell_command(line: &str) -> Command {
-    let mut c = Command::new("sh");
-    c.arg("-c").arg(line);
-    c
+/// Longest the old command may run; Claude Code cancels slow scripts anyway,
+/// and this keeps an orphan from living on after that.
+const PASSTHROUGH_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// Git Bash on Windows, if installed.
+#[cfg(windows)]
+fn git_bash() -> Option<PathBuf> {
+    ["ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"]
+        .iter()
+        .filter_map(std::env::var_os)
+        .flat_map(|base| {
+            let base = PathBuf::from(base);
+            [
+                base.join("Git").join("bin").join("bash.exe"),
+                base.join("Programs")
+                    .join("Git")
+                    .join("bin")
+                    .join("bash.exe"),
+            ]
+        })
+        .find(|p| p.is_file())
 }
 
-/// Runs `line` in a shell with `input` on stdin and returns its stdout and
-/// exit code. On Windows falls back to `cmd /C` when there is no `sh`.
-fn run_shell(line: &str, input: &[u8]) -> Option<(Vec<u8>, i32)> {
-    let spawn = |mut c: Command| {
-        c.stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
-            .spawn()
-    };
-    let mut child = match spawn(shell_command(line)) {
-        Ok(c) => c,
-        Err(_) if cfg!(windows) => {
-            let mut c = Command::new("cmd");
-            c.arg("/C").arg(line);
-            spawn(c).ok()?
+/// The shell Claude Code uses: Git Bash if installed, else PowerShell on
+/// Windows; `sh -c` elsewhere.
+fn shell_command(line: &str) -> Command {
+    #[cfg(windows)]
+    {
+        if let Some(bash) = git_bash() {
+            let mut c = Command::new(bash);
+            c.arg("-c").arg(line);
+            return c;
         }
-        Err(_) => return None,
-    };
+        let mut c = Command::new("powershell");
+        c.args(["-NoProfile", "-NonInteractive", "-Command"])
+            .arg(line);
+        c
+    }
+    #[cfg(not(windows))]
+    {
+        let mut c = Command::new("sh");
+        c.arg("-c").arg(line);
+        c
+    }
+}
+
+/// Runs `line` in the shell with `input` on stdin and returns its stdout and
+/// exit code. The child is killed after [`PASSTHROUGH_TIMEOUT`].
+fn run_shell(line: &str, input: &[u8]) -> Option<(Vec<u8>, i32)> {
+    let mut child = shell_command(line)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .ok()?;
     let mut stdin = child.stdin.take()?;
+    let mut stdout = child.stdout.take()?;
     let data = input.to_vec();
     let writer = std::thread::spawn(move || {
         let _ = stdin.write_all(&data);
     });
-    let out = child.wait_with_output().ok()?;
+    let reader = std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = stdout.read_to_end(&mut buf);
+        buf
+    });
+    let start = Instant::now();
+    let code = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status.code().unwrap_or(0),
+            Ok(None) if start.elapsed() < PASSTHROUGH_TIMEOUT => {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                break 0;
+            }
+        }
+    };
     let _ = writer.join();
-    Some((out.stdout, out.status.code().unwrap_or(0)))
+    Some((reader.join().unwrap_or_default(), code))
 }
 
 /// Pass-through half of the bridge: the previous command's stdout bytes and
@@ -360,7 +411,7 @@ mod tests {
 
     #[test]
     fn wraps_an_existing_entry_and_restores_it() {
-        let orig = json!({"type":"command","command":"echo hi","padding":2});
+        let orig = json!({"type":"command","command":"echo hi","padding":2,"refreshInterval":5});
         let e = env(Some(&json!({"statusLine": orig, "a": 1}).to_string()));
         let st = connect(e.claude.path(), e.data.path(), CMD).unwrap();
         assert!(st.connected && st.wrapped);
@@ -370,6 +421,7 @@ mod tests {
             format!("{CMD} {PASSTHROUGH_FLAG}")
         );
         assert_eq!(s["statusLine"]["padding"], 2);
+        assert_eq!(s["statusLine"]["refreshInterval"], 5);
         assert_eq!(previous_command(e.data.path()).unwrap(), "echo hi");
         assert!(e.claude.path().join(BACKUP_NAME).exists());
         disconnect(e.claude.path(), e.data.path()).unwrap();
