@@ -80,13 +80,15 @@ impl Db {
         Ok(db)
     }
 
-    /// One mode only (TKM-301): a stored `diy` becomes `max` silently on
-    /// open. Only the stored setting changes; ledger rows keep their `diy`
-    /// label as history.
+    /// One mode only (Max). On open a missing, `noneYet` or retired `diy`
+    /// stored mode becomes `max` silently (TKM-301, TKM-324). Only the
+    /// stored setting changes; ledger rows keep their `diy` label as history.
     /// Idempotent, no schema bump (the contract pins the schema version).
     fn retire_diy_mode(&self) -> DbResult<()> {
         self.conn.execute(
-            "UPDATE settings SET value = '\"max\"' WHERE key = 'mode' AND value = '\"diy\"'",
+            "INSERT INTO settings (key, value) VALUES ('mode', '\"max\"')
+             ON CONFLICT(key) DO UPDATE SET value = '\"max\"'
+             WHERE value IN ('\"diy\"', '\"noneYet\"')",
             [],
         )?;
         Ok(())
@@ -271,7 +273,7 @@ mod tests {
             .conn()
             .query_row("SELECT COUNT(*) FROM settings", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(n, 1);
+        assert_eq!(n, 2); // mode + k
     }
 
     #[test]
@@ -282,7 +284,7 @@ mod tests {
             let db = Db::open(&path).unwrap();
             db.conn()
                 .execute(
-                    "INSERT INTO settings (key, value) VALUES ('mode', '\"diy\"')",
+                    "UPDATE settings SET value = '\"diy\"' WHERE key = 'mode'",
                     [],
                 )
                 .unwrap();
@@ -300,5 +302,28 @@ mod tests {
             db.xp_events().unwrap()[0].mode,
             crate::contracts::settings::Mode::Diy
         );
+    }
+
+    #[test]
+    fn mode_defaults_to_max_on_open() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("t.db");
+        // Fresh db.
+        let db = Db::open(&path).unwrap();
+        assert_eq!(db.setting("mode").unwrap(), Some(serde_json::json!("max")));
+        // noneYet becomes max.
+        db.conn()
+            .execute(
+                "UPDATE settings SET value = '\"noneYet\"' WHERE key = 'mode'",
+                [],
+            )
+            .unwrap();
+        drop(db);
+        let db = Db::open(&path).unwrap();
+        assert_eq!(db.setting("mode").unwrap(), Some(serde_json::json!("max")));
+        // max stays.
+        drop(db);
+        let db = Db::open(&path).unwrap();
+        assert_eq!(db.setting("mode").unwrap(), Some(serde_json::json!("max")));
     }
 }

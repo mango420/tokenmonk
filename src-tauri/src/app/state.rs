@@ -121,6 +121,6 @@ mod tests {
         let saved = state
             .with_db(|db| db.apply_settings_patch(&Default::default()))
             .unwrap();
-        assert_eq!(saved.mode, Mode::NoneYet);
+        assert_eq!(saved.mode, Mode::Max);
     }
 }

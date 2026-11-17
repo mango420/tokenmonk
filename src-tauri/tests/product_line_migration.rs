@@ -30,7 +30,7 @@ fn old_install(path: &Path, mode: &str) {
     let db = Db::open(path).expect("create");
     let c = db.conn();
     c.execute(
-        "INSERT INTO settings (key, value) VALUES ('mode', ?1)",
+        "INSERT OR REPLACE INTO settings (key, value) VALUES ('mode', ?1)",
         params![format!("\"{mode}\"")],
     )
     .unwrap();
@@ -147,8 +147,8 @@ fn max_install_is_unchanged() {
 }
 
 #[test]
-fn fresh_install_gets_no_invented_mode() {
+fn fresh_install_starts_in_max() {
     let dir = tempfile::tempdir().unwrap();
     let db = new_db(dir.path());
-    assert!(db.setting("mode").unwrap().is_none());
+    assert_eq!(db.settings().unwrap().mode, Mode::Max);
 }

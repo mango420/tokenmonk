@@ -135,7 +135,13 @@ mod tests {
     #[test]
     fn settings_default_then_patch() {
         let db = Db::open_in_memory().unwrap();
-        assert_eq!(db.settings().unwrap(), Settings::default());
+        assert_eq!(
+            db.settings().unwrap(),
+            Settings {
+                mode: Mode::Max,
+                ..Settings::default()
+            }
+        );
         let s = db
             .apply_settings_patch(&SettingsPatch {
                 sound: Some(false),
@@ -147,7 +153,7 @@ mod tests {
                 claude_folder: None,
             })
             .unwrap();
-        assert_eq!(s.mode, Mode::NoneYet);
+        assert_eq!(s.mode, Mode::Max);
         assert!(!s.sound);
         assert!(!s.autostart);
         let s = db
@@ -156,7 +162,7 @@ mod tests {
                 ..SettingsPatch::default()
             })
             .unwrap();
-        assert_eq!((s.mode, s.sound, s.autostart), (Mode::NoneYet, false, true));
+        assert_eq!((s.mode, s.sound, s.autostart), (Mode::Max, false, true));
     }
 
     #[test]
