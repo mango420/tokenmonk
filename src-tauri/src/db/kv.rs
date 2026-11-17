@@ -153,7 +153,7 @@ mod tests {
                 claude_folder: None,
             })
             .unwrap();
-        assert_eq!(s.mode, Mode::NoneYet);
+        assert_eq!(s.mode, Mode::Max);
         assert!(!s.sound);
         assert!(!s.autostart);
         let s = db
@@ -162,7 +162,7 @@ mod tests {
                 ..SettingsPatch::default()
             })
             .unwrap();
-        assert_eq!((s.mode, s.sound, s.autostart), (Mode::NoneYet, false, true));
+        assert_eq!((s.mode, s.sound, s.autostart), (Mode::Max, false, true));
     }
 
     #[test]
