@@ -106,23 +106,28 @@ fn platform() -> Platform {
 /// `app_state` key set once the first-start popup has been decided.
 const KEY_FIRST_START_DONE: &str = "first_start_done";
 
-/// True exactly once: on the very first start of a new install. A database
-/// that already existed before this start belongs to an install that ran
-/// before the flag was introduced, so it is marked done without a popup.
-fn claim_first_start(db: &Db, db_existed: bool) -> bool {
+/// True while the first-start popup is still owed: the flag is unset and the
+/// database is new. A database that existed before this start belongs to an
+/// install from before the flag, so it is marked done silently instead.
+fn first_start_pending(db: &Db, db_existed: bool) -> bool {
     match db.app_state(KEY_FIRST_START_DONE) {
-        Ok(Some(_)) => return false,
-        Ok(None) => {}
+        Ok(Some(_)) => false,
+        Ok(None) if db_existed => {
+            mark_first_start_done(db);
+            false
+        }
+        Ok(None) => true,
         Err(e) => {
             log::warn!("could not read the first-start flag: {e}");
-            return false;
+            false
         }
     }
+}
+
+fn mark_first_start_done(db: &Db) {
     if let Err(e) = db.set_app_state(KEY_FIRST_START_DONE, &serde_json::Value::Bool(true)) {
         log::warn!("could not store the first-start flag: {e}");
-        return false;
     }
-    !db_existed
 }
 
 /// Startup wiring, called from `lib.rs` once the plugins are registered.
@@ -148,7 +153,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         schema_version: write_db.schema_version()?,
         logs_found: folder.projects_found,
     };
-    let first_run = claim_first_start(&command_db, db_existed);
+    let first_run = first_start_pending(&command_db, db_existed);
     let update_check = settings.update_check;
     let state = Arc::new(AppState::new(command_db, settings, info));
     app.manage(Arc::clone(&state));
@@ -182,6 +187,13 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     // A brand-new install opens the popup once; a tray icon alone would hide it.
     if first_run {
         window::show(&handle);
+        // Only now: an earlier setup failure must not use up the popup.
+        if let Err(e) = state.with_db(|db| {
+            mark_first_start_done(db);
+            Ok(())
+        }) {
+            log::warn!("could not store the first-start flag: {e}");
+        }
     }
     Ok(())
 }
@@ -191,16 +203,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn popup_opens_once_on_a_new_install() {
+    fn popup_is_owed_until_marked_on_a_new_install() {
         let db = Db::open_in_memory().unwrap();
-        assert!(claim_first_start(&db, false));
-        assert!(!claim_first_start(&db, false));
+        assert!(first_start_pending(&db, false));
+        assert!(first_start_pending(&db, false));
+        mark_first_start_done(&db);
+        assert!(!first_start_pending(&db, false));
     }
 
     #[test]
     fn existing_install_gets_no_popup() {
         let db = Db::open_in_memory().unwrap();
-        assert!(!claim_first_start(&db, true));
-        assert!(!claim_first_start(&db, false));
+        assert!(!first_start_pending(&db, true));
+        assert!(db.app_state(KEY_FIRST_START_DONE).unwrap().is_some());
+        assert!(!first_start_pending(&db, false));
     }
 }
