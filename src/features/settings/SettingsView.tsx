@@ -82,7 +82,37 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false, on
       <div className="scroll">
         <h1 className="title">Settings</h1>
 
+        <LimitData
+          ref={limitsRef}
+          limits={data.dashboard.limits}
+          connection={data.limitsConnection}
+          connectLimits={actions.connectLimits}
+          disconnectLimits={actions.disconnectLimits}
+        />
+
+        <ClaudeFolderRow
+          folder={folder}
+          pickFolder={pickFolder}
+          onChange={(claudeFolder) => actions.updateSettings({ claudeFolder })}
+        />
+
         <div className="switch-list">
+          <div className="switch-row">
+            <span>Start at login</span>
+            <Switch
+              label="Start at login"
+              checked={shown.autostart}
+              onChange={(autostart) => void change({ autostart })}
+            />
+          </div>
+          <div className="switch-row">
+            <span>Check for updates automatically</span>
+            <Switch
+              label="Check for updates automatically"
+              checked={shown.updateCheck}
+              onChange={(updateCheck) => void change({ updateCheck })}
+            />
+          </div>
           <div className="switch-row">
             <span className="switch-row__text">
               <span>10% Limits notification</span>
@@ -107,22 +137,6 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false, on
             <Switch label="Sound" checked={shown.sound} onChange={(sound) => void change({ sound })} />
           </div>
           <div className="switch-row">
-            <span>Start at login</span>
-            <Switch
-              label="Start at login"
-              checked={shown.autostart}
-              onChange={(autostart) => void change({ autostart })}
-            />
-          </div>
-          <div className="switch-row">
-            <span>Check for updates automatically</span>
-            <Switch
-              label="Check for updates automatically"
-              checked={shown.updateCheck}
-              onChange={(updateCheck) => void change({ updateCheck })}
-            />
-          </div>
-          <div className="switch-row">
             <span className="switch-row__text">
               <span>Keep popup open</span>
               <span className="caption">Stays put until the tray icon or Close.</span>
@@ -140,20 +154,6 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false, on
             Couldn’t save that. Try again.
           </p>
         ) : null}
-
-        <ClaudeFolderRow
-          folder={folder}
-          pickFolder={pickFolder}
-          onChange={(claudeFolder) => actions.updateSettings({ claudeFolder })}
-        />
-
-        <LimitData
-          ref={limitsRef}
-          limits={data.dashboard.limits}
-          connection={data.limitsConnection}
-          connectLimits={actions.connectLimits}
-          disconnectLimits={actions.disconnectLimits}
-        />
 
         <div className="bottom-group">
           <UpdateRow
