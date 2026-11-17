@@ -447,7 +447,7 @@ data, so the line is never empty:
 | `data.state = noLogs` | "No Claude Code logs yet. Start a session." (derived) |
 | `data.state = error` | "Can’t read the logs. Retrying in the background." (derived) |
 | `UpdateStatus.kind` is `available`, `downloading`, `installing` or `installFailed` | the update line, see "Update line" below |
-| `limits.reason = noSource` | "No limit data. It comes from the status line, see Settings." as a text link to Settings, scrolled to "Limit data" (derived, TKM-228; see DECISIONS.md) |
+| no limit data and `LimitsConnection.state` is not `connected` | "Connect limits in Settings." as a text link to Settings, scrolled to "Limits" (derived, TKM-228; see DECISIONS.md) |
 | otherwise (limit note) | "Limit % includes claude.ai chats. Token stats are Claude Code only." |
 
 ### Update line
@@ -627,15 +627,15 @@ version note at the bottom.
    (derived).
 5. Gap 18, then switch rows (space-between, 1 px `line` on top, padding
    14 0): label left, switch right (`role="switch"`):
+   - "Start at login"
+   - "Check for updates automatically" (`Settings.updateCheck`, default
+     on). Off: no check at start; "Check now" still works. Turning it on
+     does not check at once.
    - "10% Limits notification" (`Settings.notifyLimits`), with the
      caption "Once per window, when 10% is left." under the label
      (ARCHITECTURE.md, "Notifications").
    - "Level-up notifications" (`Settings.notifyLevelUps`).
    - "Sound"
-   - "Start at login"
-   - "Check for updates automatically" (`Settings.updateCheck`, default
-     on). Off: no check at start; "Check now" still works. Turning it on
-     does not check at once.
    - "Keep popup open" (`Settings.keepOpen`, default off), with the
      caption "Stays put until the tray icon or Close." under the label.
      Off: the popup hides when it loses focus. On: it stays visible next
