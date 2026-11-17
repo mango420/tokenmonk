@@ -9,8 +9,10 @@ use serde::{Deserialize, Deserializer, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Mode {
-    /// `"noneYet"`: no mode stored yet (the default of a fresh install).
-    /// The game awards nothing in this state.
+    /// `"noneYet"`: no mode set; only the in-memory default. Since TKM-324 a
+    /// missing or stored `noneYet` mode reads as `max` on open, so it never
+    /// reaches the UI and is not a first-start signal. The game would award
+    /// nothing in this state.
     #[default]
     NoneYet,
     /// `"max"`: Max it out (saffron). Use every last token.

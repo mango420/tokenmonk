@@ -288,9 +288,10 @@ Files in `assets/brand/`, all with `viewBox="76 76 128 146"`:
 - `tokenmonk-monk-mark.svg`: single-colour mark. Robe and head #181A1B,
   sash knocked out in pop #E4E3DD at stroke 3 (`--mark-sash-stroke`),
   no hands and no face details.
-- `tokenmonk-mark-mono.svg`: the old monk, legacy. Still read by the
-  current popup mark and tray code; deleted once TKM-273 and TKM-275 have
-  moved to the new monk. Do not use it for anything new.
+- `tokenmonk-mark-mono.svg`: the old monk, legacy. TKM-273 and TKM-275
+  have moved the popup and the tray to the new monk; the file is still in
+  `assets/brand/` until a cleanup removes it. Do not use it for anything
+  new.
 
 - **A. App icon**: the new monk on the dark ink tile. Details in "App
   icon".
@@ -535,8 +536,10 @@ All numbers and copy in examples are samples; real values come from
 Removed by TKM-287 (design history; the app, the contracts and the tokens no longer have it): there is no onboarding view, no `View` `onboarding` and no
 `complete_onboarding`.
 
-Shown while `Settings.mode = noneYet` (`View = onboarding`); the popup
-opens by itself on every start while it is pending. Accent: saffron.
+Was shown while `Settings.mode = noneYet` (`View = onboarding`). Since
+TKM-324 every install starts in `max`, so `noneYet` no longer happens; the
+popup opens by itself once, on the very first start, through a first-start
+flag in `app_state` (TKM-329), and shows the dashboard. Accent: saffron.
 
 Padding 20 on all sides like every screen.
 

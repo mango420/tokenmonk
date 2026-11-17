@@ -328,3 +328,12 @@ Maintainer OK. The `serde_json` feature `preserve_order` is enabled so
 "Connect limits" and "Disconnect" keep the key order of the user's
 `settings.json` when they rewrite it (ARCHITECTURE.md, Limits, "Connect
 limits"). No new crate: `indexmap` was already in the dependency tree.
+
+## First-start popup (2026-11-17, TKM-324, TKM-329)
+
+Maintainer decision. Every install starts in `max`: a missing or
+`noneYet` mode reads as `max` on open (TKM-324). The popup opens by itself
+once, on the very first start, tracked by the `app_state` flag
+`first_start_done`, which is written only after the popup has shown
+(TKM-329). Installs that existed before get the flag silently, so they do
+not see the popup again.
