@@ -445,7 +445,8 @@ Implementation: TKM-304. Copy and tone: DESIGN.md, "Product line".
     reply). Ceiling 270 XP per day.
   - Days already awarded in the retired Do it yourself mode keep that
     award (`legacyday` rows after the recount) and are not paid again.
-  - Nothing is awarded while `Settings.mode` is `noneYet`.
+  - Nothing is awarded while `Settings.mode` is `noneYet`; since TKM-324
+    every install reads as `max` on open, so this no longer happens.
 - Level curve: level `n` spans `200 + 120 * (n - 1)` XP for levels 1 to 25
   (200, 320, 440, ..., 3,080), then a flat 3,080 XP per level, no cap.
   Level 2 needs 200 XP in total, level 10 needs 6,120, level 30 needs
@@ -701,9 +702,11 @@ string | null`, both meaning "not set"). `Settings.notifyLimits` and
 `.notifyLevelUps` read absent as `true` (`serde(default = ...)`).
 
 One mode: `Mode` keeps the value `diy` only to read legacy ledger rows
-(`xp_events.mode`, see Storage and Game). `Settings.mode` and
-`GameState.mode` are `max` or `noneYet`, never `diy`; `SettingsPatch` has
-no `mode`, and no command sets the mode.
+(`xp_events.mode`, see Storage and Game). Since TKM-324 every install is
+`max` on open (Storage), so `Settings.mode` and `GameState.mode` are
+`max`; `noneYet` stays a wire value but no longer occurs, and is not a
+first-start signal. `SettingsPatch` has no `mode`, and no command sets the
+mode.
 
 ## Storage
 
@@ -722,6 +725,12 @@ no `mode`, and no command sets the mode.
   reset deletes the key. `notify_limits`, `notify_level_ups` (JSON
   boolean, TKM-300): missing key = `true`. A stored `mode` of `"diy"` is
   migrated to `"max"` (TKM-301); `xp_events.mode` keeps its history.
+  Since TKM-324 a missing or `"noneYet"` `mode` becomes `"max"` on open
+  too, so every install starts in `max`.
+- First start (decision 2026-11-17, TKM-329): the popup opens by itself
+  once, on the very first start, tracked by a first-start flag in
+  `app_state`. Later starts show only the tray icon. The mode plays no
+  part in it.
 - `app_state` key `limit_notice_cycles` (TKM-300, owned by backend-data,
   read and written through `Db` by the notification code of TKM-304):
   JSON `{ "fiveHour": <resetsAt> | null, "weekly": <resetsAt> | null }`,
@@ -738,7 +747,7 @@ no `mode`, and no command sets the mode.
 
 | Situation | Core behaviour | What the UI gets |
 |---|---|---|
-| First start, no mode stored | Ingest runs, game waits; the popup opens by itself on every start while no mode is stored | `Settings.mode = noneYet`, `GameState.mode = noneYet` |
+| Very first start | Mode reads as `max` (TKM-324), ingest and game run; the popup opens by itself once, set by a first-start flag in `app_state` (TKM-329) | `Settings.mode = max`, `data.state = importing` |
 | First import running | Import in background | `data.state = importing` with file counts |
 | No Claude folder or no logs | Keep watching the root for it to appear | `data.state = noLogs`, zero totals, `AppInfo.logsFound = false` |
 | Log folder unreadable | Retry on the rescan interval | `data.state = error`, `detail` |
