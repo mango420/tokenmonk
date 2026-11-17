@@ -44,6 +44,10 @@ estimate, plus one calm line.
 | Not connected | Tokens today, "Connect limits in Settings." |
 | Plan without `rate_limits` | As "no limits yet" until it can be told apart (open point, derived) |
 
+Not connected covers `LimitsConnection.state` `notConnected` and
+`blocked`: the gauge status "Connect limits in Settings." is a text link
+to Settings that scrolls to "Limits".
+
 **Limit source**: the Claude Code status line (`rate_limits`) only. No
 undocumented endpoints. "Connect limits" in Settings: after an explicit
 click the app writes the `statusLine` entry into `settings.json` in the
@@ -447,7 +451,6 @@ data, so the line is never empty:
 | `data.state = noLogs` | "No Claude Code logs yet. Start a session." (derived) |
 | `data.state = error` | "Can’t read the logs. Retrying in the background." (derived) |
 | `UpdateStatus.kind` is `available`, `downloading`, `installing` or `installFailed` | the update line, see "Update line" below |
-| no limit data and `LimitsConnection.state` is not `connected` | "Connect limits in Settings." as a text link to Settings, scrolled to "Limits" (derived, TKM-228; see DECISIONS.md) |
 | otherwise (limit note) | "Limit % includes claude.ai chats. Token stats are Claude Code only." |
 
 ### Update line
@@ -585,7 +588,7 @@ version note at the bottom.
    | `notConnected` | "Not connected." | "Connect limits" (`connect_limits`) |
    | `connected`, `limits.status` not `unavailable` and `fetchedAt` set | "Connected. Last reading 14:05." (`fetchedAt`, local 24 h time, mono `tabular-nums`) | "Disconnect" (`disconnect_limits`) |
    | `connected`, otherwise | "Connected. Limits after your next reply." | "Disconnect" |
-   | `blocked`, `problem = noClaudeFolder` | "Can’t connect: the Claude folder isn’t there. Pick it above." | "Try again" (`connect_limits`) |
+   | `blocked`, `problem = noClaudeFolder` | "Can’t connect: the Claude folder isn’t there. Pick it below." | "Try again" (`connect_limits`) |
    | `blocked`, `problem = settingsUnreadable` | "Can’t connect: Claude Code’s settings.json can’t be read." | "Try again" |
    | `blocked`, `problem = settingsInvalid` | "Can’t connect: settings.json isn’t valid JSON. Fix it, then try again." | "Try again" |
    | `blocked`, `problem` null | "Can’t connect right now." | "Try again" |
