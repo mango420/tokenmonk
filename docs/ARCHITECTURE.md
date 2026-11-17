@@ -747,7 +747,7 @@ mode.
 
 | Situation | Core behaviour | What the UI gets |
 |---|---|---|
-| Very first start | Mode reads as `max` (TKM-324), ingest and game run; the popup opens by itself once, set by a first-start flag in `app_state` (TKM-329) | `Settings.mode = max`, `data.state = importing` |
+| Very first start | Mode reads as `max` (TKM-324), ingest and game run; the popup opens by itself once, set by a first-start flag in `app_state` (TKM-329) | `Settings.mode = max`, `data.state = importing` (or `noLogs`, see below) |
 | First import running | Import in background | `data.state = importing` with file counts |
 | No Claude folder or no logs | Keep watching the root for it to appear | `data.state = noLogs`, zero totals, `AppInfo.logsFound = false` |
 | Log folder unreadable | Retry on the rescan interval | `data.state = error`, `detail` |
