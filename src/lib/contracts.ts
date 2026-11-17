@@ -22,8 +22,9 @@ export type EpochMs = number;
 
 // ---------------------------------------------------------------- settings
 
-/** Play mode. Max is the only mode. `noneYet`: no mode stored yet (the
- * default of a fresh install); the game awards nothing. `diy`: the retired
+/** Play mode. Max is the only mode. `noneYet`: no mode set; since TKM-324
+ * a missing or stored `noneYet` mode reads as `max` on open, so it never
+ * reaches the UI and is not a first-start signal. `diy`: the retired
  * Do it yourself mode, legacy only: it labels old XP ledger rows and never
  * reaches the UI (`Settings.mode` and `GameState.mode` are never `diy`). */
 export type Mode = "noneYet" | "max" | "diy";
@@ -240,7 +241,8 @@ export interface LevelUp {
 }
 
 export interface GameState {
-  /** `max`, or `noneYet` while no mode is stored; never `diy`. */
+  /** Always `max` since TKM-324 (a missing or `noneYet` mode reads as
+   * `max` on open); never `diy`. */
   mode: Mode;
   level: number;
   title: string;

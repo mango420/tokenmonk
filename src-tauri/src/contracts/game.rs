@@ -105,7 +105,8 @@ pub struct LevelUp {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GameState {
-    /// `max`, or `noneYet` while no mode is stored; never `diy`.
+    /// Always `max` since TKM-324 (a missing or `noneYet` mode reads as
+    /// `max` on open); never `diy`.
     pub mode: Mode,
     pub level: u32,
     /// Tier title for the level, for example "Token Tourist" (levels 1
