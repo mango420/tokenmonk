@@ -13,7 +13,7 @@ interface LimitDataProps {
 }
 
 const BLOCKED_TEXT: Record<NonNullable<LimitsConnection["problem"]>, string> = {
-  noClaudeFolder: "Can’t connect: the Claude folder isn’t there. Pick it above.",
+  noClaudeFolder: "Can’t connect: the Claude folder isn’t there. Pick it below.",
   settingsUnreadable: "Can’t connect: Claude Code’s settings.json can’t be read.",
   settingsInvalid: "Can’t connect: settings.json isn’t valid JSON. Fix it, then try again.",
 };
