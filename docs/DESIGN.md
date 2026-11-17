@@ -566,20 +566,71 @@ Fed by: `Settings`, `complete_onboarding`.
 
 `View = settings`, opened by "Settings" on the dashboard or by the tray
 menu (`navigate`). Back: the "Back" link or Esc. The screen scrolls
-vertically when taller than the popup; the top row stays.
+vertically when taller than the popup; the top row stays. Opened from the
+dashboard's limits hint, it scrolls to "Limits".
 
-Padding 20 on all sides like every screen; no cards.
+Padding 20 on all sides like every screen; no cards. Order (decision
+2026-11-17): Limits, Claude folder, switch rows, then update row and
+version note at the bottom.
 
 1. Top row: "Back".
 2. Title "Settings" (title style, margin 16 0 6).
-3. Label "Mode" (`ink-2`, margin bottom 10), then a radio group of two
-   rows (`role="radio"`), 1 px `line` on top, padding 14 0: the mode dot
-   in the row's own mode accent (saffron or jade) and the name (choice)
-   on one line, over the description (caption). The checked row has a
-   3 px `--accent` bar flush with the popup's left edge (offset by the
-   20 px padding), full row height.
-4. Gap 18, then switch rows (space-between, 1 px `line` on top, padding
+3. **Limits** (margin top 18; label, status, link and captions stacked
+   with gap 12). Label "Limits" (`ink-2`). Then the status (weight 500)
+   and one text link (note link style) below it, by
+   `LimitsConnection.state`:
+
+   | State | Status | Link |
+   |---|---|---|
+   | `notConnected` | "Not connected." | "Connect limits" (`connect_limits`) |
+   | `connected`, `limits.status` not `unavailable` and `fetchedAt` set | "Connected. Last reading 14:05." (`fetchedAt`, local 24 h time, mono `tabular-nums`) | "Disconnect" (`disconnect_limits`) |
+   | `connected`, otherwise | "Connected. Limits after your next reply." | "Disconnect" |
+   | `blocked`, `problem = noClaudeFolder` | "Can’t connect: the Claude folder isn’t there. Pick it above." | "Try again" (`connect_limits`) |
+   | `blocked`, `problem = settingsUnreadable` | "Can’t connect: Claude Code’s settings.json can’t be read." | "Try again" |
+   | `blocked`, `problem = settingsInvalid` | "Can’t connect: settings.json isn’t valid JSON. Fix it, then try again." | "Try again" |
+   | `blocked`, `problem` null | "Can’t connect right now." | "Try again" |
+
+   `LimitsConnection.detail` never shows. Captions below the link:
+   - `notConnected` only, status line caption: "Limits come from Claude
+     Code’s status line. Connect adds it to settings.json, with a
+     backup." The file name is `LimitsConnection.settingsPath` (mono,
+     `ink`), "settings.json" while it is `null`. If
+     `previousStatusLine`, it goes on: " Your current status line keeps
+     working, output unchanged."
+   - `connected` with `previousStatusLine`: "Your own status line runs
+     on, output unchanged. Disconnect restores it."
+   - Always, plan note: "Needs a Pro or Max plan. Numbers show up after
+     the first reply; the desktop app may not run the status line."
+     (Hedged on purpose: the docs say nothing about the desktop app; that
+     it did not run there was only observed once, not verified. See
+     DECISIONS.md, "Popup with log-only data".)
+
+   While a call runs the link is disabled. Connect and Disconnect only
+   ever run on that click (ARCHITECTURE.md, "Connect limits"). On a
+   `CommandError` the note "Couldn’t change that." (note, error style)
+   appears under the section until the next try; the state itself
+   follows `limits-connection-changed`.
+4. **Claude folder** (margin top 18; gap 4). Label "Claude folder"
+   (`ink-2`). Then the path (small, mono, `ink`, one line): a path longer
+   than 38 characters loses its middle to "…" so both ends stay; the full
+   path is the tooltip. "…" while `get_claude_folder` has not answered,
+   "Unknown" if `ClaudeFolder.path` is `null`. Below it a caption line
+   (space-between): the source on the left by `ClaudeFolder.source`
+   (`setting` "Set here", `env` "From CLAUDE_CONFIG_DIR", `default`
+   "Default"), text links on the right (gap 14): "Choose…" opens the
+   native folder picker (ARCHITECTURE.md, "Claude folder") and sends the
+   path as `update_settings { patch: { claudeFolder } }`, cancel does
+   nothing; "Reset" (only when the source is `setting`) sends
+   `claudeFolder: null`. If `ClaudeFolder.projectsFound` is false, the
+   caption "No logs here yet." follows (a hint, never an error). On a
+   rejected change: "Couldn’t save that. Try again." under the row
+   (derived).
+5. Gap 18, then switch rows (space-between, 1 px `line` on top, padding
    14 0): label left, switch right (`role="switch"`):
+   - "10% Limits notification" (`Settings.notifyLimits`), with the
+     caption "Once per window, when 10% is left." under the label
+     (ARCHITECTURE.md, "Notifications").
+   - "Level-up notifications" (`Settings.notifyLevelUps`).
    - "Sound"
    - "Start at login"
    - "Check for updates automatically" (`Settings.updateCheck`, default
@@ -593,8 +644,6 @@ Padding 20 on all sides like every screen; no cards.
    - Switch: 42 x 24, radius 12, track `line`; knob 18, round, `pop`,
      inset 3. On: track `--accent`, knob moved 18 px.
    A final empty hairline row closes the list.
-5. **Limit data** (below; not in the prototype, kept because it is the
-   only place to set limits up).
 6. **Update row** and note, pushed to the bottom together:
    - Update row (note style, min height 16, margin bottom 4), directly
      above the version note: status text, then text links styled like
@@ -629,121 +678,19 @@ Padding 20 on all sides like every screen; no cards.
      `tabular-nums`); while it is still empty: "Tokenmonk, MIT." and the
      same link. The issues hint moved to About (TKM-125).
 
-Every change applies at once through `update_settings { patch }`, no save
+Every switch applies at once through `update_settings { patch }`, no save
 button. While a call runs the control stays in its new position; on
 `CommandError` it flips back and the note "Couldn’t save that. Try
-again." appears under the section (derived).
+again." appears under the switch list (derived).
 
-Fed by: `Settings`, `update_settings`, `settings-changed`,
-`AppInfo.version`, `NavigateTo`, `LimitsConnection`, `DashboardSnapshot.limits`,
-`UpdateStatus` (`get_update_status`, `update-status-changed`),
-`check_for_updates`, `install_update`.
-
-#### Limit data
-
-Removed by TKM-287 (design history; the app, the contracts and the tokens no longer have it): the paste-only setup below gave way to one-click "Connect limits"
-("Product line"; ARCHITECTURE.md, "Connect limits"). `LimitSetup`,
-`StatuslineFileInfo` and `get_limit_setup` are gone.
-
-Derived from the settings rows; same tokens. Tokenmonk never edits Claude
-Code settings; this section only shows what to paste.
-
-1. Label "Limit data" (`ink-2`, margin top 18, margin bottom 10).
-2. Status (weight 500), from `DashboardSnapshot.limits`:
-
-   | Limits | Text |
-   |---|---|
-   | `ok` or `stale` | "Connected. Last reading 14:05." (`fetchedAt`, local 24 h time, mono for the time); "Connected." if `fetchedAt` is `null` |
-   | `unavailable`, `noSource` or no `reason`, `statuslineFile.receivedAt` set | "Set up. No current limits." |
-   | `unavailable`, `noSource` or no `reason`, otherwise | "Not set up yet." |
-   | `unavailable`, other reasons | "Can’t read the limit file. Next reply fixes it." |
-
-   `statuslineFile` comes from `LimitSetup`; while `get_limit_setup` runs
-   or if it failed, the "otherwise" row applies.
-
-   Setup check line (caption, directly below the status, margin top 4),
-   from `LimitSetup.statuslineFile`. Shown only if `limits.status` is
-   `unavailable` and `get_limit_setup` succeeded; for `ok` and `stale` the
-   status already carries the time. Time first, mono, `tabular-nums`;
-   `<time>` is local 24 h time ("14:05") on the same local day, otherwise
-   day, English short month and time ("3 Nov 14:05"). First match:
-
-   | `statuslineFile` | Text |
-   |---|---|
-   | `exists = false` | "Nothing from the status line yet. Paste the block below, then send Claude Code one message." |
-   | `receivedAt` set | "<receivedAt> · last status line. No current window in it: the next reply brings one on Pro or Max." |
-   | `modifiedAt` set | "<modifiedAt> · something arrived, but it can’t be read. Send another message; if it sticks, update Tokenmonk." |
-   | otherwise | "Something arrived, but it can’t be read. Send another message; if it sticks, update Tokenmonk." |
-
-   Text link "Check again" (note link style) at the end of the line: calls
-   `get_limit_setup` again and updates the check line and the status; the
-   line keeps its old text while the call runs; if it fails, the old text
-   stays.
-
-3. Setup copy (caption): "Limits come from Claude Code’s status line.
-   Local only, no login. Open <path>, create it if missing, and add this
-   as your status line:"
-   (the path in mono). `<path>` is `%USERPROFILE%\.claude\settings.json`
-   if `AppInfo.platform = windows`, otherwise `~/.claude/settings.json`.
-4. Snippet block: 1 px `line` border, radius 8, padding 12, mono 12,
-   `ink`, selectable, wraps anywhere (`white-space: pre-wrap`,
-   `overflow-wrap: anywhere`). Content is
-   `JSON.stringify({ statusLine: { type: "command", command } }, null, 2)`
-   with `command = LimitSetup.statuslineCommand`, for example:
-
-   ```json
-   {
-     "statusLine": {
-       "type": "command",
-       "command": "/Applications/Tokenmonk.app/Contents/MacOS/tokenmonk --statusline"
-     }
-   }
-   ```
-
-   The block is the whole status line setting: its `command` is the
-   entire status line command, not a line for a script. Merge hint
-   (caption, directly below the block): "File already has settings? Put
-   "statusLine" at the top level next to them and end the key before it
-   with a comma. Already has a "statusLine"? This replaces it." followed,
-   if `AppInfo.platform` is not `windows`, by " To keep your own script,
-   skip this block and use the line below." The key names in mono.
-
-   Text link "Copy" at the block's top right. After a successful copy the
-   caption under the block reads "Copied. Paste it, then send Claude Code
-   one message." for 2 s. If copying fails: "Couldn’t copy. Select it and
-   copy by hand." If `statuslineCommand` is `null`, the block is replaced by
-   "Couldn’t find the Tokenmonk executable. Reinstall, then look again.";
-   the copy link, the PowerShell alternative and the chain hint are not
-   shown. If `get_limit_setup` fails, the same parts are replaced by
-   "Couldn’t look up the setup line. Close Settings and open it again."
-   While the call runs none of them is shown yet.
-
-   Windows, path with a space (`AppInfo.platform = windows` and
-   `statuslineCommand` starts with `"`): below the block, the caption "No
-   Git Bash? Claude Code then uses PowerShell. Use this one instead:" and a
-   second block (same style, own copy link and captions) with
-   `command = "& " + statuslineCommand`. Otherwise not shown.
-5. Chain hint. The line is Bash, so it depends on the platform:
-   - `AppInfo.platform` is not `windows`: caption "Already have a status
-     line script? Leave settings.json as it is. Add this line inside the
-     script, after it reads the input:" (settings.json in mono) and a
-     block (own copy link) with
-     `printf '%s' "$input" | <command> >/dev/null`, where `<command>` is
-     `statuslineCommand`.
-   - `windows`: caption only, no block and no copy link: "Already have a
-     status line? Tokenmonk can’t share it on Windows yet. Swap yours for
-     the block above, or keep it and go without limits."
-6. Plan note (caption): "Needs a Pro or Max plan. Numbers show up after
-   the first reply. Limit numbers come from Claude Code’s status line;
-   sessions in the desktop app may not run it and then bring no numbers."
-   (Hedged on purpose: the docs say nothing about the desktop app; that
-   it did not run there was only observed once, not verified. See
-   DECISIONS.md, "Popup with log-only data".)
-
-Fed by: `LimitSetup` (`get_limit_setup`, called once when the view opens
-and again on "Check again"; `statuslineCommand`, `statuslineFile`),
-`DashboardSnapshot.limits` (`status`, `reason`, `fetchedAt`),
-`AppInfo.platform`.
+Fed by: `LimitsConnection` (`get_limits_connection`, `connect_limits`,
+`disconnect_limits`, `limits-connection-changed`; `state`,
+`settingsPath`, `previousStatusLine`, `problem`),
+`DashboardSnapshot.limits` (`status`, `fetchedAt`), `ClaudeFolder`
+(`get_claude_folder`, read again on `settings-changed` and
+`app-info-changed`), `Settings`, `update_settings`, `settings-changed`,
+`AppInfo.version`, `NavigateTo`, `UpdateStatus` (`get_update_status`,
+`update-status-changed`), `check_for_updates`, `install_update`.
 
 ### About
 
