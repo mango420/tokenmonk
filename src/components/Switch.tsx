@@ -4,7 +4,7 @@ interface SwitchProps {
   onChange: (next: boolean) => void;
 }
 
-/** 42 x 24 switch; the track takes the accent when on. */
+/** 44 x 26 switch, outlined; the track takes the accent when on. */
 export function Switch({ checked, label, onChange }: SwitchProps) {
   return (
     <button

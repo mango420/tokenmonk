@@ -21,13 +21,11 @@ export function AchievementsView({ game, onBack }: AchievementsViewProps) {
         <TextLink onClick={onBack}>Back</TextLink>
       </TopRow>
       <div className="scroll">
-        <h1 className="ach-title">{model.title}</h1>
-        <p className="level-line live-number">{model.levelLine}</p>
-        <div className="ach-bar">
-          <LevelBar ratio={model.ratio} />
-        </div>
-        <h2 className="ach-heading">{model.heading}</h2>
-        <ul className="ach-list">
+        <h1 className="title title--tight">{model.title}</h1>
+        <p className="meta meta--tight">{model.levelLine}</p>
+        <LevelBar ratio={model.ratio} />
+        <h2 className="section-title">{model.heading}</h2>
+        <ul className="ach-list hairlist">
           {model.rows.map((row) => (
             <li key={row.id} className={row.unlocked ? "ach" : "ach ach--locked"}>
               <div className="ach__text">

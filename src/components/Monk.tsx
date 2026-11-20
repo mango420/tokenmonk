@@ -1,8 +1,8 @@
 /**
  * The popup monk (docs/DESIGN.md, "Icon system", role B): drawn from the parts
  * table in the 280 x 280 gauge coordinate system, colours from tokens through
- * the `.monk__*` classes. The same drawing sits inside the bead gauge and,
- * cropped, as the standalone mark.
+ * the `.monk__*` classes. The same drawing is the corner mark, the large monk
+ * and the figure inside the five-bead gauge.
  */
 export function MonkFigure() {
   return (
@@ -14,5 +14,24 @@ export function MonkFigure() {
       <path className="monk__line" d="M128 108c2 3 6 3 8 0M144 108c2 3 6 3 8 0" />
       <path className="monk__line" d="M135 118c3 2 7 2 10 0" />
     </g>
+  );
+}
+
+/** Corner mark: the drawing cropped to `76 76 128 146`, shown at 26 x 30. */
+export function MonkMark() {
+  return (
+    <svg className="corner__mark" viewBox="76 76 128 146" aria-hidden="true">
+      <MonkFigure />
+    </svg>
+  );
+}
+
+/** Large monk with its ground shadow: `60 76 160 160`, shown at 120 x 120. */
+export function MonkLarge() {
+  return (
+    <svg className="monk-lg" viewBox="60 76 160 160" aria-hidden="true">
+      <ellipse className="monk__ground" cx="140" cy="220" rx="74" ry="13" />
+      <MonkFigure />
+    </svg>
   );
 }

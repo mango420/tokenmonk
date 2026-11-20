@@ -2,7 +2,7 @@
  * Popup styles. Every design value comes from tokens.css variables; this file
  * only composes them (docs/DESIGN.md). Mode colours switch through the data
  * attribute on <html> (see tokens.css), never in here. The accent is used for
- * fills and rules only, never for text.
+ * fills and rules only, never for text. No italics anywhere.
  */
 
 *,
@@ -23,6 +23,7 @@ body {
   font-size: var(--text-body-size);
   line-height: var(--text-body-line);
   font-weight: var(--weight-regular);
+  font-style: normal;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -47,9 +48,7 @@ button {
   --half: calc(var(--space-1) / 2);
   --gap-10: calc(var(--space-2) + var(--half));
   --gap-14: calc(var(--space-3) + var(--half));
-  --gap-18: calc(var(--space-4) + var(--half));
-  --gap-22: calc(var(--space-5) + var(--half));
-  --gap-30: calc(var(--space-6) + var(--gap-6));
+  --row-pad-switch: calc(var(--space-2) + var(--hair));
 }
 
 /* ---------------------------------------------------------------- frame */
@@ -85,13 +84,18 @@ html[data-maximized] .popup {
   box-shadow: none;
 }
 
-/* Each screen is a column: 20 top, 24 sides, 18 bottom. */
+/* A screen is a column: 16 top, 24 sides, 20 bottom. Dashboard and About
+   split into a header band and a body instead. */
 .screen {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: var(--popup-padding);
+  padding: var(--space-4) var(--popup-padding) var(--space-5);
+}
+
+.screen--bands {
+  padding: 0;
 }
 
 .screen__status {
@@ -102,8 +106,30 @@ html[data-maximized] .popup {
   margin-top: var(--space-6);
 }
 
+/* Header band: `surface`, the top row and what belongs to it. */
+.band {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4) var(--popup-padding) var(--space-5);
+  background: var(--surface);
+}
+
+/* Body under a band. */
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--popup-padding);
+}
+
+.body--dashboard {
+  gap: var(--popup-gap);
+}
+
 /* Scrolls when taller than the popup; the top row stays. Full popup width so
-   the selected-row bar can sit flush with the popup's left edge. */
+   the scrollbar sits at the popup's edge. */
 .scroll {
   flex: 1;
   min-height: 0;
@@ -120,6 +146,19 @@ html[data-maximized] .popup {
   flex: none;
 }
 
+.spacer {
+  flex: 1;
+  min-height: 0;
+}
+
+.spacer--wide {
+  flex: 1.3;
+}
+
+.spacer--min {
+  min-height: var(--space-4);
+}
+
 /* ------------------------------------------------------------- text styles */
 
 .live-number {
@@ -128,21 +167,54 @@ html[data-maximized] .popup {
 }
 
 .title {
-  margin: var(--space-4) 0 var(--gap-6);
+  margin: var(--space-4) 0;
   font-size: var(--text-title-size);
-  line-height: 1.2;
-  font-weight: var(--weight-medium);
-  letter-spacing: var(--text-title-tracking);
+  line-height: var(--text-body-line);
+  font-weight: var(--weight-bold);
 }
 
-.label {
-  margin-bottom: var(--gap-10);
+.title--tight {
+  margin-bottom: 0;
+}
+
+.section-title {
+  margin: 0;
+  font-size: var(--text-section-size);
+  line-height: var(--text-body-line);
+  font-weight: var(--weight-bold);
+}
+
+.caption {
+  margin: 0;
+  font-size: var(--text-caption-size);
+  line-height: var(--text-body-line);
+  font-weight: var(--weight-regular);
   color: var(--ink-2);
 }
 
+.small {
+  margin: 0;
+  font-size: var(--text-small-size);
+  line-height: var(--text-body-line);
+  color: var(--ink-2);
+}
+
+.meta {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-meta-size);
+  line-height: var(--text-body-line);
+  font-weight: var(--weight-regular);
+  color: var(--ink-2);
+}
+
+.meta--tight {
+  margin: var(--half) 0 0;
+}
+
 .note {
-  min-height: var(--space-4);
-  margin: var(--gap-10) 0 0;
+  min-height: calc(var(--text-note-size) * var(--text-body-line));
+  margin: 0;
   font-size: var(--text-note-size);
   line-height: var(--text-body-line);
   color: var(--ink-2);
@@ -152,87 +224,51 @@ html[data-maximized] .popup {
   color: var(--ink);
 }
 
-.note--bottom {
-  margin-top: auto;
-  padding-top: var(--gap-18);
+.note__action {
+  margin-left: var(--space-2);
 }
 
-.bottom-group {
-  margin-top: auto;
-  padding-top: var(--gap-18);
-}
-
-.bottom-group .note {
+.status {
   margin: 0;
-}
-
-.update-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: var(--space-3);
-  min-height: var(--space-4);
-  margin-bottom: var(--space-1);
-  font-size: var(--text-note-size);
-  line-height: var(--text-body-line);
-  color: var(--ink-2);
-}
-
-.update-row .link {
-  padding: 0;
-  font-size: inherit;
-  text-decoration: underline;
-  text-underline-offset: var(--space-1);
-}
-
-/* Text shared with features/game (toast, level-up): keep these class names. */
-.caption {
-  margin: 0;
-  font-size: var(--text-caption-size);
-  line-height: var(--text-body-line);
-  font-weight: var(--weight-regular);
-  color: var(--ink-2);
-}
-
-.caption--accent {
-  color: var(--accent);
-}
-
-.muted {
-  color: var(--ink-2);
-}
-
-.label-strong {
-  font-size: var(--text-body-size);
+  font-size: var(--text-status-size);
   line-height: var(--text-body-line);
   font-weight: var(--weight-medium);
 }
 
-.mono-value {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--text-mono-sm-size);
-  line-height: var(--text-body-line);
-  font-weight: var(--weight-regular);
+.status--left {
+  text-align: left;
 }
 
-.achievement__text {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  min-width: 0;
+.status .link {
+  color: inherit;
+  font-weight: inherit;
 }
 
-.logo-mark {
-  flex: none;
-  display: flex;
-  width: var(--mark-lg-size);
-  height: var(--mark-lg-size);
+/* Text link: underlined, `ink-2`, `ink` on hover, 4 px above and below. */
+.link {
+  padding: var(--space-1) 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font-size: var(--text-link-size);
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: var(--link-underline-offset);
 }
 
-.logo-mark__svg {
-  width: 100%;
-  height: 100%;
+.link:hover {
+  color: var(--ink);
+}
+
+.link:disabled {
+  cursor: default;
+  color: var(--ink-2);
+}
+
+/* In a line of text: the size of the line, no padding. */
+.link--small {
+  padding: 0;
+  font-size: inherit;
 }
 
 /* ---------------------------------------------------------------- title bar */
@@ -243,7 +279,7 @@ html[data-maximized] .popup {
   top: 0;
   left: 0;
   right: 0;
-  height: var(--popup-padding);
+  height: var(--space-4);
   z-index: 1;
 }
 
@@ -289,66 +325,35 @@ html[data-maximized] .popup {
   justify-content: space-between;
 }
 
+/* The corner: monk mark plus wordmark, or the wordmark alone. */
+.corner {
+  display: flex;
+  align-items: center;
+  gap: var(--mark-gap);
+}
+
+.corner__mark {
+  flex: none;
+  display: block;
+  width: var(--mark-width);
+  height: var(--mark-height);
+}
+
 .brand {
   font-size: var(--text-brand-size);
   line-height: var(--text-body-line);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-bold);
   letter-spacing: var(--text-brand-tracking);
 }
 
-/* Text link: `ink-2`, `ink` on hover, 6 px above and below. */
-.link {
-  padding: var(--gap-6) 0;
-  border: 0;
-  background: none;
-  color: var(--ink-2);
-  text-align: left;
-}
+/* ------------------------------------------------------------------- monk */
 
-.link:hover {
-  color: var(--ink);
-}
-
-.link:disabled {
-  cursor: default;
-  color: var(--ink-2);
-}
-
-.note__action {
-  margin-left: var(--space-2);
-}
-
-.note__action--wide {
-  margin-left: var(--space-3);
-}
-
-.link--small {
-  padding: 0;
-  font-size: inherit;
-  text-decoration: underline;
-  text-underline-offset: var(--space-1);
-}
-
-/* --------------------------------------------------------------- dashboard */
-
-.screen--dashboard {
-  gap: var(--popup-gap);
-}
-
-.screen--dashboard .note {
-  margin-top: 0;
-}
-
-.dash-caption {
-  flex: none;
-  text-align: center;
-}
-
-/* Monk parts, in gauge coordinates (Monk.tsx). */
+/* Parts in gauge coordinates (Monk.tsx); the stroke width follows the size. */
 .monk__robe {
   fill: var(--accent);
   stroke: var(--ink);
   stroke-width: var(--monk-stroke);
+  stroke-linejoin: round;
 }
 
 .monk__line {
@@ -364,88 +369,85 @@ html[data-maximized] .popup {
   stroke-width: var(--monk-stroke);
 }
 
-/* Bead gauge. */
-.bead-gauge {
+.monk__ground {
+  fill: var(--monk-ground);
+}
+
+.corner__mark .monk__robe,
+.corner__mark .monk__line,
+.corner__mark .monk__head {
+  stroke-width: var(--mark-stroke);
+}
+
+.monk-lg {
   flex: none;
   display: block;
-  width: var(--gauge-size);
-  height: var(--gauge-size);
-  margin: 0 auto;
+  width: var(--monk-lg-size);
+  height: var(--monk-lg-size);
 }
 
-.bead-gauge--lg {
-  width: var(--gauge-size-lg);
-  height: var(--gauge-size-lg);
-}
+/* ------------------------------------------------------------- dashboard */
 
-/* Week runs out first. */
-.bead-gauge--compact {
-  width: var(--gauge-size-week-low);
-  height: var(--gauge-size-week-low);
-}
-
-.bead-gauge__track {
-  fill: none;
-  stroke: var(--line);
-  stroke-width: var(--gauge-track-stroke);
-}
-
-.bead {
-  transform-box: fill-box;
-  transform-origin: center;
-}
-
-.bead--full {
-  fill: var(--accent);
-  stroke: var(--ink);
-  stroke-width: var(--bead-stroke);
-  transform: scale(1);
-}
-
-.bead--empty {
-  fill: var(--bead-empty-fill);
-  stroke: var(--bead-empty-stroke);
-  stroke-width: var(--bead-stroke);
-  transform: scale(var(--bead-empty-scale));
-  /* A lost bead shrinks to empty; a gained one jumps to full. */
-  transition:
-    transform var(--motion-bead) var(--ease-bead),
-    fill var(--motion-bead) var(--ease-bead),
-    stroke var(--motion-bead) var(--ease-bead);
-}
-
-/* First render after start: bead after bead, clockwise from bead 1. */
-.bead-gauge--intro .bead--full {
-  transition:
-    transform var(--motion-bead) var(--ease-bead),
-    fill var(--motion-bead) var(--ease-bead),
-    stroke var(--motion-bead) var(--ease-bead);
-  transition-delay: calc(var(--bead-index) * var(--motion-bead-stagger));
-}
-
-.bead-gauge--stale .bead--full {
-  fill-opacity: var(--stale-opacity);
-}
-
-/* Mode dot and name (top row, settings rows). */
-.mode-name {
+.rank {
+  align-self: flex-start;
   display: flex;
-  align-items: center;
-  gap: var(--gap-6);
-  font-size: var(--text-small-size);
-  color: var(--ink-2);
+  flex-direction: column;
+  gap: var(--half);
+  margin-top: var(--gap-14);
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
 }
 
-.hero-block {
+.rank__title {
+  font-size: var(--text-rank-size);
+  line-height: var(--text-body-line);
+  font-weight: var(--weight-bold);
+}
+
+/* Window section: label row, hero row, bead string. */
+.window {
   flex: none;
-  text-align: center;
+}
+
+.window--low {
+  margin: 0 calc(-1 * var(--popup-padding));
+  padding: var(--space-4) var(--popup-padding);
+  background: var(--low-band);
+}
+
+.window__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.window__reset {
+  min-height: calc(var(--text-meta-size) * var(--text-body-line));
+}
+
+.window--low .window__reset,
+.window--low .hero-label {
+  color: var(--ink);
 }
 
 .hero-row {
   display: flex;
-  justify-content: center;
   align-items: baseline;
-  gap: var(--space-2);
+  gap: var(--gap-10);
+  margin-top: var(--space-1);
+}
+
+.hero-row--center {
+  justify-content: center;
+  margin-top: var(--space-6);
+}
+
+/* One mono run: the number, then its unit. */
+.hero-run {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .hero {
@@ -455,8 +457,9 @@ html[data-maximized] .popup {
   letter-spacing: var(--text-hero-tracking);
 }
 
-.hero--sm {
-  font-size: var(--text-hero-sm-size);
+.hero__unit {
+  font-size: var(--text-hero-unit-size);
+  font-weight: var(--weight-regular);
 }
 
 .hero--stale {
@@ -465,144 +468,181 @@ html[data-maximized] .popup {
 
 .hero-label {
   font-size: var(--text-hero-label-size);
-  font-weight: var(--weight-medium);
-}
-
-.status {
-  margin: var(--space-1) 0 0;
-  font-size: var(--text-status-size);
-  line-height: var(--text-body-line);
-  font-weight: var(--weight-medium);
-  letter-spacing: var(--text-status-tracking);
-}
-
-.status--left {
-  text-align: left;
-}
-
-.meta {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--text-meta-size);
-  line-height: var(--text-body-line);
+  font-weight: var(--weight-regular);
   color: var(--ink-2);
 }
 
-.meta-row {
+.closing {
   flex: none;
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  min-height: calc(var(--space-3) + var(--space-4));
-  padding-top: var(--space-3);
+}
+
+.closing .note {
+  margin-top: var(--space-2);
+}
+
+.body--empty {
+  align-items: center;
+  text-align: center;
+}
+
+.rule {
+  width: calc(var(--space-6) * 2);
+  height: var(--hair);
+  margin: var(--space-6) 0;
+  background: var(--line);
+}
+
+/* ------------------------------------------------------------ bead string */
+
+.bead-string {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: var(--space-2);
+  aspect-ratio: var(--bead-string-width) / var(--bead-string-height);
+  overflow: visible;
+}
+
+.bead-string__line,
+.five-gauge__track {
+  fill: none;
+  stroke: var(--bead-string);
+}
+
+.bead-string__line {
+  stroke-width: var(--bead-stroke);
+}
+
+.bead__base {
+  fill: var(--bead-empty-fill);
+  stroke: none;
+}
+
+.bead__fill {
+  fill: var(--accent);
+}
+
+.bead-string--stale .bead__fill {
+  fill-opacity: var(--stale-opacity);
+}
+
+.bead__edge {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: var(--bead-stroke);
+}
+
+.bead__edge--empty {
+  stroke: var(--bead-empty-stroke);
+}
+
+/* The fill level: a clip rect that slides up from the bottom of the bead. */
+.bead__clip {
+  transition: transform var(--motion-bead) var(--ease-bead);
+}
+
+.bead-string--intro .bead__clip {
+  transition-delay: calc(var(--bead-index) * var(--motion-bead-stagger));
+}
+
+/* Five-bead gauge (About). */
+.five-gauge {
+  flex: none;
+  display: block;
+  width: var(--gauge-size-sm);
+  height: var(--gauge-size-sm);
+  margin-top: var(--space-3);
+}
+
+.five-gauge__track {
+  stroke-width: var(--gauge-sm-track-stroke);
+}
+
+.five-gauge .monk__robe,
+.five-gauge .monk__line,
+.five-gauge .monk__head,
+.five-gauge__bead {
+  stroke-width: var(--gauge-sm-stroke);
+}
+
+.five-gauge__bead {
+  fill: var(--accent);
+  stroke: var(--ink);
+}
+
+/* ------------------------------------------------------------- hairlines */
+
+/* Hairline list: a rule on top of every row, the last row also below. */
+.hairlist > * {
   border-top: var(--hair) solid var(--line);
 }
 
-.small {
-  margin: 0;
-  font-size: var(--text-small-size);
+.hairlist > :last-child {
+  border-bottom: var(--hair) solid var(--line);
+}
+
+.hairlist--gap {
+  margin-top: var(--space-5);
+}
+
+.row {
+  padding: var(--space-3) 0;
+}
+
+.row--switch {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--row-pad-switch) 0;
+  font-size: var(--text-row-size);
+}
+
+.row__main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.row__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--half);
+  min-width: 0;
+}
+
+.row__label {
+  font-size: var(--text-row-size);
   line-height: var(--text-body-line);
-  color: var(--ink-2);
+  font-weight: var(--weight-bold);
 }
 
-.week {
+.row__links {
   flex: none;
-}
-
-.week__row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-}
-
-.spacer {
-  flex: 1;
-  min-height: 0;
-}
-
-/* The one card style: outline only. */
-.card {
-  border: var(--hair) solid var(--line);
-  border-radius: var(--radius-card);
-  background: none;
-  padding: var(--card-padding);
-}
-
-.level-card {
-  flex: none;
-  display: block;
-  width: 100%;
-  text-align: left;
-}
-
-.level-card__row {
-  display: flex;
-  justify-content: space-between;
+  display: inline-flex;
   align-items: baseline;
   gap: var(--space-3);
 }
 
-.level-card__title {
-  font-size: var(--text-caption-size);
-  font-weight: var(--weight-semibold);
+.row__captions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.row__path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.path {
+  font-family: var(--font-mono);
   color: var(--ink);
 }
 
-/* Bars: radius 2, track `line`, fill `--accent`. */
-.bar,
-.level-bar {
-  border-radius: var(--radius-bar);
-  background: var(--line);
-  overflow: hidden;
-}
-
-.level-bar {
-  height: var(--bar-height);
-  margin-top: var(--space-2);
-}
-
-.bar--week {
-  height: var(--bar-week-height);
-  margin-top: var(--space-2);
-}
-
-.bar__fill,
-.level-bar__fill {
-  height: 100%;
-  background: var(--accent);
-}
-
-.bar__fill--stale {
-  opacity: var(--stale-opacity);
-}
-
-.ach-bar .level-bar {
-  margin-top: 0;
-}
-
-/* ---------------------------------------------------------------- settings */
-
-.switch-list {
-  margin-top: var(--gap-18);
-}
-
-.switch-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--gap-14) 0;
-  border-top: var(--hair) solid var(--line);
-}
-
-.switch-row__text {
-  display: flex;
-  flex-direction: column;
-}
-
-/* Closes the list. */
-.switch-end {
-  border-top: var(--hair) solid var(--line);
-}
+/* ------------------------------------------------------------ switch */
 
 .switch {
   position: relative;
@@ -610,93 +650,76 @@ html[data-maximized] .popup {
   width: var(--switch-width);
   height: var(--switch-height);
   padding: 0;
-  border: 0;
+  border: var(--switch-stroke) solid var(--bead-string);
   border-radius: var(--radius-switch);
-  background: var(--line);
+  background: var(--surface);
 }
 
 .switch::after {
   content: "";
   position: absolute;
-  top: var(--switch-inset);
-  left: var(--switch-inset);
+  top: calc(var(--switch-inset) - var(--switch-stroke));
+  left: calc(var(--switch-inset) - var(--switch-stroke));
   width: var(--switch-knob);
   height: var(--switch-knob);
+  border: var(--switch-stroke) solid var(--bead-string);
   border-radius: 50%;
-  background: var(--pop);
+  background: var(--switch-knob-off);
   transition: transform var(--motion-switch);
 }
 
 .switch[aria-checked="true"] {
+  border-color: var(--ink);
   background: var(--accent);
 }
 
 .switch[aria-checked="true"]::after {
-  transform: translateX(var(--switch-knob));
+  border-color: var(--ink);
+  background: var(--switch-knob-on);
+  transform: translateX(calc(var(--switch-width) - var(--switch-knob) - 2 * var(--switch-inset)));
 }
 
-/* ------------------------------------------------------------- limit data */
+/* ---------------------------------------------------------------- footer */
 
-.limit-data {
+.update-row {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-3);
+  min-height: calc(var(--text-note-size) * var(--text-body-line));
+  margin-bottom: var(--space-1);
+  font-size: var(--text-note-size);
+  line-height: var(--text-body-line);
+  color: var(--ink-2);
+}
+
+.footer {
+  display: flex;
+  align-items: baseline;
   gap: var(--space-3);
-  margin-top: var(--gap-18);
 }
 
-.limit-data .label {
-  margin-bottom: 0;
-}
-
-.limit-data__status {
-  margin: 0;
-  font-weight: var(--weight-medium);
-}
-
-.limit-data .caption {
-  margin: 0;
-}
-
-.limit-data__actions {
-  display: flex;
-  gap: var(--gap-14);
-}
-
-.limit-data__path {
-  font-family: var(--font-mono);
-  font-size: var(--text-small-size);
+.footer .link {
   color: var(--ink);
 }
 
-/* ------------------------------------------------------------ achievements */
+/* ---------------------------------------------------------- achievements */
 
-.ach-title {
-  margin: var(--space-4) 0 0;
-  font-size: var(--text-ach-title-size);
-  line-height: 1.2;
-  font-weight: var(--weight-medium);
-  letter-spacing: -0.02em;
-}
-
-.level-line {
-  margin: var(--half) 0 0;
-  font-size: var(--text-mono-sm-size);
-  color: var(--ink-2);
-}
-
-.ach-bar {
+.level-bar {
+  height: var(--bar-height);
   margin: var(--space-3) 0 var(--space-6);
+  border-radius: var(--radius-bar);
+  background: var(--line);
+  overflow: hidden;
 }
 
-.ach-heading {
-  margin: 0 0 var(--gap-6);
-  font-size: var(--text-body-size);
-  font-weight: var(--weight-regular);
-  color: var(--ink-2);
+.level-bar__fill {
+  height: 100%;
+  background: var(--accent);
 }
 
 .ach-list {
-  margin: 0;
+  margin: var(--space-2) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -705,32 +728,83 @@ html[data-maximized] .popup {
   display: flex;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: calc(var(--space-2) + var(--space-3) / 4) 0;
-  border-top: var(--hair) solid var(--line);
+  padding: var(--space-3) 0;
+}
+
+.ach__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .ach__name {
-  display: block;
   font-size: var(--text-row-size);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-bold);
 }
 
 .ach__description {
-  display: block;
   font-size: var(--text-caption-size);
   color: var(--ink-2);
 }
 
 .ach__state {
-  padding-top: calc(var(--space-1) - var(--hair));
-  font-size: var(--text-small-size);
+  font-size: var(--text-caption-size);
   color: var(--ink-2);
   white-space: nowrap;
 }
 
-.ach--locked .ach__name,
-.ach--locked .ach__description {
+.ach--locked .ach__text {
   opacity: var(--locked-opacity);
+}
+
+/* ----------------------------------------------------------------- about */
+
+.band--centered {
+  align-items: center;
+  padding-bottom: var(--space-6);
+  text-align: center;
+}
+
+.band--centered .top-row {
+  align-self: stretch;
+}
+
+.about__version {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-stat-size);
+  line-height: var(--text-stat-line);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--text-stat-tracking);
+}
+
+.about__caption {
+  margin: var(--space-1) 0 0;
+}
+
+.body--about {
+  padding: var(--space-5) var(--popup-padding);
+}
+
+.about__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) 0;
+  font-size: var(--text-row-size);
+}
+
+.about__row--first {
+  padding: var(--space-3) 0;
+}
+
+.about__row .link {
+  padding: 0;
+  color: var(--ink);
+  font-size: inherit;
+}
+
+.about__value {
+  color: var(--ink-2);
 }
 
 /* --------------------------------------------------------------- dev only */
@@ -756,83 +830,9 @@ html[data-maximized] .popup {
 /* ------------------------------------------------------------------ motion */
 
 @media (prefers-reduced-motion: reduce) {
-  .bead,
-  .bead-gauge--intro .bead--full,
+  .bead__clip,
   .switch::after,
   .titlebar__bar {
     transition: none;
   }
-}
-
-/* ------------------------------------------------------------------- about */
-
-.about__mark {
-  margin-top: var(--space-4);
-}
-
-.about__title {
-  margin: var(--space-3) 0 var(--half);
-}
-
-.about__version {
-  margin: 0;
-  font-size: var(--text-stat-size);
-  line-height: var(--text-stat-line);
-  font-weight: var(--weight-regular);
-  letter-spacing: var(--text-stat-tracking);
-}
-
-.about__caption {
-  margin: var(--half) 0 var(--gap-18);
-}
-
-.about__row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--gap-14) 0;
-  border-top: var(--hair) solid var(--line);
-}
-
-.about__row .link {
-  padding: var(--gap-6) 0;
-}
-
-.about__end {
-  border-top: var(--hair) solid var(--line);
-}
-
-.about__label {
-  font-size: var(--text-row-size);
-  font-weight: var(--weight-medium);
-}
-
-/* Claude folder row (Settings). */
-.folder-row {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin-top: var(--gap-18);
-}
-
-.folder-row .label {
-  margin-bottom: 0;
-}
-
-.folder-row__path {
-  margin: 0;
-  font-size: var(--text-small-size);
-  color: var(--ink);
-  white-space: nowrap;
-}
-
-.folder-row__meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-}
-
-.folder-row__actions {
-  display: inline-flex;
-  gap: var(--gap-14);
 }
