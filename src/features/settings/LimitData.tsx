@@ -1,4 +1,4 @@
-import { forwardRef, useState } from "react";
+import { forwardRef, useState, type ReactNode } from "react";
 import type { AppActions } from "../../lib/appData";
 import { describeError } from "../../lib/backend";
 import type { LimitsConnection, LimitsView } from "../../lib/contracts";
@@ -18,18 +18,18 @@ const BLOCKED_TEXT: Record<NonNullable<LimitsConnection["problem"]>, string> = {
   settingsInvalid: "Can’t connect: settings.json isn’t valid JSON. Fix it, then try again.",
 };
 
-function readingLine(limits: LimitsView) {
+function connectedLine(limits: LimitsView): ReactNode {
   if (limits.status === "unavailable" || limits.fetchedAt === null) return "Connected. Limits after your next reply.";
   return (
     <>
-      Connected. Last reading <span className="live-number">{formatClock(limits.fetchedAt)}</span>.
+      Connected, last reading <span className="live-number">{formatClock(limits.fetchedAt)}</span>
     </>
   );
 }
 
 /**
- * Settings, "Limits": one-click Connect or Disconnect of Claude Code's status
- * line (the app writes `settings.json` itself, with a backup).
+ * Settings, "Limits" row: one-click Connect or Disconnect of Claude Code's
+ * status line (the app writes `settings.json` itself, with a backup).
  */
 export const LimitData = forwardRef<HTMLElement, LimitDataProps>(function LimitData(
   { limits, connection, connectLimits, disconnectLimits },
@@ -51,71 +51,68 @@ export const LimitData = forwardRef<HTMLElement, LimitDataProps>(function LimitD
     }
   };
 
-  let status;
-  let action = null;
+  const link = (text: string, action: () => Promise<LimitsConnection>) => (
+    <TextLink onClick={() => void run(action)} disabled={busy}>
+      {text}
+    </TextLink>
+  );
+
+  let sub: ReactNode;
+  let links: ReactNode;
   if (connection.state === "connected") {
-    status = readingLine(limits);
-    action = (
-      <TextLink small onClick={() => void run(disconnectLimits)} disabled={busy}>
-        Disconnect
-      </TextLink>
-    );
+    sub = connectedLine(limits);
+    links = link("Disconnect", disconnectLimits);
   } else if (connection.state === "outdated") {
-    status = "Connected, but set up for another shell. Reconnect to fix it.";
-    action = (
+    sub = "Connected, but set up for another shell. Reconnect to fix it.";
+    links = (
       <>
-        <TextLink small onClick={() => void run(connectLimits)} disabled={busy}>
-          Reconnect
-        </TextLink>
-        <TextLink small onClick={() => void run(disconnectLimits)} disabled={busy}>
-          Disconnect
-        </TextLink>
+        {link("Reconnect", connectLimits)}
+        {link("Disconnect", disconnectLimits)}
       </>
     );
   } else if (connection.state === "blocked") {
-    status = connection.problem === null ? "Can’t connect right now." : BLOCKED_TEXT[connection.problem];
-    action = (
-      <TextLink small onClick={() => void run(connectLimits)} disabled={busy}>
-        Try again
-      </TextLink>
-    );
+    sub = connection.problem === null ? "Can’t connect right now." : BLOCKED_TEXT[connection.problem];
+    links = link("Try again", connectLimits);
   } else {
-    status = "Not connected.";
-    action = (
-      <TextLink small onClick={() => void run(connectLimits)} disabled={busy}>
-        Connect limits
-      </TextLink>
-    );
+    sub = "Not connected.";
+    links = link("Connect limits", connectLimits);
   }
 
   return (
-    <section ref={ref} className="limit-data" aria-labelledby="settings-limit-data">
-      <span id="settings-limit-data" className="label">
-        Limits
-      </span>
-      <p className="limit-data__status">{status}</p>
-      {action === null ? null : <div className="limit-data__actions">{action}</div>}
-      {connection.state === "notConnected" ? (
+    <section ref={ref} className="row" aria-labelledby="settings-limit-data">
+      <div className="row__main">
+        <div className="row__text">
+          <span id="settings-limit-data" className="row__label">
+            Limits
+          </span>
+          <span className="caption">{sub}</span>
+        </div>
+        <span className="row__links">{links}</span>
+      </div>
+      <div className="row__captions">
+        {connection.state === "notConnected" ? (
+          <p className="caption">
+            Limits come from Claude Code’s status line. Connect adds it to{" "}
+            <span className="path">{connection.settingsPath ?? "settings.json"}</span>, with a backup.
+            {connection.previousStatusLine ? " Your current status line keeps working, output unchanged." : ""}
+          </p>
+        ) : null}
+        {connection.state === "connected" && connection.previousStatusLine ? (
+          <p className="caption">Your own status line runs on, output unchanged. Disconnect restores it.</p>
+        ) : null}
+        {connection.state === "outdated" && connection.previousStatusLine ? (
+          <p className="caption">Your own status line stays wrapped; Reconnect keeps it.</p>
+        ) : null}
         <p className="caption">
-          Limits come from Claude Code’s status line. Connect adds it to{" "}
-          <span className="limit-data__path">{connection.settingsPath ?? "settings.json"}</span>, with a backup.
-          {connection.previousStatusLine ? " Your current status line keeps working, output unchanged." : ""}
+          Needs a Pro or Max plan. Numbers show up after the first reply; the desktop app may not run the status
+          line. Limit % includes claude.ai chats. Token stats are Claude Code only.
         </p>
-      ) : null}
-      {connection.state === "connected" && connection.previousStatusLine ? (
-        <p className="caption">Your own status line runs on, output unchanged. Disconnect restores it.</p>
-      ) : null}
-      {connection.state === "outdated" && connection.previousStatusLine ? (
-        <p className="caption">Your own status line stays wrapped; Reconnect keeps it.</p>
-      ) : null}
-      <p className="caption">
-        Needs a Pro or Max plan. Numbers show up after the first reply; the desktop app may not run the status line.
-      </p>
-      {failed ? (
-        <p className="note note--error" role="alert">
-          Couldn’t change that.
-        </p>
-      ) : null}
+        {failed ? (
+          <p className="note note--error" role="alert">
+            Couldn’t change that.
+          </p>
+        ) : null}
+      </div>
     </section>
   );
 });

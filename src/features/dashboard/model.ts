@@ -1,8 +1,8 @@
 /**
  * Pure view models for the popup dashboard. Copy and rules follow
- * docs/DESIGN.md (popup layout, note line, dashboard states). "Now" is always
- * `DashboardSnapshot.generatedAt`, so the output is a pure function of the
- * snapshot.
+ * docs/DESIGN.md (popup layout, low limit, note line, dashboard states). "Now"
+ * is always `DashboardSnapshot.generatedAt`, so the output is a pure function
+ * of the snapshot.
  */
 import type {
   DashboardSnapshot,
@@ -13,7 +13,6 @@ import type {
   UpdateStatus,
 } from "../../lib/contracts";
 import {
-  clamp01,
   DAY_MS,
   formatClock,
   formatCompact,
@@ -23,43 +22,43 @@ import {
   percentLeft,
 } from "../../lib/format";
 
-// ------------------------------------------------------------------ gauge
+// ---------------------------------------------------------------- windows
 
-const WEEK_FIRST_STATUS = "The week runs out first.";
+/** Below this percent left a window becomes the low band (same 10 % as the notification). */
+const LOW_BELOW = 10;
+/** The week runs out first only under this percent left. */
+const WEEK_FIRST_BELOW = 20;
 
-export interface GaugeModel {
-  caption: string;
-  /** Percent left 0..100 for the beads; `null` shows all beads empty. */
-  percentLeft: number | null;
-  /** Last-known value: the hero is `ink-2`, full beads are dimmed. */
+export interface WindowModel {
+  key: "fiveHour" | "weekly";
+  /** "5 hours", or "5 hours, nearly out" in the low band. */
+  label: string;
+  /** "resets in 2h 14m"; empty while the reset time is unknown. */
+  reset: string;
+  /** Integer percent left. */
+  percent: number;
   stale: boolean;
-  /** Hero text: "73%" or the compact tokens today. */
-  hero: string;
-  /** Smaller hero (tokens today instead of percent). */
-  small: boolean;
-  heroLabel: string;
-  status: string;
-  /** The status line opens Settings ("Connect limits in Settings."). */
-  statusLink: boolean;
-  /** Meta row, left; empty string keeps the row's height. */
-  metaLeft: string;
-  metaRight: string;
+  /** The low band (0 to 9 percent left). */
+  low: boolean;
 }
 
-export interface WeekModel {
-  /** Week bar width, percent. */
-  percentLeft: number;
-  /** "81% left · resets Thu" */
-  figure: string;
-  /** The week runs out first: the block becomes a card with one more line. */
-  low: boolean;
-  stale: boolean;
+export interface ClosingLine {
+  text: string;
+  /** The line opens Settings at "Limits". */
+  link: boolean;
+}
+
+/** The hero run of the no-limits layout: "184.2" and "k". */
+export interface TokensToday {
+  number: string;
+  unit: string;
 }
 
 export interface DashboardModel {
-  gauge: GaugeModel;
-  /** `null` leaves the week block out. */
-  week: WeekModel | null;
+  /** Empty: the no-limits layout applies. */
+  windows: WindowModel[];
+  closing: ClosingLine;
+  tokensToday: TokensToday;
 }
 
 const STATUS = [
@@ -71,7 +70,7 @@ const STATUS = [
   "Limit reached. Breathe.",
 ] as const;
 
-/** Status line under the hero from percent left. */
+/** Closing line from the 5-hour percent left. */
 export function statusLine(left: number): string {
   if (left >= 60) return STATUS[0];
   if (left >= 30) return STATUS[1];
@@ -85,133 +84,90 @@ export function hasNoLimitData(limits: LimitsView): boolean {
   return limits.status === "unavailable";
 }
 
-const tokensPerMinute = (snap: DashboardSnapshot) => `${formatCompact(snap.burnRate.tokensPerMinute)} tokens/min`;
-
-/** Meta row, left: the reset time. */
-function metaLeft(snap: DashboardSnapshot, window: LimitWindow): string {
-  if (window.resetsAt === null) return "";
-  return `resets in ${formatResetIn(window.resetsAt - snap.generatedAt)}`;
+/** Splits a compact count into the hero number and its unit: "184.2k" to "184.2" + "k". */
+export function splitCompact(text: string): TokensToday {
+  const unit = /[kM]$/.test(text) ? text.slice(-1) : "";
+  return { number: unit === "" ? text : text.slice(0, -1), unit };
 }
 
-function tokensGauge(
-  snap: DashboardSnapshot,
-  caption: string,
-  status: string,
-  statusLink = false,
-): GaugeModel {
-  return {
-    caption,
-    percentLeft: null,
-    stale: false,
-    hero: formatCompact(snap.today.total),
-    small: true,
-    heroLabel: "tokens today",
-    status,
-    statusLink,
-    metaLeft: "",
-    metaRight: tokensPerMinute(snap),
-  };
+function windowLabel(base: string, left: number): string {
+  return left >= 1 && left < LOW_BELOW ? `${base}, nearly out` : base;
 }
 
-function weekModel(snap: DashboardSnapshot): WeekModel | null {
+function fiveHourModel(snap: DashboardSnapshot, window: LimitWindow): WindowModel {
   const { limits } = snap;
-  if (hasNoLimitData(limits) || limits.weekly === null) return null;
-  const weekly = limits.weekly;
-  const left = percentLeft(weekly.utilization);
-  let figure = `${left}% left`;
-  if (weekly.resetsAt !== null) {
-    const ms = weekly.resetsAt - snap.generatedAt;
-    figure += ` · resets ${ms < DAY_MS ? `in ${formatResetIn(ms)}` : formatWeekday(weekly.resetsAt)}`;
-  }
-  const five = limits.fiveHour === null ? null : percentLeft(limits.fiveHour.utilization);
+  const left = percentLeft(window.utilization);
+  const stale = limits.status === "stale";
+  let reset = window.resetsAt === null ? "" : `resets in ${formatResetIn(window.resetsAt - snap.generatedAt)}`;
+  if (stale) reset = limits.fetchedAt === null ? "" : `as of ${formatClock(limits.fetchedAt)}`;
   return {
-    percentLeft: left,
-    figure,
-    low: five !== null && left < five && left < 20,
-    stale: limits.status === "stale",
+    key: "fiveHour",
+    label: windowLabel("5 hours", left),
+    reset,
+    percent: left,
+    stale,
+    low: left < LOW_BELOW,
   };
 }
 
-const LIMITS_NEXT_REPLY = "Limits after your next reply.";
-const LIMITS_CONNECT = "Connect limits in Settings.";
-const LIMITS_RECONNECT = "Reconnect limits in Settings.";
-
-/** No limits: tokens today is the full view, no warning, one calm line. */
-function tokensOnly(
-  snap: DashboardSnapshot,
-  connection: LimitsConnection,
-  week: WeekModel | null,
-): DashboardModel {
-  const notConnected = connection.state !== "connected";
-  const line =
-    connection.state === "connected"
-      ? LIMITS_NEXT_REPLY
-      : connection.state === "outdated"
-        ? LIMITS_RECONNECT
-        : LIMITS_CONNECT;
+function weeklyModel(snap: DashboardSnapshot, window: LimitWindow): WindowModel {
+  const left = percentLeft(window.utilization);
+  let reset = "";
+  if (window.resetsAt !== null) {
+    const ms = window.resetsAt - snap.generatedAt;
+    reset = `resets ${ms < DAY_MS ? `in ${formatResetIn(ms)}` : formatWeekday(window.resetsAt)}`;
+  }
   return {
-    gauge: tokensGauge(
-      snap,
-      "Your Claude Code tokens, today",
-      line,
-      notConnected,
-    ),
-    week,
+    key: "weekly",
+    label: windowLabel("7 days", left),
+    reset,
+    percent: left,
+    stale: snap.limits.status === "stale",
+    low: left < LOW_BELOW,
   };
+}
+
+function noLimitsClosing(connection: LimitsConnection): ClosingLine {
+  if (connection.state === "connected") return { text: "Limits after your next reply.", link: false };
+  if (connection.state === "outdated") return { text: "Reconnect limits in Settings.", link: true };
+  return { text: "Connect limits in Settings.", link: true };
 }
 
 export function buildDashboard(snap: DashboardSnapshot, connection: LimitsConnection): DashboardModel {
   const { limits } = snap;
-  if (hasNoLimitData(limits)) return tokensOnly(snap, connection, null);
+  const tokensToday = splitCompact(formatCompact(snap.today.total));
+  const five = hasNoLimitData(limits) || limits.fiveHour === null ? null : fiveHourModel(snap, limits.fiveHour);
+  const week = hasNoLimitData(limits) || limits.weekly === null ? null : weeklyModel(snap, limits.weekly);
+  const windows = [five, week].filter((w): w is WindowModel => w !== null);
 
-  const week = weekModel(snap);
-  const window = limits.fiveHour;
-  if (window === null) return tokensOnly(snap, connection, week);
+  if (windows.length === 0) return { windows, closing: noLimitsClosing(connection), tokensToday };
 
-  const caption = "Your Claude Code limit, this 5-hour window";
-  const left = percentLeft(window.utilization);
-  const stale = limits.status === "stale";
-  let metaLeftText = metaLeft(snap, window);
-  if (stale) metaLeftText = limits.fetchedAt === null ? "" : `as of ${formatClock(limits.fetchedAt)}`;
-  return {
-    gauge: {
-      caption,
-      percentLeft: left,
-      stale,
-      hero: `${left}%`,
-      small: false,
-      heroLabel: "of your limit left",
-      status: week !== null && week.low ? WEEK_FIRST_STATUS : statusLine(left),
-      statusLink: false,
-      metaLeft: metaLeftText,
-      metaRight: tokensPerMinute(snap),
-    },
-    week,
-  };
+  let text: string;
+  if (five !== null && week !== null && week.percent < five.percent && week.percent < WEEK_FIRST_BELOW) {
+    text = "The week runs out first.";
+  } else if (five === null) {
+    text = "Fresh window. Numbers on your next reply.";
+  } else {
+    text = statusLine(five.percent);
+  }
+  return { windows, closing: { text, link: false }, tokensToday };
 }
 
-// ------------------------------------------------------------- level card
+// ------------------------------------------------------------- rank block
 
 export interface LevelModel {
-  /** Left of the card row: the title, or the replay line. */
+  /** `GameState.title`. */
   title: string;
-  /** " · Level N" follows the title; `null` while old XP is being counted. */
-  level: number | null;
-  /** "340 / 500 XP"; `null` while old XP is being counted. */
-  xp: string | null;
-  /** `null` shows the track only. */
-  ratio: number | null;
+  /** "Level 7, 340 of 920 XP", or the replay line while old XP is counted. */
+  meta: string;
 }
 
 export function buildLevel(game: GameState): LevelModel {
-  if (!game.retroDone) {
-    return { title: "Counting old XP. Hold still.", level: null, xp: null, ratio: null };
-  }
   return {
     title: game.title,
-    level: game.level,
-    xp: `${formatInt(game.xpIntoLevel)} / ${formatInt(game.xpForLevel)} XP`,
-    ratio: clamp01(game.progress),
+    meta: game.retroDone
+      ? `Level ${game.level}, ${formatInt(game.xpIntoLevel)} of ${formatInt(game.xpForLevel)} XP`
+      : "Counting old XP. Hold still.",
   };
 }
 
@@ -225,8 +181,8 @@ export type NoteModel =
   /** Update line: `action` is the text link after the sentence, if any. */
   | { kind: "update"; segments: NoteSegment[]; action: string | null };
 
-/** One line, first match wins (docs/DESIGN.md, "Note line"). */
-export function buildNote(snap: DashboardSnapshot, update: UpdateStatus): NoteModel {
+/** One line, first match wins; `null` leaves the line out (docs/DESIGN.md, "Note line"). */
+export function buildNote(snap: DashboardSnapshot, update: UpdateStatus): NoteModel | null {
   const { data } = snap;
   if (data.state === "importing") {
     return {
@@ -287,8 +243,5 @@ export function buildNote(snap: DashboardSnapshot, update: UpdateStatus): NoteMo
       action: "Try again",
     };
   }
-  return {
-    kind: "text",
-    segments: [{ text: "Limit % includes claude.ai chats. Token stats are Claude Code only." }],
-  };
+  return null;
 }

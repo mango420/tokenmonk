@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Switch } from "../../components/Switch";
 import { TextLink } from "../../components/TextLink";
 import { TopRow } from "../../components/TopRow";
@@ -82,72 +82,49 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false, on
       <div className="scroll">
         <h1 className="title">Settings</h1>
 
-        <LimitData
-          ref={limitsRef}
-          limits={data.dashboard.limits}
-          connection={data.limitsConnection}
-          connectLimits={actions.connectLimits}
-          disconnectLimits={actions.disconnectLimits}
-        />
+        <div className="hairlist">
+          <LimitData
+            ref={limitsRef}
+            limits={data.dashboard.limits}
+            connection={data.limitsConnection}
+            connectLimits={actions.connectLimits}
+            disconnectLimits={actions.disconnectLimits}
+          />
+          <ClaudeFolderRow
+            folder={folder}
+            pickFolder={pickFolder}
+            onChange={(claudeFolder) => actions.updateSettings({ claudeFolder })}
+          />
+        </div>
 
-        <ClaudeFolderRow
-          folder={folder}
-          pickFolder={pickFolder}
-          onChange={(claudeFolder) => actions.updateSettings({ claudeFolder })}
-        />
-
-        <div className="switch-list">
-          <div className="switch-row">
-            <span>Start at login</span>
-            <Switch
-              label="Start at login"
-              checked={shown.autostart}
-              onChange={(autostart) => void change({ autostart })}
-            />
-          </div>
-          <div className="switch-row">
-            <span>Check for updates automatically</span>
-            <Switch
-              label="Check for updates automatically"
-              checked={shown.updateCheck}
-              onChange={(updateCheck) => void change({ updateCheck })}
-            />
-          </div>
-          <div className="switch-row">
-            <span className="switch-row__text">
-              <span>10% Limits notification</span>
-              <span className="caption">Once per window, when 10% is left.</span>
-            </span>
-            <Switch
-              label="10% Limits notification"
-              checked={shown.notifyLimits}
-              onChange={(notifyLimits) => void change({ notifyLimits })}
-            />
-          </div>
-          <div className="switch-row">
-            <span>Level-up notifications</span>
-            <Switch
-              label="Level-up notifications"
-              checked={shown.notifyLevelUps}
-              onChange={(notifyLevelUps) => void change({ notifyLevelUps })}
-            />
-          </div>
-          <div className="switch-row">
-            <span>Sound</span>
-            <Switch label="Sound" checked={shown.sound} onChange={(sound) => void change({ sound })} />
-          </div>
-          <div className="switch-row">
-            <span className="switch-row__text">
-              <span>Keep popup open</span>
-              <span className="caption">Stays put until the tray icon or Close.</span>
-            </span>
-            <Switch
-              label="Keep popup open"
-              checked={shown.keepOpen}
-              onChange={(keepOpen) => void change({ keepOpen })}
-            />
-          </div>
-          <div className="switch-end" />
+        <div className="hairlist hairlist--gap">
+          <SwitchRow label="Start at login" checked={shown.autostart} onChange={(autostart) => void change({ autostart })} />
+          <SwitchRow
+            label="Check for updates"
+            checked={shown.updateCheck}
+            onChange={(updateCheck) => void change({ updateCheck })}
+          />
+          <SwitchRow
+            label="Keep popup open"
+            checked={shown.keepOpen}
+            onChange={(keepOpen) => void change({ keepOpen })}
+          />
+          <SwitchRow
+            label="Warn at 10 % left"
+            text={
+              <>
+                Warn at <span className="live-number">10 %</span> left
+              </>
+            }
+            checked={shown.notifyLimits}
+            onChange={(notifyLimits) => void change({ notifyLimits })}
+          />
+          <SwitchRow
+            label="Level-up notifications"
+            checked={shown.notifyLevelUps}
+            onChange={(notifyLevelUps) => void change({ notifyLevelUps })}
+          />
+          <SwitchRow label="Sound" checked={shown.sound} onChange={(sound) => void change({ sound })} />
         </div>
         {failed ? (
           <p className="note note--error" role="alert">
@@ -155,13 +132,10 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false, on
           </p>
         ) : null}
 
-        <div className="bottom-group">
-          <UpdateRow
-            status={data.update}
-            onCheck={actions.checkForUpdates}
-            onInstall={actions.installUpdate}
-          />
-          <p className="note">
+        <div className="spacer spacer--min" />
+        <UpdateRow status={data.update} onCheck={actions.checkForUpdates} onInstall={actions.installUpdate} />
+        <p className="note footer">
+          <span>
             {version === "" ? (
               "Tokenmonk, MIT."
             ) : (
@@ -169,14 +143,29 @@ export function SettingsView({ data, actions, onBack, scrollToLimits = false, on
                 Tokenmonk <span className="live-number">{version}</span>, MIT.
               </>
             )}
-            <span className="note__action note__action--wide">
-              <TextLink small onClick={onOpenAbout}>
-                About
-              </TextLink>
-            </span>
-          </p>
-        </div>
+          </span>
+          <TextLink small onClick={onOpenAbout}>
+            About
+          </TextLink>
+        </p>
       </div>
+    </div>
+  );
+}
+
+interface SwitchRowProps {
+  label: string;
+  /** Visible text when it carries a mono run; the label stays the accessible name. */
+  text?: ReactNode;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+}
+
+function SwitchRow({ label, text, checked, onChange }: SwitchRowProps) {
+  return (
+    <div className="row row--switch">
+      <span>{text ?? label}</span>
+      <Switch label={label} checked={checked} onChange={onChange} />
     </div>
   );
 }
