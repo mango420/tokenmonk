@@ -582,13 +582,14 @@ version note at the bottom.
 
 1. Top row: "Back".
 2. Title "Settings" (title style, margin 16 0 6).
-3. **Limits** (margin top 18; label, status, link and captions stacked
+3. **Limits** (margin top 18; label, status, links and captions stacked
    with gap 12). Label "Limits" (`ink-2`). Then the status (weight 500)
    and its text links (note link style) below it, by
    `LimitsConnection.state`. Every state has one link except `outdated`,
-   which has two, in the order listed:
+   which has two, in the order listed. The links sit in one line (the
+   `.limit-data__actions` row):
 
-   | State | Status | Link |
+   | State | Status | Links |
    |---|---|---|
    | `notConnected` | "Not connected." | "Connect limits" (`connect_limits`) |
    | `connected`, `limits.status` not `unavailable` and `fetchedAt` set | "Connected. Last reading 14:05." (`fetchedAt`, local 24 h time, mono `tabular-nums`) | "Disconnect" (`disconnect_limits`) |
@@ -599,7 +600,7 @@ version note at the bottom.
    | `blocked`, `problem = settingsInvalid` | "Can’t connect: settings.json isn’t valid JSON. Fix it, then try again." | "Try again" |
    | `blocked`, `problem` null | "Can’t connect right now." | "Try again" |
 
-   `LimitsConnection.detail` never shows. Captions below the link:
+   `LimitsConnection.detail` never shows. Captions below the links:
    - `notConnected` only, status line caption: "Limits come from Claude
      Code’s status line. Connect adds it to settings.json, with a
      backup." The file name is `LimitsConnection.settingsPath` (mono,
@@ -616,7 +617,7 @@ version note at the bottom.
      it did not run there was only observed once, not verified. See
      DECISIONS.md, "Popup with log-only data".)
 
-   While a call runs the link is disabled. Connect and Disconnect only
+   While a call runs the links are disabled. Connect and Disconnect only
    ever run on that click (ARCHITECTURE.md, "Connect limits"). On a
    `CommandError` the note "Couldn’t change that." (note, error style)
    appears under the section until the next try; the state itself
