@@ -133,7 +133,7 @@
 
 .game-beads__track {
   fill: none;
-  stroke: var(--line);
+  stroke: var(--bead-string);
   stroke-width: var(--gauge-track-stroke);
 }
 
@@ -141,7 +141,7 @@
   r: calc(var(--bead-radius) * 1px);
   fill: var(--accent);
   stroke: var(--ink);
-  stroke-width: var(--bead-stroke);
+  stroke-width: var(--gauge-bead-stroke);
 }
 
 .game-monk__robe {
