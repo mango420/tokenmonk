@@ -60,6 +60,18 @@ export const LimitData = forwardRef<HTMLElement, LimitDataProps>(function LimitD
         Disconnect
       </TextLink>
     );
+  } else if (connection.state === "outdated") {
+    status = "Connected, but set up for another shell. Reconnect to fix it.";
+    action = (
+      <>
+        <TextLink small onClick={() => void run(connectLimits)} disabled={busy}>
+          Reconnect
+        </TextLink>
+        <TextLink small onClick={() => void run(disconnectLimits)} disabled={busy}>
+          Disconnect
+        </TextLink>
+      </>
+    );
   } else if (connection.state === "blocked") {
     status = connection.problem === null ? "Can’t connect right now." : BLOCKED_TEXT[connection.problem];
     action = (
@@ -92,6 +104,9 @@ export const LimitData = forwardRef<HTMLElement, LimitDataProps>(function LimitD
       ) : null}
       {connection.state === "connected" && connection.previousStatusLine ? (
         <p className="caption">Your own status line runs on, output unchanged. Disconnect restores it.</p>
+      ) : null}
+      {connection.state === "outdated" && connection.previousStatusLine ? (
+        <p className="caption">Your own status line stays wrapped; Reconnect keeps it.</p>
       ) : null}
       <p className="caption">
         Needs a Pro or Max plan. Numbers show up after the first reply; the desktop app may not run the status line.
