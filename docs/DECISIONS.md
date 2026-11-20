@@ -42,7 +42,7 @@ Tauri plugins (Rust crate and matching npm package):
 | `positioner` (`tray-icon`) | Place the popup next to the tray icon |
 | `dialog` | Native folder picker for the Claude folder setting (TKM-291) |
 
-npm: `react`, `react-dom` (UI), `@tauri-apps/api` (IPC), the seven plugin packages above (without single-instance), `@fontsource/schibsted-grotesk`, `@fontsource/martian-mono` (bundled fonts, no network requests at runtime; they replace `@fontsource/fraunces`, `@fontsource/manrope` and `@fontsource/jetbrains-mono`, see "Design refresh").
+npm: `react`, `react-dom` (UI), `@tauri-apps/api` (IPC), the seven plugin packages above (without single-instance), `@fontsource/schibsted-grotesk`, `@fontsource/martian-mono` (bundled fonts, no network requests at runtime; they replace `@fontsource/fraunces`, `@fontsource/manrope` and `@fontsource/jetbrains-mono`, see "Design refresh"). TKM-288: `@fontsource/atkinson-hyperlegible-next` and `@fontsource/atkinson-hyperlegible-mono` replace those two, see "Redesign round two, row E".
 Dev: `typescript`, `vite`, `@vitejs/plugin-react`, `@types/react`, `@types/react-dom`, `@tauri-apps/cli`.
 
 `updater`, `autostart` and `single-instance` are desktop-only crates (target-gated in `Cargo.toml`), registered under `#[cfg(desktop)]`.
@@ -351,3 +351,45 @@ entry in the current form. The popup shows a short line pointing to
 Settings while limits are missing. Out of scope: automatic rewrite on
 start or on a shell change. Foreign entries are never `outdated`. Rule:
 ARCHITECTURE.md, Limits, "Bridge command".
+
+## Redesign round two, row E (2026-11-20, TKM-288)
+
+Maintainer sign-off on row E of the round-two mockups (all screens, light
+and dark). Supersedes the look of "Prayer-bead popup, dark mode and new
+monk (2026-11-11, TKM-269)" in the popup; the header look left open in
+"Product line" is settled. Details: [DESIGN.md](DESIGN.md).
+
+- Direction: calm editorial (one number per limit window, generous space,
+  one accent) with warm tactile materials (paper and wood tones, beads on a
+  string). No gradients, glow, card stacks, filler icons, emoji or
+  italics.
+- Typeface: Atkinson Hyperlegible Next (weights 400, 500, 700) for all UI
+  text and Atkinson Hyperlegible Mono (400, 500) for every number, with
+  tabular figures. Family names exactly "Atkinson Hyperlegible Next" and
+  "Atkinson Hyperlegible Mono"; no fallback to the old families. Both are
+  licensed under the SIL Open Font License 1.1 ("Copyright 2020-2024 The
+  Atkinson Hyperlegible Next Project Authors" / "... Mono Project
+  Authors"), which allows bundling with the app.
+- Bundling (maintainer OK): `@fontsource/atkinson-hyperlegible-next` and
+  `@fontsource/atkinson-hyperlegible-mono` (Latin subsets only) replace
+  `@fontsource/schibsted-grotesk` and `@fontsource/martian-mono`; no
+  runtime Google Fonts, no CDN. The package swap, lockfile and
+  `src/main.tsx` imports land in a separate orchestrator `chore` PR.
+- Accent: saffron #EE8A12 in the popup; the low limit gets a band of
+  saffron mixed into the background (18 % light, 20 % dark), nothing
+  louder.
+- Palette: light #F3EBDD background, #EADFCC header band, #241A12 text;
+  dark #1C1814, #26201B, #F3EBDD. Tokens in `src/styles/tokens.css`.
+- Popup: header band with monk mark, wordmark and Settings, then title and
+  level line; each limit window as label, reset time, a 64 px number and
+  a string of five beads (20 % each, partial fill); a closing line. The
+  20-bead ring, the level card and the week bar are gone.
+- Corner rule: monk mark plus "Tokenmonk" wordmark top left on the
+  dashboard, toast and Settings ("Back" where "Settings" sits); wordmark
+  alone where the large monk is on screen (level-up, About).
+- Unchanged: app icon, tray icon (five beads) and brand files, including
+  their saffron #E39A0B (`--tray-accent`).
+- Onboarding: the row E mockup stays on the canvas only; DESIGN.md has
+  no onboarding screen (TKM-287 removed it).
+- Rules DESIGN.md marks "derived" are accepted as written.
+- Build follows in issues per owner.
