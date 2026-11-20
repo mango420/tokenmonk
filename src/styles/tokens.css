@@ -201,7 +201,7 @@
   --popup-padding-x: var(--popup-padding);
   --popup-padding-bottom: var(--popup-padding);
   --bar-height-lg: var(--bar-height);
-  --weight-semibold: 600;
+  --weight-semibold: 700; /* 600 is not loaded; maps to bold */
   --text-hero-sm-size: 46px;
   --text-onboard-title-size: 32px; /* level-up "Level 8" until rebuilt */
   --text-onboard-title-line: 1.08;
