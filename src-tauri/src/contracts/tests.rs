@@ -106,6 +106,14 @@ fn limits_connection_shape() {
         json!("notConnected")
     );
     assert_eq!(
+        to_value(LimitsConnectionState::Outdated).unwrap(),
+        json!("outdated")
+    );
+    assert_eq!(
+        serde_json::from_value::<LimitsConnectionState>(json!("outdated")).unwrap(),
+        LimitsConnectionState::Outdated
+    );
+    assert_eq!(
         to_value(LimitsConnectionProblem::SettingsUnreadable).unwrap(),
         json!("settingsUnreadable")
     );

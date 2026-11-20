@@ -111,9 +111,15 @@ export interface LimitsView {
 /** Whether Claude Code's `statusLine` runs the Tokenmonk bridge.
  * `notConnected`: no Tokenmonk entry (or no `settings.json` yet).
  * `connected`: it runs the bridge, alone or wrapping the previous status
- * line. `blocked`: the file cannot be used, see `problem`; nothing is
- * touched. */
-export type LimitsConnectionState = "notConnected" | "connected" | "blocked";
+ * line, in the call form of the shell detected now. `outdated`: it is
+ * Tokenmonk's, but its call form does not match the shell detected now;
+ * nothing is rewritten without a click ("Reconnect" runs `connect_limits`).
+ * `blocked`: the file cannot be used, see `problem`; nothing is touched. */
+export type LimitsConnectionState =
+  | "notConnected"
+  | "connected"
+  | "outdated"
+  | "blocked";
 
 /** Why a connection is `blocked`. `noClaudeFolder`: the Claude folder is
  * unknown or missing (never created by Tokenmonk). `settingsUnreadable`:
@@ -132,7 +138,8 @@ export interface LimitsConnection {
    * only when the Claude folder is unknown. */
   settingsPath: string | null;
   /** Another status line is set up: wrapped (output unchanged) when
-   * `connected`, will be wrapped on connect when `notConnected`. Always
+   * `connected` or `outdated`, will be wrapped on connect when
+   * `notConnected`. Always
    * false while `blocked`. */
   previousStatusLine: boolean;
   /** Set exactly when `state` is `blocked`. */

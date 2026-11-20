@@ -293,11 +293,24 @@ Bridge file (camelCase, all timestamps `EpochMs`; invented values):
   forward slashes (Claude Code runs the command through Git Bash when
   installed, which drops unquoted backslashes, else through PowerShell).
   The path is wrapped in double quotes only if it contains a space.
-- It is always the POSIX shell form (macOS shell, Git Bash on Windows).
-  Without a space the unquoted form is the same in Git Bash and
-  PowerShell. With a space, PowerShell would need the call operator
-  (`& "C:/Example Dir/tokenmonk.exe" --statusline`); Rust never writes
-  that form, but "Connect limits" recognises it as Tokenmonk's.
+- `current_statusline_command` returns the POSIX shell form. "Connect
+  limits" writes the call form of the shell Claude Code would use now
+  (`limits::connect`, TKM-325):
+  - POSIX form, as returned: off Windows, and on Windows when Git Bash is
+    found (same lookup as Claude Code: `CLAUDE_CODE_GIT_BASH_PATH`, then
+    `git.exe` on `PATH`, then the usual install folders).
+  - PowerShell form on Windows without Git Bash: the call operator plus
+    the path, always in double quotes, with `$` and backtick escaped for
+    PowerShell (`& "C:/Example Dir/tokenmonk.exe" --statusline`).
+  Both forms count as Tokenmonk's.
+- Outdated: a stored Tokenmonk entry whose call form does not match the
+  shell detected now is `outdated` (in both directions: PowerShell form
+  while Git Bash is found or off Windows; POSIX form on Windows without
+  Git Bash). "PowerShell form" means the command starts with the call
+  operator `&`; every other Tokenmonk entry is the POSIX form, also an
+  unquoted one that PowerShell could run as it is. Nothing is rewritten
+  on its own (no repair on start or on a shell change); "Reconnect"
+  (`connect_limits`) rewrites the entry in the current form.
 - No command returns this string or the state of the bridge file: Settings
   shows `LimitsConnection`, the popup `DashboardSnapshot.limits`.
 
@@ -354,23 +367,28 @@ previous one back. Implementation: TKM-303 (backend-platform).
   | Not a JSON object, or `statusLine` not an object | `blocked` | `settingsInvalid` |
   | Missing file, or no `statusLine` | `notConnected` | `null` |
   | `statusLine` is not Tokenmonk's | `notConnected`, `previousStatusLine = true` | `null` |
-  | `statusLine` is Tokenmonk's | `connected` | `null` |
+  | `statusLine` is Tokenmonk's, call form matches the shell detected now | `connected` | `null` |
+  | `statusLine` is Tokenmonk's, call form does not match ("Bridge command", "Outdated") | `outdated` | `null` |
 
   "Tokenmonk's": `statusLine.type` is `"command"` and the command runs a
   Tokenmonk executable with `--statusline` as its first argument. This also
   covers entries pasted by the earlier paste-only setup, so those users
-  show as `connected` and can disconnect. For `connected`,
-  `previousStatusLine` is `true` when a stored previous entry exists.
+  show as `connected` (or `outdated`) and can disconnect. For `connected`
+  and `outdated`, `previousStatusLine` is `true` when a stored previous
+  entry exists. A `statusLine` that is not Tokenmonk's is never
+  `outdated`.
 - Connect (explicit click only; idempotent):
   1. Classify as above; `blocked` rejects with `claudeSettings`.
   2. If `statusLine` exists and is not Tokenmonk's, store it verbatim (the
      whole JSON value) in `<app data dir>/statusline-previous.json` next to
-     the bridge file. An existing record is kept when already connected.
+     the bridge file. An existing record is kept when already connected
+     or `outdated`.
   3. Copy the current file byte for byte to `settings.json.tokenmonk.bak`
      in the same folder (overwritten on each write). A missing file has no
      backup and is created.
   4. Set `statusLine.type` to `"command"` and `statusLine.command` to the
-     bridge command (as in "Bridge command"). The documented entry shape is
+     bridge command in the call form of the shell detected now (as in
+     "Bridge command"); for `outdated` this is the reconnect. The documented entry shape is
      `{ type: "command", command, padding?, refreshInterval?,
      hideVimModeIndicator? }`; every other key of a previous `statusLine`
      object, known or unknown, stays unchanged. Every other key of the
@@ -389,8 +407,11 @@ previous one back. Implementation: TKM-303 (backend-platform).
 - Shell (verified, code.claude.com/docs/en/statusline): on Windows Claude
   Code runs `statusLine.command` through Git Bash if installed, else
   through PowerShell. The bridge runs the previous command through the
-  same shell Claude Code would use, so its output stays the same.
-- Disconnect (explicit click only; idempotent): when `connected`, back up
+  same shell Claude Code would use, so its output stays the same. The
+  same detection picks the call form that connect writes and that
+  `outdated` compares against ("Bridge command").
+- Disconnect (explicit click only; idempotent): when `connected` or
+  `outdated`, back up
   as in step 3, then set `statusLine` to the stored previous entry, or
   remove the key if there is none, write atomically, and delete the
   record. When not connected, the file is not touched; a leftover record
@@ -398,7 +419,8 @@ previous one back. Implementation: TKM-303 (backend-platform).
 - `limits-connection-changed` follows every successful connect or
   disconnect, and a change of the effective Claude folder.
 - Popup line (DESIGN.md, "Product line"): `connected` and no current
-  reading: "Limits after your next reply."; `notConnected` or `blocked`:
+  reading: "Limits after your next reply."; `outdated` and no current
+  reading: "Reconnect limits in Settings."; `notConnected` or `blocked`:
   "Connect limits in Settings." `DashboardSnapshot.limits` stays
   reading-based; the UI combines both.
 

@@ -93,8 +93,14 @@ pub enum LimitsConnectionState {
     /// `settings.json` yet). Settings offers "Connect limits".
     NotConnected,
     /// `"connected"`: `statusLine` runs the bridge, alone or wrapping the
-    /// previous status line. Settings offers "Disconnect".
+    /// previous status line, in the call form of the shell detected now.
+    /// Settings offers "Disconnect".
     Connected,
+    /// `"outdated"`: `statusLine` is Tokenmonk's, but its call form does not
+    /// match the shell detected now (PowerShell form while Git Bash is
+    /// found, or POSIX form on Windows without Git Bash). Nothing is
+    /// rewritten on its own; Settings offers "Reconnect" (`connect_limits`).
+    Outdated,
     /// `"blocked"`: the file cannot be used, see `problem`. Connect and
     /// disconnect would fail; nothing is touched.
     Blocked,
@@ -125,8 +131,9 @@ pub struct LimitsConnection {
     /// Absolute path of `settings.json` in the effective Claude folder, for
     /// display. `None` only when the Claude folder is unknown.
     pub settings_path: Option<String>,
-    /// A status line other than Tokenmonk's is set up. `connected`: it is
-    /// wrapped and runs after the bridge with its output unchanged.
+    /// A status line other than Tokenmonk's is set up. `connected` or
+    /// `outdated`: it is wrapped and runs after the bridge with its output
+    /// unchanged.
     /// `notConnected`: "Connect limits" will wrap it. Always `false` while
     /// `blocked`.
     pub previous_status_line: bool,
