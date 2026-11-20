@@ -11,4 +11,4 @@ export const TOAST_SLIDE_MS = 280;
 export const TOAST_COLLAPSE_AT = 3;
 
 /** Bead gauge geometry, mirrors the gauge tokens in tokens.css (SVG units). */
-export const GAUGE = { viewBox: 280, centre: 140, radius: 112, beads: 20, startDeg: -90, stepDeg: 18 } as const;
+export const GAUGE = { viewBox: 280, centre: 140, radius: 118, beads: 5, startDeg: -90, stepDeg: 72 } as const;

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { GameState } from "../../lib/contracts";
+import { LevelBar } from "../../components/LevelBar";
 import { BeadString } from "./BeadString";
 import { fadeStyle, useFadeShown } from "./motion";
 import { levelScreenCopy, type LevelScreenModel } from "./model";
@@ -48,20 +49,19 @@ export function LevelUpScreen({ model, game, open, onClose }: LevelUpScreenProps
       aria-label={copy.display}
       style={{ ...fadeStyle(shown), pointerEvents: shown ? "auto" : "none" }}
     >
+      <span className="game-brand">Tokenmonk</span>
+      <div className="game-overlay__spacer" />
       <BeadString />
-      <h2 className="game-overlay__title">{copy.display}</h2>
-      {copy.extra !== null ? <span className="game-overlay__mono game-overlay__extra">{copy.extra}</span> : null}
-      {copy.titleLine !== null ? <span className="game-overlay__caption">{copy.titleLine}</span> : null}
-      {copy.heading !== null ? <span className="game-overlay__status">{copy.heading}</span> : null}
-      {copy.detail !== null ? (
-        <span className="game-overlay__mono game-overlay__xp">{copy.detail}</span>
-      ) : null}
-      {copy.progress !== null ? (
-        <div className="game-overlay__bar" aria-hidden="true">
-          <div className="game-overlay__bar-fill" style={{ width: `${(copy.progress * 100).toFixed(1)}%` }} />
-        </div>
-      ) : null}
-      <button ref={button} type="button" className="game-link" onClick={onClose}>
+      <h2 className="game-overlay__title">
+        <span>Level</span> <span className="game-overlay__number">{copy.level}</span>
+      </h2>
+      {copy.extra !== null ? <span className="game-overlay__extra">{copy.extra}</span> : null}
+      <span className="game-overlay__line">{copy.titleLine}</span>
+      <span className="game-overlay__body">{copy.body}</span>
+      <div className="game-overlay__spacer" />
+      {copy.meta !== null ? <span className="game-overlay__meta">{copy.meta}</span> : null}
+      {copy.progress !== null ? <LevelBar ratio={copy.progress} /> : null}
+      <button ref={button} type="button" className="game-button" onClick={onClose}>
         {copy.button}
       </button>
     </div>
