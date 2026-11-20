@@ -28,11 +28,9 @@ export function Dashboard({ data, actions, onOpenSettings, onOpenLimitSetup, onO
   };
 
   const noteLine =
-    note === null ? (
-      <p className="note" />
-    ) : (
-      <NoteLine note={note} installing={installing} onInstall={install} />
-    );
+    note === null ? null : <NoteLine note={note} installing={installing} onInstall={install} />;
+  // Both windows low and a note line: the body tightens to fit 680 px.
+  const tight = note !== null && model.windows.length === 2 && model.windows.every((w) => w.low);
   const closing = model.closing.link ? (
     <TextLink small onClick={onOpenLimitSetup}>
       {model.closing.text}
@@ -51,7 +49,7 @@ export function Dashboard({ data, actions, onOpenSettings, onOpenLimitSetup, onO
         </button>
       </div>
       {model.windows.length > 0 ? (
-        <div className="body body--dashboard">
+        <div className={tight ? "body body--dashboard body--tight" : "body body--dashboard"}>
           {model.windows.map((window) => (
             <WindowSection key={window.key} window={window} />
           ))}
