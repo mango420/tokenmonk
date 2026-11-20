@@ -190,35 +190,6 @@
   --ease-toast: cubic-bezier(0.2, 0.8, 0.2, 1);
   --motion-switch: 150ms;
   --toast-visible: 3400ms;
-
-  /*
-   * Transitional aliases: old names still read by src/styles/popup.css and
-   * src/features/game/game.css, with their pre-TKM-288 values so the
-   * current screens keep their look. Not part of the row E design; each
-   * one goes when the frontend and game build issues stop reading it.
-   */
-  --popup-padding-top: 20px; /* level-up screen top */
-  --popup-padding-x: var(--popup-padding);
-  --popup-padding-bottom: var(--popup-padding);
-  --bar-height-lg: var(--bar-height);
-  --weight-semibold: 700; /* 600 is not loaded; maps to bold */
-  --text-hero-sm-size: 46px;
-  --text-onboard-title-size: 32px; /* level-up "Level 8" until rebuilt */
-  --text-onboard-title-line: 1.08;
-  --text-onboard-title-tracking: -0.025em;
-  --text-title-tracking: -0.02em;
-  --text-status-tracking: -0.01em;
-  --text-ach-title-size: 28px;
-  --text-mono-sm-size: 12.5px;
-  --toast-line-opacity: 0.75;
-  --radius-card: 12px;
-  --card-padding: 12px;
-  --gauge-size: 240px;
-  --gauge-size-week-low: 220px;
-  --bar-week-height: 6px;
-  --accent-rule: 3px;
-  --bead-empty-scale: 0.6;
-  --mark-lg-size: 52px;
 }
 
 /* Dark theme: follows the OS unless data-theme="light" forces light */
