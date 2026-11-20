@@ -476,7 +476,10 @@ The header shows in every dashboard state. No level bar in the header.
       | 1 to 9 | "Almost gone. Make it count." |
       | exactly 0 | "Limit reached. Breathe." |
 5. Note line (derived, see "Note line"), margin top 8 after the closing
-   line (0 in the tight state, see "Low limit"). With no note the line
+   line (0 in the tight state, see "Low limit"). The closing line and
+   the note line form one closing block, a single body item: the note
+   gets no body gap of its own. The body column thus has 4 items and 3
+   gaps (window, window, spacer, closing block). With no note the line
    is not rendered at all; the spacer takes the freed height.
 
 Both windows have equal size; neither is the hero over the other. A
@@ -511,7 +514,8 @@ Height budget for that state (from the tokens):
 | Body (padding, two low bands, closing line, note line, gaps) | 588.6 | 544.6 |
 | Total | 721.6 (41.6 over 680) | 677.6 (2.4 spare) |
 
-The saving is 44 px: 3 body gaps x 12 = 36, plus the note margin 8.
+The saving is 44 px: 3 body gaps (window, window, spacer, closing
+block) x 12 = 36, plus the note margin 8.
 Everything else stays as is: band padding, hero number size, gaps in all
 other states. Nothing scrolls. With both windows low but no note line,
 the normal spacing fits and stays.
