@@ -204,7 +204,7 @@ runtime Google Fonts, no CDN, works offline. Decision and licence:
   says otherwise. No italics anywhere: not for titles, achievement names
   or emphasis. Emphasis is weight, never slant.
 
-**Loading** (for the build issue; this change adds no font files): the
+**Loading**: the
 fonts come from the npm packages `@fontsource/atkinson-hyperlegible-next`
 and `@fontsource/atkinson-hyperlegible-mono`, the same mechanism as the
 fonts they replace (`@fontsource/schibsted-grotesk`,
@@ -214,9 +214,8 @@ subsets of the weights above
 `@fontsource/atkinson-hyperlegible-mono/latin-400.css`, `-500`). Vite
 copies the woff2 files into the app bundle, so the font files live in
 `node_modules` at build time and in the built `dist/` assets at run
-time; nothing is fetched over the network. The package swap is an
-orchestrator `chore` (it touches `package.json`); the import swap is the
-frontend build issue. The OFL text ships inside each package
+time; nothing is fetched over the network. Packages and imports landed
+in TKM-346. The OFL text ships inside each package
 (`LICENSE`).
 
 | Style | Family, weight | Size / tracking / line | Use |

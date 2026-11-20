@@ -374,7 +374,7 @@ monk (2026-11-11, TKM-269)" in the popup; the header look left open in
   `@fontsource/atkinson-hyperlegible-mono` (Latin subsets only) replace
   `@fontsource/schibsted-grotesk` and `@fontsource/martian-mono`; no
   runtime Google Fonts, no CDN. The package swap, lockfile and
-  `src/main.tsx` imports land in a separate orchestrator `chore` PR.
+  `src/main.tsx` imports landed in TKM-346.
 - Accent: saffron #EE8A12 in the popup; the low limit gets a band of
   saffron mixed into the background (18 % light, 20 % dark), nothing
   louder.
