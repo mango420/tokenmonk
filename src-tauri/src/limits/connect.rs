@@ -113,6 +113,17 @@ fn command_of(entry: Option<&Value>) -> Option<&str> {
     entry?.get("command")?.as_str()
 }
 
+/// Whether a command of ours is in the PowerShell call form (`& "<exe>" ...`).
+fn is_powershell_form(command: &str) -> bool {
+    command.trim_start().starts_with('&')
+}
+
+/// Whether our entry's call form is the one Connect would write for the shell
+/// detected now (`posix`: POSIX shell, else PowerShell).
+fn form_matches(entry: &Value, posix: bool) -> bool {
+    command_of(Some(entry)).is_some_and(|c| is_powershell_form(c) != posix)
+}
+
 fn entry_is_ours(entry: &Value) -> bool {
     entry.get("type").and_then(Value::as_str) == Some("command")
         && command_of(Some(entry)).is_some_and(is_ours)
@@ -198,7 +209,12 @@ fn remove_previous(data_dir: &Path) -> io::Result<()> {
     }
 }
 
-fn describe(path: Option<PathBuf>, loaded: &Loaded, data_dir: &Path) -> LimitsConnection {
+fn describe(
+    path: Option<PathBuf>,
+    loaded: &Loaded,
+    data_dir: &Path,
+    posix: bool,
+) -> LimitsConnection {
     let settings_path = path.map(|p| p.to_string_lossy().into_owned());
     let (state, previous, problem, detail) = match loaded {
         Loaded::Blocked(p, d) => (
@@ -210,7 +226,11 @@ fn describe(path: Option<PathBuf>, loaded: &Loaded, data_dir: &Path) -> LimitsCo
         Loaded::Missing => (LimitsConnectionState::NotConnected, false, None, None),
         Loaded::Ok(m) => match m.get(KEY) {
             Some(e) if entry_is_ours(e) => (
-                LimitsConnectionState::Connected,
+                if form_matches(e, posix) {
+                    LimitsConnectionState::Connected
+                } else {
+                    LimitsConnectionState::Outdated
+                },
                 load_previous(data_dir).is_some(),
                 None,
                 None,
@@ -234,8 +254,13 @@ fn describe(path: Option<PathBuf>, loaded: &Loaded, data_dir: &Path) -> LimitsCo
 
 /// Current state, read fresh. Never fails.
 pub fn inspect(claude_dir: Option<&Path>, data_dir: &Path) -> LimitsConnection {
+    inspect_for_shell(claude_dir, data_dir, posix_shell())
+}
+
+/// [`inspect`] with the shell form given, so tests do not depend on the machine.
+fn inspect_for_shell(claude_dir: Option<&Path>, data_dir: &Path, posix: bool) -> LimitsConnection {
     let (path, loaded) = load(claude_dir);
-    describe(path, &loaded, data_dir)
+    describe(path, &loaded, data_dir, posix)
 }
 
 /// Connects limits. `command` is `<exe> --statusline`
@@ -307,7 +332,7 @@ fn connect_for_shell(
         }
         return Err(e.into());
     }
-    Ok(inspect(claude_dir, data_dir))
+    Ok(inspect_for_shell(claude_dir, data_dir, posix))
 }
 
 /// Disconnects limits: restores the previous entry or removes the key. When
@@ -589,6 +614,73 @@ mod tests {
         let c = "\"C:/Program Files/Tokenmonk/tokenmonk.exe\" --statusline";
         connect_for_shell(e.dir(), e.data.path(), c, true).unwrap();
         assert_eq!(e.settings()["statusLine"]["command"], c);
+    }
+
+    #[test]
+    fn own_entry_in_the_wrong_form_is_outdated() {
+        let c = "\"C:/Program Files/Tokenmonk/tokenmonk.exe\" --statusline";
+        // PowerShell form while a POSIX shell is detected.
+        let e = env(None);
+        connect_for_shell(e.dir(), e.data.path(), c, false).unwrap();
+        assert_eq!(
+            inspect_for_shell(e.dir(), e.data.path(), true).state,
+            LimitsConnectionState::Outdated
+        );
+        assert_eq!(
+            inspect_for_shell(e.dir(), e.data.path(), false).state,
+            LimitsConnectionState::Connected
+        );
+        // POSIX form while PowerShell is detected.
+        let e = env(None);
+        connect_for_shell(e.dir(), e.data.path(), c, true).unwrap();
+        assert_eq!(
+            inspect_for_shell(e.dir(), e.data.path(), false).state,
+            LimitsConnectionState::Outdated
+        );
+        assert_eq!(
+            inspect_for_shell(e.dir(), e.data.path(), true).state,
+            LimitsConnectionState::Connected
+        );
+    }
+
+    #[test]
+    fn connect_rewrites_an_outdated_entry_and_keeps_the_wrap() {
+        let e = env(Some(r#"{"statusLine":{"type":"command","command":"old"}}"#));
+        let c = "\"C:/Tools/tokenmonk.exe\" --statusline";
+        connect_for_shell(e.dir(), e.data.path(), c, false).unwrap();
+        let r = connect_for_shell(e.dir(), e.data.path(), c, true).unwrap();
+        assert_eq!(r.state, LimitsConnectionState::Connected);
+        assert!(r.previous_status_line);
+        assert_eq!(
+            e.settings()["statusLine"]["command"],
+            format!("{c} {PASSTHROUGH_FLAG}")
+        );
+        assert_eq!(previous_command(e.data.path()).unwrap(), "old");
+    }
+
+    #[test]
+    fn disconnect_works_in_the_outdated_state() {
+        let e = env(Some(r#"{"statusLine":{"type":"command","command":"old"}}"#));
+        let c = "\"C:/Tools/tokenmonk.exe\" --statusline";
+        connect_for_shell(e.dir(), e.data.path(), c, false).unwrap();
+        assert_eq!(
+            inspect_for_shell(e.dir(), e.data.path(), true).state,
+            LimitsConnectionState::Outdated
+        );
+        disconnect(e.dir(), e.data.path()).unwrap();
+        assert_eq!(e.settings()["statusLine"]["command"], "old");
+    }
+
+    #[test]
+    fn foreign_entry_is_not_outdated() {
+        let e = env(Some(
+            r#"{"statusLine":{"type":"command","command":"& echo hi"}}"#,
+        ));
+        for posix in [true, false] {
+            let s = inspect_for_shell(e.dir(), e.data.path(), posix);
+            assert_eq!(s.state, LimitsConnectionState::NotConnected);
+            assert!(s.previous_status_line);
+        }
     }
 
     #[test]
