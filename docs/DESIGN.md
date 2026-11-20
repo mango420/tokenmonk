@@ -476,7 +476,11 @@ The header shows in every dashboard state. No level bar in the header.
       | 1 to 9 | "Almost gone. Make it count." |
       | exactly 0 | "Limit reached. Breathe." |
 5. Note line (derived, see "Note line"), margin top 8 after the closing
-   line.
+   line (0 in the tight state, see "Low limit"). The closing line and
+   the note line form one closing block, a single body item: the note
+   gets no body gap of its own. The body column thus has 4 items and 3
+   gaps (window, window, spacer, closing block). With no note the line
+   is not rendered at all; the spacer takes the freed height.
 
 Both windows have equal size; neither is the hero over the other. A
 window section shows while its value is set; with only one set, the
@@ -494,6 +498,27 @@ derived: the closing line says "Limit reached. Breathe."), and the meta
 and "left" take `ink` instead of `ink-2`. Beads and numbers as usual.
 Nothing else changes: no red, no icon, no motion. Both windows can be in
 the band at once (derived).
+
+**Tight state.** When both windows are in the low band and a note line
+shows, the body does not fit 680 px with the normal spacing. Only in
+that state the dashboard tightens:
+
+- Body gap 28 (`--popup-gap`) becomes 16 (`--space-4`).
+- The note line's margin top 8 becomes 0.
+
+Height budget for that state (from the tokens):
+
+| Part | Normal | Tight |
+|---|---|---|
+| Header band | 133 | 133 |
+| Body (padding, two low bands, closing line, note line, gaps) | 588.6 | 544.6 |
+| Total | 721.6 (41.6 over 680) | 677.6 (2.4 spare) |
+
+The saving is 44 px: 3 body gaps (window, window, spacer, closing
+block) x 12 = 36, plus the note margin 8.
+Everything else stays as is: band padding, hero number size, gaps in all
+other states. Nothing scrolls. With both windows low but no note line,
+the normal spacing fits and stays.
 
 ### Dashboard without limits
 
@@ -537,7 +562,9 @@ All numbers and copy in examples are samples; real values come from
 Not in the row E mockups; kept from the earlier design so status and
 update messages keep a place (derived, open point). Caption style
 (13, `ink-2`), one line, min height 18, under the closing line. First
-match wins; when nothing matches the line is left out:
+match wins; when nothing matches the line is left out: no empty
+paragraph, no reserved 18 px, no margin (the note is `null`; the spacer
+absorbs the height):
 
 | Condition | Text |
 |---|---|
