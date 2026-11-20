@@ -134,6 +134,7 @@ function weekModel(snap: DashboardSnapshot): WeekModel | null {
 
 const LIMITS_NEXT_REPLY = "Limits after your next reply.";
 const LIMITS_CONNECT = "Connect limits in Settings.";
+const LIMITS_RECONNECT = "Reconnect limits in Settings.";
 
 /** No limits: tokens today is the full view, no warning, one calm line. */
 function tokensOnly(
@@ -142,11 +143,17 @@ function tokensOnly(
   week: WeekModel | null,
 ): DashboardModel {
   const notConnected = connection.state !== "connected";
+  const line =
+    connection.state === "connected"
+      ? LIMITS_NEXT_REPLY
+      : connection.state === "outdated"
+        ? LIMITS_RECONNECT
+        : LIMITS_CONNECT;
   return {
     gauge: tokensGauge(
       snap,
       "Your Claude Code tokens, today",
-      notConnected ? LIMITS_CONNECT : LIMITS_NEXT_REPLY,
+      line,
       notConnected,
     ),
     week,
