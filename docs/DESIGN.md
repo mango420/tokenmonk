@@ -584,15 +584,16 @@ version note at the bottom.
 2. Title "Settings" (title style, margin 16 0 6).
 3. **Limits** (margin top 18; label, status, link and captions stacked
    with gap 12). Label "Limits" (`ink-2`). Then the status (weight 500)
-   and one text link (note link style) below it, by
-   `LimitsConnection.state`:
+   and its text links (note link style) below it, by
+   `LimitsConnection.state`. Every state has one link except `outdated`,
+   which has two, in the order listed:
 
    | State | Status | Link |
    |---|---|---|
    | `notConnected` | "Not connected." | "Connect limits" (`connect_limits`) |
    | `connected`, `limits.status` not `unavailable` and `fetchedAt` set | "Connected. Last reading 14:05." (`fetchedAt`, local 24 h time, mono `tabular-nums`) | "Disconnect" (`disconnect_limits`) |
    | `connected`, otherwise | "Connected. Limits after your next reply." | "Disconnect" |
-   | `outdated` | "Connected, but set up for another shell. Reconnect to fix it." | "Reconnect" (`connect_limits`) |
+   | `outdated` | "Connected, but set up for another shell. Reconnect to fix it." | "Reconnect" (`connect_limits`), "Disconnect" (`disconnect_limits`) |
    | `blocked`, `problem = noClaudeFolder` | "Can’t connect: the Claude folder isn’t there. Pick it below." | "Try again" (`connect_limits`) |
    | `blocked`, `problem = settingsUnreadable` | "Can’t connect: Claude Code’s settings.json can’t be read." | "Try again" |
    | `blocked`, `problem = settingsInvalid` | "Can’t connect: settings.json isn’t valid JSON. Fix it, then try again." | "Try again" |
