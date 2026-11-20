@@ -1,66 +1,99 @@
-/*
- * Achievement toast and level-up overlay. Design values come from
- * tokens.css variables only; the fade is an inline style driven by FADE_MS.
- * Self-contained: no class from popup.css is used.
- */
-
-/* Anchored to the bottom edge; slides up from below the popup edge. */
-.game-toast-slot {
+/* Layer over the screen below: scrim fades in, toast slides up from the bottom edge. */
+.game-toast-layer {
   position: absolute;
-  left: var(--space-4);
-  right: var(--space-4);
-  bottom: var(--space-4);
+  inset: 0;
   z-index: 10;
-  transform: translateY(140%);
   pointer-events: none;
-  transition: transform var(--motion-toast) var(--ease-toast);
 }
 
-.game-toast-slot--shown {
-  transform: translateY(0);
+.game-toast-layer--shown {
   pointer-events: auto;
 }
 
+.game-toast-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  opacity: 0;
+  transition: opacity var(--motion-toast) var(--ease-toast);
+}
+
+.game-toast-layer--shown .game-toast-scrim {
+  opacity: 1;
+}
+
 .game-toast {
-  position: relative;
+  position: absolute;
+  left: var(--toast-inset);
+  right: var(--toast-inset);
+  bottom: var(--toast-inset);
   display: flex;
-  flex-direction: column;
-  width: 100%;
-  padding: var(--space-3) var(--space-4) var(--space-3) calc(var(--space-4) + var(--space-1) / 2);
+  align-items: center;
+  gap: calc(var(--space-3) + var(--space-1) / 2);
+  padding: var(--space-4) calc(var(--space-4) + var(--space-1) / 2) var(--space-4) var(--space-4);
   border: 0;
   border-radius: var(--radius-toast);
   background: var(--ink);
   color: var(--pop);
+  box-shadow: var(--shadow-toast);
   text-align: left;
   cursor: pointer;
+  transform: translateY(calc(100% + var(--toast-inset) * 2));
+  transition: transform var(--motion-toast) var(--ease-toast);
 }
 
-/* Accent bar on the left edge, inset top and bottom. */
-.game-toast::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: var(--space-2);
-  bottom: var(--space-2);
-  width: var(--accent-rule);
-  border-radius: var(--radius-bar);
-  background: var(--accent);
+.game-toast-layer--shown .game-toast {
+  transform: translateY(0);
+}
+
+.game-toast__bead {
+  flex: none;
+}
+
+.game-toast__string {
+  fill: none;
+  stroke: var(--toast-string);
+  stroke-width: var(--bead-stroke);
+}
+
+.game-toast__knot {
+  r: calc(var(--toast-bead-radius) * 1px);
+  fill: var(--accent);
+  stroke: var(--pop);
+  stroke-width: var(--bead-stroke);
+}
+
+.game-toast__text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-1) / 2);
+  min-width: 0;
 }
 
 .game-toast__title {
   font-size: var(--text-toast-title-size);
   line-height: var(--text-body-line);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-bold);
 }
 
 .game-toast__line {
-  font-size: var(--text-mono-sm-size);
+  font-size: var(--text-small-size);
   line-height: var(--text-body-line);
-  opacity: var(--toast-line-opacity);
+  color: var(--toast-ink-2);
+}
+
+.game-toast__xp {
+  flex: none;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-small-size);
+  line-height: var(--text-body-line);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .game-toast-slot {
+  .game-toast,
+  .game-toast-scrim {
     transition: none;
   }
 }
@@ -72,23 +105,35 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: var(--popup-padding-top) var(--popup-padding-x) var(--popup-padding-bottom);
+  padding: var(--space-5) var(--popup-padding) var(--popup-padding);
   background: var(--pop);
   color: var(--ink);
   text-align: center;
+}
+
+.game-overlay__spacer {
+  flex: 1;
+}
+
+/* Wordmark alone in the corner: the large monk is on screen. */
+.game-brand {
+  align-self: flex-start;
+  font-size: var(--text-brand-size);
+  line-height: var(--text-body-line);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--text-brand-tracking);
 }
 
 /* Full bead string with the monk, 200 px. */
 .game-beads {
   width: var(--gauge-size-lg);
   height: var(--gauge-size-lg);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-6);
 }
 
 .game-beads__track {
   fill: none;
-  stroke: var(--line);
+  stroke: var(--bead-string);
   stroke-width: var(--gauge-track-stroke);
 }
 
@@ -96,7 +141,7 @@
   r: calc(var(--bead-radius) * 1px);
   fill: var(--accent);
   stroke: var(--ink);
-  stroke-width: var(--bead-stroke);
+  stroke-width: var(--gauge-bead-stroke);
 }
 
 .game-monk__robe {
@@ -121,83 +166,68 @@
 
 .game-overlay__title {
   margin: 0;
-  font-size: var(--text-onboard-title-size);
-  line-height: var(--text-onboard-title-line);
-  letter-spacing: var(--text-onboard-title-tracking);
-  font-weight: var(--weight-medium);
+  font-size: var(--text-levelup-title-size);
+  line-height: var(--text-display-line);
+  font-weight: var(--weight-bold);
 }
 
-.game-overlay__mono {
+.game-overlay__number {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: var(--text-mono-sm-size);
-  line-height: var(--text-body-line);
-  font-weight: var(--weight-regular);
+  font-weight: var(--weight-medium);
 }
 
 .game-overlay__extra {
   margin-top: var(--space-1);
+  font-size: var(--text-meta-size);
+  line-height: var(--text-body-line);
   color: var(--ink-2);
 }
 
-.game-overlay__status {
-  margin-top: var(--space-3);
-  font-size: var(--text-status-size);
+.game-overlay__line {
+  margin-top: var(--space-2);
+  font-size: var(--text-levelup-line-size);
   line-height: var(--text-body-line);
-  letter-spacing: var(--text-status-tracking);
   font-weight: var(--weight-medium);
 }
 
-.game-overlay__caption {
-  margin-top: var(--space-3);
-  font-size: var(--text-caption-size);
+.game-overlay__body {
+  margin-top: calc(var(--space-1) / 2);
+  font-size: var(--text-body-size);
   line-height: var(--text-body-line);
   color: var(--ink-2);
 }
 
-.game-overlay__caption + .game-overlay__status {
-  margin-top: var(--space-1);
+.game-overlay__meta {
+  align-self: stretch;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-meta-size);
+  line-height: var(--text-body-line);
+  text-align: left;
 }
 
-.game-overlay__xp {
-  margin-top: var(--space-2);
+.game-overlay .level-bar {
+  align-self: stretch;
 }
 
-/* Level bar, 4 px. */
-.game-overlay__bar {
-  width: 100%;
-  height: var(--bar-height-lg);
-  margin-top: var(--space-3);
-  border-radius: var(--radius-bar);
-  background: var(--line);
-  overflow: hidden;
-}
-
-.game-overlay__bar-fill {
-  height: 100%;
-  border-radius: var(--radius-bar);
-  background: var(--accent);
-}
-
-/* Text link: ink-2, ink on hover, 6 px vertical padding (--gap-6, popup.css). */
-.game-link {
-  margin-top: var(--space-6);
-  padding: var(--gap-6) var(--space-4);
+/* Primary button: ink fill, full width. */
+.game-button {
+  align-self: stretch;
+  height: var(--button-height);
+  margin-top: var(--space-5);
+  padding: 0 var(--space-4);
   border: 0;
-  border-radius: var(--radius-focus);
-  background: none;
-  color: var(--ink-2);
+  border-radius: var(--radius-button);
+  background: var(--button-fill);
+  color: var(--button-text);
   font: inherit;
-  font-size: var(--text-caption-size);
-  line-height: var(--text-body-line);
+  font-size: var(--text-body-size);
+  font-weight: var(--weight-medium);
   cursor: pointer;
 }
 
-.game-link:hover {
-  color: var(--ink);
-}
-
-.game-link:focus-visible {
+.game-button:focus-visible {
   outline: var(--focus-ring) solid var(--accent);
   outline-offset: var(--focus-ring);
 }

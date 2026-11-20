@@ -10,7 +10,7 @@ const BEADS = Array.from({ length: GAUGE.beads }, (_, i) => {
 
 /**
  * Static full bead string with the monk inside (DESIGN.md, Level-up screen):
- * track, 20 full beads, monk in the gauge coordinates. No motion.
+ * track, 5 full beads, monk in the gauge coordinates. No motion.
  */
 export function BeadString() {
   return (

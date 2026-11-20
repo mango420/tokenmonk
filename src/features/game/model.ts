@@ -51,16 +51,10 @@ export function nextToast(queue: readonly AchievementUnlocked[]): {
 export interface ToastCopy {
   /** Toast title: the achievement name. */
   title: string;
-  /** The line under it: text, then the XP ("Coding after midnight. +50 XP"). */
-  line: string;
-}
-
-/** One sentence: the text with a closing full stop, then the XP. */
-function withXp(text: string | null, xp: number): string {
-  const amount = `+${formatInt(xp)} XP`;
-  const trimmed = text?.trim() ?? "";
-  if (trimmed === "") return amount;
-  return `${/[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`} ${amount}`;
+  /** The one line under it: the detail, else the description. */
+  line: string | null;
+  /** The XP on the right ("+50 XP"). */
+  xp: string;
 }
 
 /** `description` is the achievement's description, used when the unlock has no detail. */
@@ -68,11 +62,13 @@ export function toastCopy(item: ToastItem, description: string | null): ToastCop
   if (item.kind === "summary") {
     return {
       title: `${item.count} achievements unlocked`,
-      line: withXp(`Newest: ${item.newest.name}`, item.xp),
+      line: `Newest: ${item.newest.name}.`,
+      xp: `+${formatInt(item.xp)} XP`,
     };
   }
   const { unlock } = item;
-  return { title: unlock.name, line: withXp(unlock.detail ?? description, unlock.xp) };
+  const line = (unlock.detail ?? description)?.trim() ?? "";
+  return { title: unlock.name, line: line === "" ? null : line, xp: `+${formatInt(unlock.xp)} XP` };
 }
 
 // -------------------------------------------------------- level-up screen
@@ -82,15 +78,18 @@ export type LevelScreenModel =
   | { kind: "retro"; level: number; unlockedCount: number; xpTotal: number };
 
 export interface LevelScreenCopy {
+  /** Plain text of the title, for the accessible name. */
   display: string;
-  /** "+2 levels" under the display when several levels passed. */
+  /** The level number, set in mono next to the word "Level". */
+  level: number;
+  /** "+2 levels" under the title when several levels passed. */
   extra: string | null;
-  /** Title line: "Still a <title>." or "Now a <title>.". */
-  titleLine: string | null;
-  /** Heading line, or the retro line. */
-  heading: string | null;
-  /** Mono line. */
-  detail: string | null;
+  /** Title line: "Now a <title>.", "Still a <title>." or the retro line. */
+  titleLine: string;
+  /** Body line under it. */
+  body: string;
+  /** Meta line above the level bar (mono); `null` hides it and the bar. */
+  meta: string | null;
   /** Level bar fill 0..1; `null` hides the bar. */
   progress: number | null;
   button: string;
@@ -108,10 +107,11 @@ export function levelScreenCopy(model: LevelScreenModel, game: GameState): Level
     const noun = model.unlockedCount === 1 ? "achievement" : "achievements";
     return {
       display: `Level ${model.level}`,
+      level: model.level,
       extra: null,
-      titleLine: null,
-      heading: "Straight from your history.",
-      detail: `${model.unlockedCount} ${noun}, ${formatInt(model.xpTotal)} XP`,
+      titleLine: "Straight from your history.",
+      body: `${model.unlockedCount} ${noun}, ${formatInt(model.xpTotal)} XP`,
+      meta: null,
       progress: null,
       button: "Back to work",
     };
@@ -120,17 +120,17 @@ export function levelScreenCopy(model: LevelScreenModel, game: GameState): Level
   const gained = levelUp.level - levelUp.previousLevel;
   // The XP line comes from the state that follows the level-up; skip it if the
   // state has moved on (several level-ups queued).
-  const detail =
-    game.level === levelUp.level
-      ? `Level ${levelUp.level}, ${formatInt(game.xpIntoLevel)} of ${formatInt(game.xpForLevel)} XP`
-      : null;
+  const current = game.level === levelUp.level;
   return {
     display: `Level ${levelUp.level}`,
+    level: levelUp.level,
     extra: gained > 1 ? `+${gained} levels` : null,
     titleLine: `${levelUp.titleChanged ? "Now" : "Still"} ${article(levelUp.title)} ${levelUp.title}.`,
-    heading: LEVEL_UP_LINE,
-    detail,
-    progress: detail === null ? null : Math.min(1, Math.max(0, game.progress)),
+    body: LEVEL_UP_LINE,
+    meta: current
+      ? `Level ${levelUp.level}, ${formatInt(game.xpIntoLevel)} of ${formatInt(game.xpForLevel)} XP`
+      : null,
+    progress: current ? Math.min(1, Math.max(0, game.progress)) : null,
     button: "Back to work",
   };
 }
