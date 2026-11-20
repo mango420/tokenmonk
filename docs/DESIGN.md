@@ -42,11 +42,15 @@ estimate, plus one calm line.
 | Connected, limits in | Both windows: percent left and reset time |
 | Connected, no limits yet | Tokens today, "Limits after your next reply." |
 | Not connected | Tokens today, "Connect limits in Settings." |
+| Outdated, no limits | Tokens today, "Reconnect limits in Settings." |
 | Plan without `rate_limits` | As "no limits yet" until it can be told apart (open point, derived) |
 
 Not connected covers `LimitsConnection.state` `notConnected` and
 `blocked`: the gauge status "Connect limits in Settings." is a text link
-to Settings that scrolls to "Limits".
+to Settings that scrolls to "Limits". `outdated` (the own entry is in
+the call form of another shell) with a current reading shows the limits
+as usual; without one, "Reconnect limits in Settings." is the same kind
+of text link.
 
 **Limit source**: the Claude Code status line (`rate_limits`) only. No
 undocumented endpoints. "Connect limits" in Settings: after an explicit
@@ -588,6 +592,7 @@ version note at the bottom.
    | `notConnected` | "Not connected." | "Connect limits" (`connect_limits`) |
    | `connected`, `limits.status` not `unavailable` and `fetchedAt` set | "Connected. Last reading 14:05." (`fetchedAt`, local 24 h time, mono `tabular-nums`) | "Disconnect" (`disconnect_limits`) |
    | `connected`, otherwise | "Connected. Limits after your next reply." | "Disconnect" |
+   | `outdated` | "Connected, but set up for another shell. Reconnect to fix it." | "Reconnect" (`connect_limits`) |
    | `blocked`, `problem = noClaudeFolder` | "Can’t connect: the Claude folder isn’t there. Pick it below." | "Try again" (`connect_limits`) |
    | `blocked`, `problem = settingsUnreadable` | "Can’t connect: Claude Code’s settings.json can’t be read." | "Try again" |
    | `blocked`, `problem = settingsInvalid` | "Can’t connect: settings.json isn’t valid JSON. Fix it, then try again." | "Try again" |
@@ -602,6 +607,8 @@ version note at the bottom.
      working, output unchanged."
    - `connected` with `previousStatusLine`: "Your own status line runs
      on, output unchanged. Disconnect restores it."
+   - `outdated` with `previousStatusLine`: "Your own status line stays
+     wrapped; Reconnect keeps it."
    - Always, plan note: "Needs a Pro or Max plan. Numbers show up after
      the first reply; the desktop app may not run the status line."
      (Hedged on purpose: the docs say nothing about the desktop app; that

@@ -75,7 +75,7 @@ CSP is strict: `default-src 'self'`, images and fonts from `self` and `data:`, i
 - `rate_limits.seven_day` maps to the contract's `weekly`; `used_percentage` to `utilization`; `resets_at` x 1000 to `resetsAt`.
 - Contract changes: new command `get_limit_setup` returning `LimitSetup { statuslineCommand }` (the UI cannot learn the executable path otherwise). No new `LimitReason`: `noSource` now means "not set up" (bridge file missing or no current window), which keeps existing exhaustive UI maps valid.
 - Expired windows (`resetsAt <= now`) are dropped both by the file source and by the aggregate on the stored last good reading; no window left means `unavailable` / `noSource`.
-- Windows paths with a space: `statuslineCommand` stays the Git Bash form; the UI adds a PowerShell alternative `& <command>` (no contract change).
+- Windows paths with a space: `statuslineCommand` stays the Git Bash form; the UI adds a PowerShell alternative `& <command>` (no contract change). Since TKM-325 "Connect limits" no longer writes only the POSIX form: on Windows without Git Bash it writes the PowerShell form `& "<exe>" --statusline`. An own entry in the form of the other shell reads as `outdated` (TKM-339, below).
 - `refreshInterval` is not recommended: a timer re-run resends old values and would make them look fresh.
 - Chaining an existing status line: documented as one `printf ... | <command> >/dev/null` line for Bash scripts; a built-in chain flag is out of scope for v0.1.
 - `limit_snapshots` stores a reading only when its `fetchedAt` is strictly newer than the newest stored row (one `INSERT ... SELECT ... WHERE` statement). An equal or older `fetchedAt` is a repeat poll of the same bridge file and adds no row, also when a window was dropped since (#36).
@@ -337,3 +337,17 @@ once, on the very first start, tracked by the `app_state` flag
 `first_start_done`, which is written only after the popup has shown
 (TKM-329). Installs that existed before get the flag silently, so they do
 not see the popup again.
+
+## Outdated statusLine form (2026-11-20, TKM-339)
+
+Maintainer decision (#328). A stored Tokenmonk `statusLine` entry whose
+call form does not match the shell detected now is `outdated`, a new
+`LimitsConnectionState`: the PowerShell form (`& "<exe>" ...`) while Git
+Bash is found or off Windows, or the POSIX form on Windows without Git
+Bash. `connected` now means the form matches. No silent repair: nothing
+is written to Claude Code settings without a click; Settings shows the
+state with "Reconnect", which runs `connect_limits` and rewrites the own
+entry in the current form. The popup shows a short line pointing to
+Settings while limits are missing. Out of scope: automatic rewrite on
+start or on a shell change. Foreign entries are never `outdated`. Rule:
+ARCHITECTURE.md, Limits, "Bridge command".
