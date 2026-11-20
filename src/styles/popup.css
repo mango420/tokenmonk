@@ -128,6 +128,11 @@ html[data-maximized] .popup {
   gap: var(--popup-gap);
 }
 
+/* Both windows low plus a note line: 3 gaps x 12 and the note margin give the 44 px that fit 680. */
+.body--tight {
+  gap: var(--space-4);
+}
+
 /* Scrolls when taller than the popup; the top row stays. Full popup width so
    the scrollbar sits at the popup's edge. */
 .scroll {
@@ -478,6 +483,10 @@ html[data-maximized] .popup {
 
 .closing .note {
   margin-top: var(--space-2);
+}
+
+.body--tight .closing .note {
+  margin-top: 0;
 }
 
 .body--empty {
