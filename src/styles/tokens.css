@@ -8,10 +8,11 @@
  *
  * Saffron is the only accent; --accent always points to it.
  *
- * Fonts are bundled from the @fontsource packages (Schibsted Grotesk,
- * Martian Mono); this file only defines the family stacks.
+ * Fonts are bundled from the @fontsource packages (Atkinson Hyperlegible
+ * Next, Atkinson Hyperlegible Mono); this file only defines the family
+ * stacks. See docs/DESIGN.md, "Typography".
  *
- * Unitless values (gauge, bead, monk) are SVG user units inside the gauge
+ * Unitless values (gauge, bead, monk) are SVG user units inside their
  * viewBox, not CSS pixels.
  */
 
@@ -19,34 +20,57 @@
   color-scheme: light;
 
   /* Colour: light theme (default when the OS is light) */
-  --page: #cbcac4;
-  --pop: #e4e3dd;
-  --ink: #181a1b;
-  --ink-2: #5a5e5c;
-  --line: #bab9b1;
+  --page: #cbcac4; /* backdrop outside the popup, previews only */
+  --pop: #f3ebdd; /* popup background */
+  --surface: #eadfcc; /* header band on the dashboard and About */
+  --ink: #241a12;
+  --ink-2: #5c4f42;
+  --line: #dccfba; /* rules and hairlines */
+  --window-ring: #d6c8b2; /* 1 px ring around the popup */
 
   /* Accent: saffron, the same in both themes */
-  --saffron: #e39a0b;
+  --saffron: #ee8a12;
 
   /* Accent used for fills and rules */
   --accent: var(--saffron);
 
+  /* Low band: the limit window that runs out (accent mixed into --pop) */
+  --low-band: color-mix(in srgb, var(--accent) 18%, var(--pop));
+
   /* Monk figure */
-  --monk-face: #f4f3ef;
+  --monk-face: #fbf6ee;
   --monk-line: var(--ink); /* sash, hands, eyes, mouth */
   --monk-head-stroke: var(--ink); /* head outline; none in dark */
+  --monk-ground: #e2d5bf; /* ground shadow under the large monk on --pop */
 
   /* Beads */
-  --bead-empty-stroke: #8a8d88;
-  --bead-empty-fill: var(--pop);
+  --bead-string: #8c7a66; /* string line, gauge ring, empty bead outline */
+  --bead-empty-stroke: var(--bead-string);
+  --bead-empty-fill: #fbf6ee;
 
-  /* Stale limit values: beads and week bar are --accent at this opacity */
+  /* Stale limit values: bead fills are --accent at this opacity */
   --stale-opacity: 0.45;
 
-  /* Popup shadow: hairline ring in --line plus a soft drop */
-  --shadow-popup: 0 0 0 1px var(--line), 0 28px 60px -24px rgba(0, 0, 0, 0.4);
+  /* Primary button */
+  --button-fill: var(--ink);
+  --button-text: var(--pop);
 
-  /* Tray icon (rendered in Rust; mirrored here for docs and previews) */
+  /* Switch */
+  --switch-knob-on: #fbf6ee;
+  --switch-knob-off: #fbf6ee;
+
+  /* Achievement toast: inverted (--ink background, --pop text) */
+  --toast-ink-2: #cdbfae; /* the line under the name */
+  --toast-string: #8c7a66; /* same in both themes */
+  --scrim: rgba(36, 26, 18, 0.45); /* dims the popup behind the toast */
+  --shadow-toast: 0 18px 36px -18px rgba(0, 0, 0, 0.6);
+
+  /* Popup shadow: 1 px ring plus a soft drop */
+  --shadow-popup: 0 0 0 1px var(--window-ring), 0 24px 48px -28px rgba(60, 40, 20, 0.4);
+
+  /* Tray icon (rendered in Rust; mirrored here for docs and previews).
+     Unchanged by TKM-288: the tray keeps the earlier saffron. */
+  --tray-accent: #e39a0b;
   --tray-track: #8a8d8b; /* monk head and empty beads */
   --tray-bead-empty-opacity: 0.35;
   --tray-bead-empty-opacity-template: 0.3; /* macOS black template */
@@ -54,44 +78,43 @@
   --tray-monk-nodata-opacity: 0.45; /* whole monk without limit data */
 
   /* Type families */
-  --font-sans: "Schibsted Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "Martian Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  --font-sans: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Atkinson Hyperlegible Mono", ui-monospace, "SF Mono", Consolas, monospace;
 
   /* Weights */
-  --weight-light: 300;
   --weight-regular: 400;
   --weight-medium: 500;
-  --weight-semibold: 600;
+  --weight-bold: 700;
 
-  /* Type scale: size, line height, letter spacing */
-  --text-body-size: 14px;
+  /* Type scale: size, line height, letter spacing. One line height (1.4)
+     unless a style says otherwise. No italics anywhere. */
+  --text-body-size: 16px;
   --text-body-line: 1.4;
-  --text-hero-size: 52px; /* mono 500, percent left under the gauge */
-  --text-hero-sm-size: 46px; /* mono 500, tokens today without limit data */
-  --text-hero-line: 1;
-  --text-hero-tracking: -2px;
-  --text-hero-label-size: 18px; /* sans 500, "of your limit left" */
-  --text-onboard-title-size: 32px;
-  --text-onboard-title-line: 1.08;
-  --text-onboard-title-tracking: -0.025em;
-  --text-ach-title-size: 28px;
-  --text-title-size: 22px;
-  --text-title-tracking: -0.02em;
-  --text-status-size: 17px;
-  --text-status-tracking: -0.01em;
-  --text-stat-size: 26px; /* mono, version on About */
-  --text-stat-line: 1.2;
-  --text-stat-tracking: -0.03em;
-  --text-brand-size: 15px;
+  --text-hero-size: 64px; /* mono 500, percent left and tokens today */
+  --text-hero-line: 1.4;
+  --text-hero-tracking: -0.04em;
+  --text-hero-unit-size: 28px; /* mono 400, "%" and "k" inside the hero */
+  --text-hero-label-size: 16px; /* sans 400 --ink-2, "left", "tokens today" */
+  --text-levelup-title-size: 40px; /* sans 700, "Level 8" */
+  --text-display-line: 1.2; /* level-up title, About version */
+  --text-title-size: 26px; /* sans 700, "Settings", achievements title */
+  --text-rank-size: 22px; /* sans 700, title in the dashboard header */
+  --text-levelup-line-size: 20px; /* sans 500, "Now a Quiet Adept." */
+  --text-status-size: 18px; /* sans 500, closing line */
+  --text-toast-title-size: 18px; /* sans 700 */
+  --text-brand-size: 17px; /* sans 700, "Tokenmonk" wordmark */
   --text-brand-tracking: -0.01em;
-  --text-row-size: 15px; /* achievement name, About rows */
-  --text-toast-title-size: 14.5px;
-  --text-caption-size: 13px;
-  --text-mono-sm-size: 12.5px; /* level line on achievements */
-  --text-small-size: 12px;
-  --text-meta-size: 11.5px; /* mono, meta row and XP on the level card */
-  --text-note-size: 11.5px;
-  --toast-line-opacity: 0.75;
+  --text-row-size: 16px; /* settings and About rows */
+  --text-section-size: 15px; /* sans 700, "5 hours", "7 days" */
+  --text-link-size: 15px; /* text links in top rows and rows */
+  --text-small-size: 14px; /* toast line, About caption */
+  --text-caption-size: 13px; /* row sub-lines, captions */
+  --text-meta-size: 13px; /* mono, reset times, level line */
+  --text-note-size: 13px; /* footer notes */
+  --text-stat-size: 44px; /* mono 500, version on About */
+  --text-stat-line: 1.2;
+  --text-stat-tracking: -0.04em;
+  --link-underline-offset: 3px;
   --locked-opacity: 0.5;
 
   /* Spacing */
@@ -105,44 +128,59 @@
 
   /* Radius */
   --radius-popup: 18px;
-  --radius-card: 12px;
-  --radius-switch: 12px;
-  --radius-toast: 8px;
+  --radius-button: 24px;
+  --radius-toast: 14px;
+  --radius-switch: 13px;
   --radius-focus: 4px;
   --radius-bar: 2px;
 
   /* Popup layout */
   --popup-width: 360px;
   --popup-height: 680px;
-  --popup-padding: 20px; /* all four sides */
-  --popup-gap: 14px; /* column gap between dashboard blocks */
+  --popup-padding: 24px; /* sides; top and bottom per screen */
+  --popup-gap: 28px; /* gap between dashboard sections */
   --top-row-height: 32px;
-  --mark-lg-size: 52px; /* monk on About */
-  --card-padding: 12px;
-  --bar-height: 4px; /* level bar everywhere */
-  --bar-week-height: 6px; /* week bar, dashboard */
-  --accent-rule: 3px; /* selected settings row, toast edge */
+  --mark-width: 26px; /* corner monk mark */
+  --mark-height: 30px;
+  --mark-gap: 10px; /* mark to wordmark */
+  --monk-lg-size: 120px; /* dashboard without limits */
+  --button-height: 48px;
+  --bar-height: 4px; /* level bar */
   --focus-ring: 2px;
-  --switch-width: 42px;
-  --switch-height: 24px;
-  --switch-knob: 18px;
-  --switch-inset: 3px;
+  --switch-width: 44px;
+  --switch-height: 26px;
+  --switch-knob: 17px;
+  --switch-inset: 4.5px;
+  --switch-stroke: 1.5px;
 
-  /* Bead gauge: 20 beads on a circle, the monk inside */
-  --gauge-size: 240px; /* dashboard */
-  --gauge-size-week-low: 220px; /* dashboard, week runs out first (TKM-282) */
+  /* Bead string: five beads per limit window, 20 % each */
+  --bead-string-width: 312px; /* viewBox 0 0 312 48 */
+  --bead-string-height: 48px;
+  --bead-count: 5;
+  --bead-radius: 17;
+  --bead-pitch: 62.5; /* centres at x 31, 93.5, 156, 218.5, 281; y 24 */
+  --bead-stroke: 1.5; /* string line and bead outlines */
+
+  /* Bead gauge: five beads on a ring, the monk inside (level-up, About) */
   --gauge-size-lg: 200px; /* level-up screen */
+  --gauge-size-sm: 112px; /* About */
   --gauge-viewbox: 280; /* viewBox 0 0 280 280, centre 140 140 */
-  --gauge-radius: 112;
-  --gauge-track-stroke: 1.5; /* track circle in --line */
-  --bead-count: 20;
+  --gauge-radius: 118;
   --bead-start-angle: -90deg; /* bead 1 at 12 o'clock */
-  --bead-step-angle: 18deg; /* clockwise */
-  --bead-radius: 10;
-  --bead-stroke: 1.5;
-  --bead-empty-scale: 0.6;
-  --monk-stroke: 1.5; /* robe, head and line strokes */
-  --mark-sash-stroke: 3; /* single-colour mark */
+  --bead-step-angle: 72deg; /* clockwise */
+  --gauge-track-stroke: 1.5; /* level-up */
+  --gauge-bead-stroke: 2; /* level-up beads and monk */
+  --gauge-sm-track-stroke: 2.5; /* About */
+  --gauge-sm-stroke: 3; /* About beads and monk */
+
+  /* Monk strokes (viewBox units) */
+  --monk-stroke: 2; /* large monk */
+  --mark-stroke: 5; /* corner mark at 26 x 30 */
+  --mark-sash-stroke: 3; /* single-colour brand mark file */
+
+  /* Toast */
+  --toast-inset: 16px;
+  --toast-bead-radius: 10;
 
   /* Motion (all off under prefers-reduced-motion: reduce) */
   --motion-bead: 260ms; /* one bead filling or emptying */
@@ -154,13 +192,33 @@
   --toast-visible: 3400ms;
 
   /*
-   * Transitional aliases, read only by src/features/game/game.css. Removed
-   * once TKM-274 has moved to --popup-padding and --bar-height.
+   * Transitional aliases: old names still read by src/styles/popup.css and
+   * src/features/game/game.css, with their pre-TKM-288 values so the
+   * current screens keep their look. Not part of the row E design; each
+   * one goes when the frontend and game build issues stop reading it.
    */
-  --popup-padding-top: var(--popup-padding);
+  --popup-padding-top: 20px; /* level-up screen top */
   --popup-padding-x: var(--popup-padding);
   --popup-padding-bottom: var(--popup-padding);
   --bar-height-lg: var(--bar-height);
+  --weight-semibold: 700; /* 600 is not loaded; maps to bold */
+  --text-hero-sm-size: 46px;
+  --text-onboard-title-size: 32px; /* level-up "Level 8" until rebuilt */
+  --text-onboard-title-line: 1.08;
+  --text-onboard-title-tracking: -0.025em;
+  --text-title-tracking: -0.02em;
+  --text-status-tracking: -0.01em;
+  --text-ach-title-size: 28px;
+  --text-mono-sm-size: 12.5px;
+  --toast-line-opacity: 0.75;
+  --radius-card: 12px;
+  --card-padding: 12px;
+  --gauge-size: 240px;
+  --gauge-size-week-low: 220px;
+  --bar-week-height: 6px;
+  --accent-rule: 3px;
+  --bead-empty-scale: 0.6;
+  --mark-lg-size: 52px;
 }
 
 /* Dark theme: follows the OS unless data-theme="light" forces light */
@@ -168,26 +226,48 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --page: #131715;
-    --pop: #1d2220;
-    --ink: #e8e7e0;
-    --ink-2: #98a09b;
-    --line: #363e3a;
+    --pop: #1c1814;
+    --surface: #26201b;
+    --ink: #f3ebdd;
+    --ink-2: #bbae9d;
+    --line: #3a322a;
+    --window-ring: #3a322a;
+    --low-band: color-mix(in srgb, var(--accent) 20%, var(--pop));
     --monk-face: var(--ink);
     --monk-line: var(--pop);
     --monk-head-stroke: none;
-    --bead-empty-stroke: #7b847f;
+    --monk-ground: #2e2620;
+    --bead-string: #8a7a68;
+    --bead-empty-fill: #2a241e;
+    --switch-knob-on: var(--pop);
+    --switch-knob-off: var(--line);
+    --toast-ink-2: #5c4f42;
+    --scrim: rgba(0, 0, 0, 0.55);
+    --shadow-toast: 0 18px 36px -18px rgba(0, 0, 0, 0.8);
+    --shadow-popup: 0 0 0 1px var(--window-ring), 0 24px 48px -28px rgba(0, 0, 0, 0.6);
   }
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
   --page: #131715;
-  --pop: #1d2220;
-  --ink: #e8e7e0;
-  --ink-2: #98a09b;
-  --line: #363e3a;
+  --pop: #1c1814;
+  --surface: #26201b;
+  --ink: #f3ebdd;
+  --ink-2: #bbae9d;
+  --line: #3a322a;
+  --window-ring: #3a322a;
+  --low-band: color-mix(in srgb, var(--accent) 20%, var(--pop));
   --monk-face: var(--ink);
   --monk-line: var(--pop);
   --monk-head-stroke: none;
-  --bead-empty-stroke: #7b847f;
+  --monk-ground: #2e2620;
+  --bead-string: #8a7a68;
+  --bead-empty-fill: #2a241e;
+  --switch-knob-on: var(--pop);
+  --switch-knob-off: var(--line);
+  --toast-ink-2: #5c4f42;
+  --scrim: rgba(0, 0, 0, 0.55);
+  --shadow-toast: 0 18px 36px -18px rgba(0, 0, 0, 0.8);
+  --shadow-popup: 0 0 0 1px var(--window-ring), 0 24px 48px -28px rgba(0, 0, 0, 0.6);
 }

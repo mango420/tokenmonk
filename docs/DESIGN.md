@@ -9,12 +9,19 @@ variables, never literal values. Brand files are in
 for the OS, the figure inside the popup and the centre of the tray icon
 (see "Icon system").
 
-Source: the prayer-bead redesign (TKM-269, with TKM-270 dark mode and
-TKM-271 monk), signed off by the maintainer, on top of the earlier popup
-prototype for the screens it did not change. Where an older rule and the
-redesign disagree, the redesign wins. States neither shows are derived
-below from their components and tokens; such rules and copy are marked
-"derived".
+Source: redesign round two, row E (TKM-288), signed off by the maintainer
+on the round-two mockups for every screen in light and dark: dashboard
+with limits, low limit, no limits yet, level-up, achievement toast,
+Settings, About (the onboarding mockup stays on the canvas only; there is
+no onboarding screen, see "Product line"). It replaces the prayer-bead
+round (TKM-269) everywhere except the tray icon and the app icon, which
+stay as they are.
+Rules and copy the mockups do not show are derived from the shown parts
+and the earlier rules; they are marked "derived" and listed under "Not
+covered by the design / out of scope". Where an older rule and row E
+disagree, row E wins. Decision log:
+[DECISIONS.md](DECISIONS.md), "Redesign round two, row E (2026-11-20,
+TKM-288)".
 
 ## Product line
 
@@ -26,8 +33,8 @@ log: [DECISIONS.md](DECISIONS.md), "Product line (2026-11-16, TKM-287)".
 
 **Popup, top to bottom**:
 
-1. Header with level and title, always visible. Look and space: mockup
-   in TKM-288.
+1. Header with level and title, always visible (look: "Dashboard",
+   TKM-288).
 2. Both limit windows, 5-hour and 7-day, at equal size: percent left plus
    reset time.
 
@@ -136,118 +143,159 @@ text.
 Light and dark both ship. The theme follows the OS
 (`prefers-color-scheme`) live, without a restart and without a toggle in
 the app; `data-theme="light"` or `"dark"` on `<html>` forces one (tests
-and previews only).
+and previews only). Warm paper and dark wood, one saffron accent.
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `page` | #CBCAC4 | #131715 | Backdrop outside the popup card |
-| `pop` | #E4E3DD | #1D2220 | Popup background; toast text; switch knob; empty bead fill |
-| `ink` | #181A1B | #E8E7E0 | Primary text and numbers; toast background; full bead and robe outline |
-| `ink-2` | #5A5E5C | #98A09B | Labels, captions, units, links, secondary numbers |
-| `line` | #BAB9B1 | #363E3A | Hairlines, card outline, gauge track, bar and switch tracks, popup outline |
-| `saffron` | #E39A0B | #E39A0B | The only accent, brand |
-| `monk-face` | #F4F3EF | = `ink` | Monk head fill |
+| `page` | #CBCAC4 | #131715 | Backdrop outside the popup (previews only) |
+| `pop` | #F3EBDD | #1C1814 | Popup background; text on the toast and the primary button |
+| `surface` | #EADFCC | #26201B | Header band (dashboard, About); switch track when off |
+| `ink` | #241A12 | #F3EBDD | Text and numbers; toast and primary button background; bead and robe outline |
+| `ink-2` | #5C4F42 | #BBAE9D | Labels, meta, units, captions, text links |
+| `line` | #DCCFBA | #3A322A | Rules and hairlines, level bar track, ground shadow on `surface` |
+| `window-ring` | #D6C8B2 | #3A322A | 1 px ring around the popup |
+| `saffron` | #EE8A12 | #EE8A12 | The only accent, brand |
+| `low-band` | `saffron` 18 % in `pop` | `saffron` 20 % in `pop` | Band behind the limit window that runs out (`color-mix(in srgb, ...)`) |
+| `bead-string` | #8C7A66 | #8A7A68 | Bead string line, gauge ring, empty bead outline, switch outline when off |
+| `bead-empty-fill` | #FBF6EE | #2A241E | Empty bead and the empty part of a partial bead |
+| `monk-face` | #FBF6EE | = `ink` | Monk head fill |
 | `monk-line` | = `ink` | = `pop` | Sash, hands, eyes and mouth strokes |
 | `monk-head-stroke` | = `ink` | none | Head outline |
-| `bead-empty-stroke` | #8A8D88 | #7B847F | Empty bead outline |
-| `bead-empty-fill` | = `pop` | = `pop` | Empty bead fill |
+| `monk-ground` | #E2D5BF | #2E2620 | Ground shadow under the large monk on `pop` |
+| `switch-knob-on` | #FBF6EE | = `pop` | Switch knob, on |
+| `switch-knob-off` | #FBF6EE | = `line` | Switch knob, off |
+| `toast-ink-2` | #CDBFAE | #5C4F42 | Line under the name on the toast |
+| `toast-string` | #8C7A66 | #8C7A66 | String through the toast bead |
+| `scrim` | rgba(36,26,18,.45) | rgba(0,0,0,.55) | Dims the popup behind the toast |
 
 - `accent` is always `saffron`. Accents never carry text: they fill
-  beads, bars, the robe, switch tracks and accent rules.
-- Stale limit values: full beads and the week bar fill take `--accent` at
+  beads, the robe, the level bar, switch tracks and the low band.
+- `bead-empty-stroke` is `bead-string`; the name stays for components
+  that already read it.
+- Primary button: `button-fill` (= `ink`) with `button-text` (= `pop`),
+  so it is dark on light and light on dark.
+- Stale limit values: the accent part of every bead takes `--accent` at
   `--stale-opacity` (45 %). One opacity token, no extra colour.
-- Contrast (WCAG ratio on `pop`): `ink` 13.6 light / 13.0 dark, `ink-2`
-  5.1 / 6.0, so body text, captions and mono numbers pass AA in both
-  themes. Empty bead strokes are 2.6 / 4.2; the beads repeat the hero
-  number, they never carry information alone.
+- Contrast (WCAG ratio): `ink` on `pop` 14.4 light / 14.9 dark; `ink-2`
+  on `pop` 6.7 / 8.1 and on `surface` 6.0 / 7.4; `ink` on `low-band`
+  12.6 / 10.6; `toast-ink-2` on the toast 9.5 / 6.7. Body text, meta and
+  captions pass AA in both themes. Empty bead outlines are 3.5 on `pop`
+  (3.8 on their own `bead-empty-fill`) light / 4.3 dark; the
+  beads repeat the hero number, they never carry information alone.
 
-`shadow-popup`: a 1 px `line` outline plus `0 28px 60px -24px` black at
-40 %. No gradients, no neon glow, no purple, no danger colour: the beads
-never turn red; the copy carries the urgency.
+`shadow-popup`: a 1 px `window-ring` plus `0 24px 48px -28px`
+(light: rgba(60,40,20,.4); dark: rgba(0,0,0,.6)). `shadow-toast`:
+`0 18px 36px -18px` black at 60 % light / 80 % dark. No gradients, no
+glow, no danger colour: beads never turn red, the low band is the
+loudest signal, the copy carries the urgency.
 
 ## Typography
 
-Fonts are bundled from `@fontsource/schibsted-grotesk` (weights 400, 500,
-600, 700) and `@fontsource/martian-mono` (weights 300, 400, 500); no CDN,
-works offline. Weight 600 (`--weight-semibold`) is new with the redesign
-(brand, level card title); it ships in the same package, no new
-dependency.
+Two open-licensed families (SIL OFL 1.1), bundled with the app; no
+runtime Google Fonts, no CDN, works offline. Decision and licence:
+[DECISIONS.md](DECISIONS.md), "Redesign round two, row E".
 
-- `--font-sans` Schibsted Grotesk: all UI text. Body 14 px, line height
-  1.4, weight 400; emphasis is weight 500.
-- `--font-mono` Martian Mono: every number that is data (percent, token
-  counts, XP, durations, times) with `font-variant-numeric: tabular-nums`.
+- `--font-sans` Atkinson Hyperlegible Next, weights 400, 500, 700: all UI
+  text.
+- `--font-mono` Atkinson Hyperlegible Mono, weights 400, 500: every
+  number that is data (percent, token counts, XP, levels, durations,
+  times, versions, paths) with `font-variant-numeric: tabular-nums`.
+- Line height 1.4 everywhere (`--text-body-line`) unless a style below
+  says otherwise. No italics anywhere: not for titles, achievement names
+  or emphasis. Emphasis is weight, never slant.
 
-| Style | Family, weight | Size / tracking | Use |
+**Loading**: the
+fonts come from the npm packages `@fontsource/atkinson-hyperlegible-next`
+and `@fontsource/atkinson-hyperlegible-mono`, the same mechanism as the
+fonts they replace (`@fontsource/schibsted-grotesk`,
+`@fontsource/martian-mono`). `src/main.tsx` imports only the Latin
+subsets of the weights above
+(`@fontsource/atkinson-hyperlegible-next/latin-400.css`, `-500`, `-700`;
+`@fontsource/atkinson-hyperlegible-mono/latin-400.css`, `-500`). Vite
+copies the woff2 files into the app bundle, so the font files live in
+`node_modules` at build time and in the built `dist/` assets at run
+time; nothing is fetched over the network. Packages and imports landed
+in TKM-346. The OFL text ships inside each package
+(`LICENSE`).
+
+| Style | Family, weight | Size / tracking / line | Use |
 |---|---|---|---|
-| hero | mono 500 | 52, -2px, line 1 | Under the gauge: percent left ("73%") |
-| hero-sm | mono 500 | 46, -2px, line 1 | Under the gauge without limit data: tokens today |
-| hero-label | sans 500 | 18 | "of your limit left" / "tokens today", beside the hero on its baseline |
-| onboard-title | sans 500 | 32, -0.025em, line 1.08 | "Level 8" on the level-up screen (number mono) |
-| ach-title | sans 500 | 28, -0.02em | Title on the achievements screen |
-| title | sans 500 | 22, -0.02em | "Settings" |
-| status | sans 500 | 17, -0.01em | Status line under the hero |
-| stat | mono 400 | 26, -0.03em, line 1.2 | Version on About |
-| brand | sans 600 | 15, -0.01em | "Tokenmonk" wordmark |
-| row | sans 500 | 15 | Achievement name, About rows |
-| toast-title | sans 500 | 14.5 | Toast name |
-| caption | sans 400 | 13, `ink-2` | Gauge caption, "This week", level-up title line, descriptions, section labels |
-| card-title | sans 600 | 13 (caption size), `ink` | Level card title |
-| mono-sm | mono 400 | 12.5, `ink-2` | Level line on the achievements screen |
-| small | sans or mono 400 | 12, `ink-2` | Mode name, level-up XP line (mono), achievement state |
-| meta | mono 400 | 11.5 (`--text-meta-size`), `ink-2` | Meta row, XP on the level card, week figure |
-| note | sans 400 | 11.5, `ink-2` | Footer notes |
+| hero | mono 500 | 64, -0.04em, 1.4 | Percent left per window ("73"), tokens today ("184.2") |
+| hero-unit | mono 400 | 28, 0 | "%", "k", "M" inside the hero run |
+| hero-label | sans 400, `ink-2` | 16 | "left", "tokens today" |
+| levelup-title | sans 700 | 40, line 1.2 | "Level 8" (number mono 500) |
+| title | sans 700 | 26 | "Settings", achievements title |
+| rank | sans 700 | 22 | Title in the dashboard header ("Quiet Novice") |
+| levelup-line | sans 500 | 20 | "Now a Quiet Adept." |
+| status | sans 500 | 18 | Closing line on the dashboard |
+| toast-title | sans 700 | 18 | Achievement name on the toast |
+| brand | sans 700 | 17, -0.01em | "Tokenmonk" wordmark |
+| body / row | sans 400 | 16 | Body copy, switch rows, About rows; 700 for button text and Settings row labels |
+| section | sans 700 | 15 | Window label ("5 hours", "7 days"), "Achievements" heading |
+| link | sans 400, `ink-2` | 15 | Text links in top rows and rows |
+| small | sans 400 | 14 | Toast line, About caption |
+| meta | mono 400, `ink-2` | 13 | Reset times, "Level 7, 340 of 920 XP", step count |
+| caption / note | sans 400, `ink-2` | 13 | Row sub-lines, captions, footer notes |
+| stat | mono 500 | 44, -0.04em, line 1.2 | Version on About |
+
+**Text links**: underlined, `text-underline-offset` 3 px
+(`--link-underline-offset`), no other decoration, `ink-2`, link size 15,
+padding 4 px vertical. Inside About rows and the Settings footer they
+take `ink` and the row's size. Hover: `ink` (derived; the mockups show no
+hover).
 
 ### Number formats
 
 - Percent left: integer, `max(0, round(100 - utilization))`.
-- Bead count: `0` only at exactly 0 % left, otherwise `ceil(percent / 5)`
-  of the integer percent left (1 % is one bead, 100 % all 20).
-- Compact token values (meta row, hero-sm): below 1,000 as is; below
-  1,000,000 one decimal plus `k` ("4.2k"); above that one decimal plus `M`
-  ("1.2M").
+- Bead fill (popup, five beads per window, 20 % each): bead i (1 to 5)
+  fills `clamp((p - 20 (i - 1)) / 20, 0, 1)` of its height, p the integer
+  percent left. 73 % is three full beads, the fourth at 65 %, the fifth
+  empty; 8 % is the first bead at 40 %. The tray keeps its own rule
+  ("Tray icon").
+- Compact token values (tokens today): below 1,000 as is; below
+  1,000,000 one decimal plus `k` ("184.2k"); above that one decimal plus
+  `M` ("1.2M"). In the hero the suffix is the hero-unit run.
 - Reset durations: under 24 h "Hh Mm" ("2h 14m", "0h 41m"); from 24 h
-  "Dd Hh" ("3d 4h"). In the meta row prefixed "resets in ".
+  "Dd Hh" ("3d 4h"). Prefixed "resets in ".
 - Week reset: English short weekday of the local reset time ("resets
   Thu"); under 24 h away the duration as above ("resets in 5h 12m",
   derived).
-- Estimates carry `~` directly before the number, no space ("~84.2k");
-  the `~` uses the number's own style. Removed by TKM-287: no estimates
-  anywhere.
-- XP: full numbers with thousands commas ("1,240 / 1,880 XP").
+- XP: full numbers with thousands commas ("Level 7, 340 of 920 XP").
+- Times: local 24 h ("14:05").
 
 ## Spacing, radius, motion
 
 - Spacing: `space-1` 4, `space-2` 8, `space-3` 12, `space-4` 16, `space-5`
-  20, `space-6` 24. Every screen has `--popup-padding` 20 on all four
-  sides; dashboard blocks sit in a column with `--popup-gap` 14. Odd
-  values from the prototype (18, 22, 30) are written as named layout
-  values in this document and live in the component CSS as sums of
-  tokens or as tokens where they repeat.
-- Radius: `radius-popup` 18, `radius-card` 12, `radius-switch` 12,
-  `radius-toast` 8, `radius-focus` 4, `radius-bar` 2. Rows and choices
-  have no radius and no fill; they are separated by 1 px `line` hairlines
-  on top.
-- Card: exactly one style. 1 px `line` outline, `radius-card` 12, no fill,
-  no shadow. Only for blocks that are clickable or highlighted: the level
-  card and the week-low box on the dashboard. Nothing else is a card.
-- Bars: radius 2, track `line`, fill `--accent`. Level bar
-  `--bar-height` 4 everywhere; week bar `--bar-week-height` 6.
+  20, `space-6` 24. Screens have `--popup-padding` 24 left and right; top
+  and bottom are given per screen. Dashboard sections sit in a column
+  with `--popup-gap` 28. Other values (2, 10, 14) are named in the
+  screen sections and live in the component CSS as sums of tokens or as
+  tokens where they repeat.
+- Radius: `radius-popup` 18 (window), `radius-button` 24 (primary
+  button, 48 tall: a pill), `radius-toast` 14, `radius-switch` 13,
+  `radius-bar` 2, `radius-focus` 4.
+- No cards. Blocks are separated by space, the header band (`surface`)
+  or 1 px `line` hairlines; the only filled block in the body is the low
+  band. No uniform card stacks, no filler icons, no emoji.
+- Level bar: radius 2, track `line`, fill `--accent`, `--bar-height` 4.
+- Primary button: full width, `--button-height` 48, `radius-button` 24,
+  `button-fill` with `button-text`, body size, weight 700, no border. One
+  per screen at most (level-up).
 - Focus: `:focus-visible` outline 2 px `--accent`, offset 3, radius 4.
-- Motion, allowed and nothing else:
-  - Bead fill: the first time the dashboard renders after start, the full
-    beads fill clockwise one after another from bead 1, `--motion-bead-stagger`
-    45 ms apart, each in `--motion-bead` 260 ms, `--ease-bead`
-    `cubic-bezier(.2,.8,.2,1)`, from the empty look (scale 0.6, `pop`
-    fill) to full (scale 1, `--accent` fill).
-  - Bead lost: when a later value has fewer beads, each lost bead shrinks
-    to empty in 260 ms, same easing (scale and fill). Gained beads after
-    the first render (a fresh window) jump to full (derived).
+- Motion, allowed and nothing else (derived from the earlier rules; the
+  mockups are still):
+  - Bead fill: the first time the dashboard renders after start, the
+    beads of each window fill left to right, `--motion-bead-stagger` 45 ms
+    apart, each in `--motion-bead` 260 ms, `--ease-bead`
+    `cubic-bezier(.2,.8,.2,1)`, from empty to their value.
+  - Bead change: later values move the fill level of the affected beads
+    in 260 ms, same easing. A fresh window jumps to full.
   - Toast slide: up from below the popup edge (`translateY(140%)` to 0)
-    in 280 ms, `cubic-bezier(.2,.8,.2,1)`, and back down when it leaves.
+    in 280 ms, `cubic-bezier(.2,.8,.2,1)`, and back down when it leaves;
+    the scrim fades in and out in the same 280 ms.
   - Switch knob: slides 18 px in 150 ms.
-  - With `prefers-reduced-motion: reduce` all of them are off: the beads
-    show their final state, the toast and knob appear in place.
+  - With `prefers-reduced-motion: reduce` all of them are off: beads show
+    their final state, toast, scrim and knob appear in place.
 
 Sound: one short synthesized tone per unlock or level-up (generated in the
 UI, no audio file). It plays only when `Settings.sound` is on, once per
@@ -256,21 +304,23 @@ event, whether the popup is open or hidden.
 ## Icon system
 
 One monk everywhere: closed smiling eyes, a sash across the robe, hands
-resting at the hem. The monk is the only icon in the app.
+resting at the hem. The monk and the beads are the only drawings in the
+app; no other icons.
 
 ### The monk drawing
 
 All parts share one coordinate system: the 280 x 280 gauge viewBox
 (centre 140, 140), so the monk sits inside the bead gauge without a
-transform. Standalone files crop it with `viewBox="76 76 128 146"`.
-Strokes are `--monk-stroke` 1.5 (derived for sash, hands, eyes and mouth;
-the redesign gives 1.5 for the robe), lines with round caps.
+transform. The corner mark crops it with `viewBox="76 76 128 146"`; the
+large monk with its ground shadow uses `viewBox="60 76 160 160"`. Lines
+have round caps; the robe outline has a round join.
 
 | Part, in drawing order | Path | Fill | Stroke |
 |---|---|---|---|
-| Robe | `M82 216c2-46 26-74 58-74s56 28 58 74z` | `--accent` | `--ink` 1.5 |
+| Ground (large monk only) | ellipse cx 140, cy 220, rx 74, ry 13 | `--monk-ground` on `pop`, `line` on `surface` | none |
+| Robe | `M82 216c2-46 26-74 58-74s56 28 58 74z` | `--accent` | `--ink` |
 | Sash | `M112 152c10 22 30 40 62 46` | none | `--monk-line` |
-| Hands | `M116 216c6-10 16-14 24-14s18 4 24 14` | none | `--monk-line` (derived: drawn on the robe like the sash) |
+| Hands | `M116 216c6-10 16-14 24-14s18 4 24 14` | none | `--monk-line` |
 | Head | circle cx 140, cy 106, r 24 | `--monk-face` | `--monk-head-stroke` (light `ink`, dark none) |
 | Eyes | `M128 108c2 3 6 3 8 0M144 108c2 3 6 3 8 0` | none | `--monk-line` |
 | Mouth | `M135 118c3 2 7 2 10 0` | none | `--monk-line` |
@@ -278,193 +328,234 @@ the redesign gives 1.5 for the robe), lines with round caps.
 `--monk-line` is `ink` in light and `pop` in dark, so the sash and the
 face stay dark on the saffron robe and the light dark-theme head.
 
+Stroke widths are viewBox units, chosen so every size draws about 1 to
+1.5 px lines: corner mark `--mark-stroke` 5, large monk and level-up
+gauge `--monk-stroke` / `--gauge-bead-stroke` 2, About gauge
+`--gauge-sm-stroke` 3.
+
+### Corner rule
+
+The top-left corner names the app on every screen:
+
+- **Monk mark plus wordmark** on the dashboard (all states), the toast
+  (it sits over the dashboard) and Settings (and Achievements, derived):
+  the monk drawing at `--mark-width` 26 x `--mark-height` 30, inline SVG
+  with token colours, then "Tokenmonk" in brand style, gap 10
+  (`--mark-gap`), items centred. On sub-screens "Back" sits where
+  "Settings" sits on the dashboard.
+- **Wordmark alone** where the large monk is on screen: level-up and
+  About.
+
+The mark is drawn from the parts above, never from the app icon files; no
+tile behind it.
+
 ### Roles and files
 
 | Role | Source | Colour | Where | Size |
 |---|---|---|---|---|
 | A. App icon | `tokenmonk-icon.svg`, `tokenmonk-icon-windows.svg` | Fixed in the files: dark tile, saffron robe | Only where the OS shows the app: taskbar, dock, Start menu, installer, notifications, the generated icon set. Never inside the popup. | Platform sizes from `node scripts/icons.mjs` |
-| B. Popup monk | The parts table above, drawn inline | Tokens: follows theme | Inside the bead gauge (dashboard, level-up), About | Gauge 240 / 220 (week-low) / 200 px (same coordinates); 52 px (`--mark-lg-size`) cropped to the standalone viewBox |
-| C. Tray monk | Rendered in Rust from robe and head | Robe `--accent`, head `--tray-track` | Inside the tray beads | 11.5 x 13 units in a 32-unit box |
+| B. Popup monk | The parts table above, drawn inline | Tokens: follows theme | Corner mark; large monk on the dashboard without limits; inside the five-bead gauge on level-up and About | Mark 26 x 30; large 120 (`--monk-lg-size`); gauge 200 (`--gauge-size-lg`), About 112 (`--gauge-size-sm`) |
+| C. Tray monk | Rendered in Rust from robe and head | Robe `--tray-accent`, head `--tray-track` | Inside the tray beads | 11.5 x 13 units in a 32-unit box |
 | Brand files | `tokenmonk-monk-light.svg`, `tokenmonk-monk-dark.svg`, `tokenmonk-monk-mark.svg` | Fixed in the files | README, docs, release pages | Any |
 
-Files in `assets/brand/`, all with `viewBox="76 76 128 146"`:
+Files in `assets/brand/` (unchanged by TKM-288; they keep the earlier
+palette, like the app icon and the tray), all with
+`viewBox="76 76 128 146"`:
 
 - `tokenmonk-monk-light.svg`: colour on light. Robe #E39A0B stroked
   #181A1B; sash, hands, eyes, mouth #181A1B; head #F4F3EF stroked #181A1B.
 - `tokenmonk-monk-dark.svg`: colour on dark. Robe #E39A0B stroked #E8E7E0;
   sash, hands, eyes, mouth #1D2220; head #E8E7E0, no stroke.
 - `tokenmonk-monk-mark.svg`: single-colour mark. Robe and head #181A1B,
-  sash knocked out in pop #E4E3DD at stroke 3 (`--mark-sash-stroke`),
-  no hands and no face details.
-- `tokenmonk-mark-mono.svg`: the old monk, legacy. TKM-273 and TKM-275
-  have moved the popup and the tray to the new monk; the file is still in
-  `assets/brand/` until a cleanup removes it. Do not use it for anything
-  new.
+  sash knocked out in #E4E3DD at stroke 3 (`--mark-sash-stroke`), no
+  hands and no face details.
+- `tokenmonk-mark-mono.svg`: the old monk, legacy, until a cleanup removes
+  it. Do not use it for anything new.
 
-- **A. App icon**: the new monk on the dark ink tile. Details in "App
-  icon".
+- **A. App icon**: the monk on the dark ink tile. Details in "App icon".
 - **B. Popup monk**: the parts above with token colours, no tile and no
-  background.
+  background (the ground shadow is part of the large monk).
 - **C. Tray monk**: robe and head only; sash, hands and face are below
-  pixel size there (derived). Details in "Tray icon".
+  pixel size there. Details in "Tray icon".
 
 ## Popup layout (360 x 680)
 
 The popup is 360 x 680 px, radius 18, background `pop`, `shadow-popup`,
-overflow hidden. Each screen is a column with `--popup-padding` 20 on all
-four sides. Actions are text links (`ink-2`, hover `ink`, padding 6 px
-vertical), full-width rows or a card (one style, see "Spacing, radius,
-motion"). The only icon is the monk.
-
-Removed by TKM-287 (see "Product line"). Where the sections below still
-describe these parts, that text is design history; the app no longer has
-them:
-
-- Dashboard: the mode dot and mode name in the top row, the Do it
-  yourself status column, the budget in the meta row, and the "No limit
-  data, with a token budget"
-  state. The 5-hour gauge as the single hero gives way to both windows at
-  equal size; layout by the TKM-288 mockup.
-- Onboarding: the mode choice.
-- Settings: the "Mode" radio group; the "Limit data" paste-only setup
-  gives way to one-click connect. Sound and "Keep popup open" stay.
-- Achievements: the other-mode hint.
-- Notifications: the 90 % and 100 % warnings and the budget warning give
-  way to one warning at 10 % left per window; level-ups get
-  a system notification.
-- Level-up screen: the Do it yourself mode line.
+overflow hidden. Each screen is a column, `--popup-padding` 24 left and
+right; top and bottom per screen. Actions are text links, at most one
+primary button, or switches. The only drawings are the monk and the
+beads. Nothing on the dashboard scrolls.
 
 ### Shared parts
 
-- **Top row**: min height 32, items centred, space-between. On sub-screens
-  the top row holds only the text link "Back" (Esc does the same). The
-  dashboard version is described with its screen.
-- **Monk**: role B in "Icon system", the only figure in the popup. Inside
-  the bead gauge on the dashboard (240 px; 220 px in the week-low state)
-  and the level-up screen
-  (200 px); alone at 52 px (`--mark-lg-size`) on About. The app icon tile never appears in the popup.
-- **Bead gauge**: `--gauge-size` 240 px (level-up `--gauge-size-lg`
-  200 px; dashboard in the week-low state `--gauge-size-week-low` 220 px,
-  TKM-282), `viewBox="0 0 280 280"` (`--gauge-viewbox`), centred. Only the
-  rendered size changes; the viewBox, beads and monk keep their units.
-  - Track: circle at (140, 140), r 112 (`--gauge-radius`), stroke `line`,
-    width 1.5 (`--gauge-track-stroke`), no fill.
-  - 20 beads (`--bead-count`) on the track. Bead i (1 to 20) sits at angle
-    `-90° + (i - 1) * 18°` (`--bead-start-angle`, `--bead-step-angle`):
-    `cx = 140 + 112 cos a`, `cy = 140 + 112 sin a`. Bead 1 is at
-    12 o'clock, the rest follow clockwise.
-  - Full bead: r 10 (`--bead-radius`), fill `--accent`, stroke `--ink`
-    1.5 (`--bead-stroke`).
-  - Empty bead: the same circle scaled to 0.6 (`--bead-empty-scale`)
-    around its own centre, fill `--bead-empty-fill` (`pop`), stroke
-    `--bead-empty-stroke`. The scale is a transform, so the motion can
-    tween it (see "Spacing, radius, motion").
-  - Beads 1 to N are full, the rest empty, N from "Number formats". The
-    string drains from the end: bead 20 goes first, bead 1 last.
-  - Stale values: full bead fill at `--stale-opacity`.
-  - The monk sits inside, drawn in the same coordinates (see "Icon
-    system").
+- **Top row**: space-between, items centred, min height 32
+  (`--top-row-height`). Left: the corner (see "Icon system", "Corner
+  rule"). Right: one text link at link size, `ink-2` ("Settings" on the
+  dashboard, "Back" on sub-screens; Esc does what "Back" does). On
+  level-up the right side stays empty.
+- **Window section**: one per limit window, a column:
+  1. Label row, space-between, baseline: label in section style ("5
+     hours", "7 days") left, reset time in meta style right ("resets in
+     2h 14m", "resets Thu"; empty while the reset time is `null`).
+  2. Hero row, margin top 4, baseline, gap 10: the hero run (number in
+     hero style, `%` in hero-unit style, one mono run, `tabular-nums`),
+     then "left" (hero-label).
+  3. Bead string, margin top 8 (see below).
+- **Bead string**: inline SVG `--bead-string-width` 312 x
+  `--bead-string-height` 48, `viewBox="0 0 312 48"`, full content width.
+  - String: `M2 24H310`, stroke `--bead-string`, width 1.5
+    (`--bead-stroke`).
+  - Five beads (`--bead-count`), r 17 (`--bead-radius`), centres at
+    x 31, 93.5, 156, 218.5, 281 (`--bead-pitch` 62.5), y 24. Bead 1 is
+    on the left, each bead is 20 % of the window.
+  - Full bead: fill `--accent`, stroke `--ink` 1.5.
+  - Partial bead: base circle in `--bead-empty-fill`, then the accent
+    part as a circular segment filling the bead from the bottom to the
+    bead's fill fraction f ("Number formats"): the chord sits at
+    `y = 24 + 17 - 34 f`, path `M x1 y A 17 17 0 L 0 x2 y Z` with
+    `x1, x2 = cx -/+ sqrt(17² - (y - 24)²)` and the large-arc flag L = 1
+    when f > 0.5, else 0 (sweep 0: the arc runs through the bottom).
+    Then the outline: stroke `--ink` 1.5, no fill.
+  - Empty bead: fill `--bead-empty-fill`, stroke `--bead-empty-stroke`
+    (`bead-string`) 1.5.
+  - The string drains from the right: bead 5 goes first, bead 1 last.
+  - Stale values: the accent fills at `--stale-opacity`.
+- **Five-bead gauge** (level-up, About): inline SVG,
+  `viewBox="0 0 280 280"` (`--gauge-viewbox`), centred. Ring: circle at
+  (140, 140), r 118 (`--gauge-radius`), stroke `--bead-string`, no fill.
+  Five beads r 17 at angle `-90° + (i - 1) * 72°` (`--bead-start-angle`,
+  `--bead-step-angle`): (140, 22), (252.2, 103.5), (209.4, 235.5),
+  (70.6, 235.5), (27.8, 103.5); all full (fill `--accent`, stroke
+  `--ink`). The monk inside, same coordinates, no ground. Strokes:
+  level-up ring 1.5 (`--gauge-track-stroke`), beads and monk 2
+  (`--gauge-bead-stroke`); About ring 2.5 (`--gauge-sm-track-stroke`),
+  beads and monk 3 (`--gauge-sm-stroke`). The tray icon uses the same
+  five-bead idea at its own geometry ("Tray icon").
 - **Level bar**: track `line`, fill `--accent`, radius 2, height 4
-  (`--bar-height`) everywhere, width = `GameState.progress`.
-- **Week bar**: as the level bar, height 6 (`--bar-week-height`), width =
-  weekly percent left.
-- **Hairline row**: full width, 1 px `line` on top, no fill.
-- **Note**: note style, min height 16.
+  (`--bar-height`), full content width, width = `GameState.progress`.
+- **Hairline list**: rows full width with a 1 px `line` rule on top; the
+  last row also has one at the bottom. No fill, no radius.
+- **Primary button**: see "Spacing, radius, motion".
 
 ### Dashboard
 
-A column with gap 14 (`--popup-gap`) between the blocks below; spacing
-inside a block is given per block. Top to bottom:
+`View = dashboard`. Two parts: the header band and the body.
 
-1. **Top row**: three items, space-between (derived): the brand
-   "Tokenmonk" (brand style, text only, no mark); the mode dot and the
-   mode name ("Max it out" or "Do it yourself", small style); the text
-   link "Settings".
-2. **Caption** (caption style, centred): "Your Claude Code limit, this
-   5-hour window". Other states in "Dashboard states".
-3. **Gauge**: the bead gauge with the monk inside (see "Shared parts").
-   The 20 beads show the 5-hour window only, never the week.
-4. **Hero and status** (one block, centred):
-   - Hero row, items on a shared baseline, gap 8 (derived): hero "73%"
-     (number and `%` in one mono run, hero style, `tabular-nums`) and
-     hero-label "of your limit left". Percent left as in "Number
-     formats". Stale: hero in `ink-2`.
-   - Status line (status style, margin top 4, derived), first match:
-     1. Week runs out first (see block 6): "The week runs out first."
-     2. Otherwise by 5-hour percent left and mode:
+**Header** (background `surface`, padding 16 24 20, column, gap 14):
 
-        | Percent left | Max it out | Do it yourself |
-        |---|---|---|
-        | 60 and more | "Barely touched. Use it." | "Light day. Nicely done." |
-        | 30 to 59 | "Good pace." | "Mid-range. Breathe." |
-        | 10 to 29 | "Nearly there. As planned." | "Getting thin. Slow down." |
-        | 1 to 9 | "Almost gone. Make it count." | "Nearly out. Go for a walk." |
-        | exactly 0 | "Limit reached. Breathe." | "All out. Good time for a walk." |
+1. Top row: monk mark plus wordmark left, the text link "Settings"
+   right.
+2. Rank block (column, gap 2): `GameState.title` in rank style ("Quiet
+   Novice"), then "Level 7, 340 of 920 XP" in meta style (`level`,
+   `xpIntoLevel`, `xpForLevel`). History replay
+   (`GameState.retroDone = false`): the meta line reads "Counting old XP.
+   Hold still." (derived). The rank block is the button that opens
+   Achievements (derived: the level card that did this is gone); no
+   underline, focus ring as everywhere.
 
-     A fresh window and a reached limit both show all beads empty; the
-     hero and the status line tell them apart ("Dashboard states").
-5. **Meta row** (meta style: mono 11.5, `ink-2`, `tabular-nums`; 1 px
-   `line` on top, padding top 12, space-between, one line):
-   - Left: "resets in 2h 14m" from `fiveHour.resetsAt`; empty when it is
-     `null`.
-   - Right: "1.2k tokens/min" (`burnRate.tokensPerMinute`, compact). In
-     Do it yourself with a `dailyBudget` the budget replaces it:
-     `weeklyLimit` basis "~84.2k left today" (`tokensLeftPerDay`,
-     compact, `~` because it also counts claude.ai chats; when it is
-     `null` the tokens/min figure stays, derived); `tokenHistory` basis
-     "52.1k left today" (`allowance - usedToday`, floored at 0, compact,
-     derived).
-6. **Week block**, shown while `limits.weekly` is set (otherwise left
-   out, derived):
-   - Row, space-between, baseline (derived): "This week" (caption) left,
-     "81% left · resets Thu" (meta) right: weekly percent left as in
-     "Number formats", then the week reset; " · resets Thu" is dropped
-     when `weekly.resetsAt` is `null` (derived).
-   - Week bar, 6 px, margin top 8 (derived). Stale: fill at
-     `--stale-opacity`.
-   - **Week runs out first**: when weekly percent left < 5-hour percent
-     left and weekly percent left < 20 (both integers as shown; needs
-     `limits.fiveHour` set, derived), the block becomes a card (padding
-     12, `--card-padding`, derived). The card holds the row and the bar
-     only; no extra line (TKM-282). The status line reads "The week runs
-     out first." In this state the bead gauge renders at 220 px
-     (`--gauge-size-week-low`, see "Shared parts"); the size is
-     otherwise unchanged.
-7. **Spacer**: takes the free height (`flex: 1`).
-8. **Level card**: a full-width button in the card style, padding 12
-   (`--card-padding`). Row, space-between, baseline: "Quiet Spender ·
-   Level 7" (card-title: `GameState.title`, " · Level ", `level` in
-   mono) left, "340 / 920 XP" (meta, `xpIntoLevel / xpForLevel`) right;
-   below the 4 px level bar (margin top 8, derived). Opens the
-   achievements screen.
-9. **Note** (see "Note line" below).
+The header shows in every dashboard state. No level bar in the header.
 
-The stat tiles ("Burn rate", "Daily budget", "This session") and the
-"5 hours / Week" segment are gone; their numbers live in the meta row and
-the week block.
+**Body** (padding 24, column, gap 28 `--popup-gap`), with limits:
+
+1. Window section "5 hours" (`limits.fiveHour`).
+2. Window section "7 days" (`limits.weekly`).
+3. Spacer (`flex: 1`).
+4. Closing line (status style), first match:
+   1. Week runs out first: weekly percent left < 5-hour percent left and
+      weekly percent left < 20 (both integers as shown, both windows
+      set): "The week runs out first."
+   2. `fiveHour` is `null`, `weekly` set: "Fresh window. Numbers on your
+      next reply." (derived).
+   3. Otherwise by 5-hour percent left:
+
+      | Percent left | Line |
+      |---|---|
+      | 60 and more | "Barely touched. Use it." |
+      | 30 to 59 | "Good pace." |
+      | 10 to 29 | "Nearly there. As planned." |
+      | 1 to 9 | "Almost gone. Make it count." |
+      | exactly 0 | "Limit reached. Breathe." |
+5. Note line (derived, see "Note line"), margin top 8 after the closing
+   line.
+
+Both windows have equal size; neither is the hero over the other. A
+window section shows while its value is set; with only one set, the
+other is left out (derived). With neither set the no-limits layout
+applies.
+
+### Low limit
+
+When a window's percent left is under 10 (0 to 9; derived threshold, the
+same 10 % as the limit notification), its section becomes the low band:
+background `--low-band`, bleeding to the popup edges (margin 0 -24,
+padding 16 24). Inside the band the label reads "5 hours, nearly out" /
+"7 days, nearly out" (1 to 9 %; at exactly 0 the plain label stays,
+derived: the closing line says "Limit reached. Breathe."), and the meta
+and "left" take `ink` instead of `ink-2`. Beads and numbers as usual.
+Nothing else changes: no red, no icon, no motion. Both windows can be in
+the band at once (derived).
+
+### Dashboard without limits
+
+Covers every state in "Product line" without limit values: not
+connected, connected before the first reply, outdated without a reading,
+plan without `rate_limits`, and `limits.status = unavailable`.
+
+Header as above. Body (padding 24, column, centred, text centred):
+
+1. Spacer (`flex: 1`).
+2. Large monk, 120 x 120 (`--monk-lg-size`), with its ground in
+   `--monk-ground`, strokes 2.
+3. Tokens today, margin top 24: `today.total` compact in the hero run
+   ("184.2" hero, "k" hero-unit; below 1,000 no suffix).
+4. "tokens today" (hero-label).
+5. A short rule: 48 px wide, 1 px `line`, margin 24 0.
+6. Closing line (status style), by the "Product line" table: "Limits
+   after your next reply." (no limits yet, plan without `rate_limits`,
+   `unavailable`), "Connect limits in Settings." (not connected,
+   blocked), "Reconnect limits in Settings." (outdated). The last two
+   are text links in the same style (underlined, offset 3) that open
+   Settings scrolled to Limits.
+7. Spacer (`flex: 1.3`), so the group sits a little above centre.
+8. Note line (derived), centred.
+
+### Dashboard states
+
+- **Stale** (`limits.status = stale`, derived): values as usual; the hero
+  numbers in `ink-2`; bead accent fills at `--stale-opacity`; the reset
+  meta of the 5-hour section reads "as of 14:05" (`fetchedAt`, local
+  24 h time).
+- **No logs** (`data.state = noLogs`): token numbers are 0; the windows
+  follow the limits as usual; the note line explains it.
+- **History replay**: see the header.
+
+All numbers and copy in examples are samples; real values come from
+`DashboardSnapshot` and `GameState`.
 
 ### Note line
 
-One line, first match wins. Status notes take precedence, then the update
-line; the limit note is the fallback and shows with and without limit
-data, so the line is never empty:
+Not in the row E mockups; kept from the earlier design so status and
+update messages keep a place (derived, open point). Caption style
+(13, `ink-2`), one line, min height 18, under the closing line. First
+match wins; when nothing matches the line is left out:
 
 | Condition | Text |
 |---|---|
-| `data.state = importing` | "Reading logs, 24 of 38 files." (derived; numbers mono) |
-| `data.state = noLogs` | "No Claude Code logs yet. Start a session." (derived) |
-| `data.state = error` | "Can’t read the logs. Retrying in the background." (derived) |
-| `UpdateStatus.kind` is `available`, `downloading`, `installing` or `installFailed` | the update line, see "Update line" below |
-| otherwise (limit note) | "Limit % includes claude.ai chats. Token stats are Claude Code only." |
+| `data.state = importing` | "Reading logs, 24 of 38 files." (numbers mono) |
+| `data.state = noLogs` | "No Claude Code logs yet. Start a session." |
+| `data.state = error` | "Can’t read the logs. Retrying in the background." |
+| `UpdateStatus.kind` is `available`, `downloading`, `installing` or `installFailed` | the update line, see "Update line" |
+
+The limit note ("Limit % includes claude.ai chats. Token stats are
+Claude Code only.") is not shown on the dashboard any more (derived:
+row E has no room for a permanent footnote); it stays in the "Limits"
+row captions in Settings.
 
 ### Update line
 
-The dashboard's only trace of updates, shown in the note line (above).
-Derived from the maintainer decisions in TKM-41; the design prototype has
-no update UI. Note style; the version is mono (`tabular-nums`), version
-first; actions are text links in the same line, styled like the
-`noSource` note link (gap 8 before the link). No icon, no badge, no
-popup, no toast.
+The dashboard's only trace of updates, shown in the note line. Note
+style; the version is mono (`tabular-nums`), version first; actions are
+text links in the same line (gap 8). No icon, no badge, no toast.
 
 | `UpdateStatus.kind` | Text | Action |
 |---|---|---|
@@ -475,225 +566,142 @@ popup, no toast.
 | `installFailed` | "0.4.1 didn’t install. Try again" | "Try again" calls `install_update` |
 
 All other kinds (`idle`, `checking`, `upToDate`, `unavailable`,
-`checkFailed`) show nothing here; the note line falls through to the next
-row. "Couldn’t check" lives in Settings only. While `install_update` runs
-the link is disabled.
+`checkFailed`) show nothing here. "Couldn’t check" lives in Settings
+only. While `install_update` runs the link is disabled.
 
-Download progress (TKM-212, derived; the prototype has no update UI): after
-"Update" the line goes `downloading` (percent null, then 0 to 100), then
-`installing`. The percent is a live number: mono, `tabular-nums`, the "%"
-inside the same mono span, last in the line so nothing after it shifts as
-it grows from 1 to 3 digits. It is the whole percent from Rust, shown as
-is: no decimals, no rounding in the UI, no animation between values, no
-progress bar, no spinner. Percent null (size not known yet, or the server
-sends no length) drops the number and the comma: "Downloading 0.4.1."
-stays until `installing`, no fake percent, no ellipsis animation. Rust
-emits only on whole-percent changes (see `UpdateStatus` in the contracts),
-so the UI renders every event as it comes, no extra throttle. Windows: the installer's own small progress window
-appears and Tokenmonk quits, then starts again. macOS: the app restarts by
-itself. If `install_update` rejects (`CommandError`, for example a stale
-status), re-read `get_update_status`; no copy for it.
+Download progress (TKM-212): after "Update" the line goes `downloading`
+(percent null, then 0 to 100), then `installing`. The percent is a live
+number: mono, `tabular-nums`, the "%" inside the same mono span, last in
+the line so nothing after it shifts as it grows. It is the whole percent
+from Rust, shown as is: no decimals, no animation between values, no
+progress bar, no spinner. Percent null drops the number and the comma.
+Rust emits only on whole-percent changes, so the UI renders every event
+as it comes. Windows: the installer's own small progress window appears
+and Tokenmonk quits, then starts again. macOS: the app restarts by
+itself. If `install_update` rejects (`CommandError`), re-read
+`get_update_status`; no copy for it.
 
 Version numbers come from `UpdateStatus.version` ("0.4.1" is a sample).
-
-### Dashboard states
-
-- **Limit reached** (5-hour percent left exactly 0): all beads empty;
-  hero "0%" with "of your limit left"; status line from the "exactly 0"
-  row.
-- **Fresh window** (`limits` usable, `fiveHour = null`, for example a new
-  5-hour window before the next reply): all beads empty; hero-sm with
-  `today.total` (compact) and hero-label "tokens today"; status line
-  "Fresh window. Numbers on your next reply." (derived); meta row left
-  empty. The week block shows as usual.
-- Removed by TKM-287 (design history; the app, the contracts and the tokens no longer have it): **No limit data, with a token budget** (`limits.status = unavailable`
-  and `dailyBudget.basis = tokenHistory`; only Do it yourself gets this
-  basis; derived, TKM-228):
-  - Caption: "Your token budget, today" (derived).
-  - Beads: budget left = `max(0, round(100 - usedPercent))`, bead count
-    as in "Number formats" (derived: the beads drain over the day like
-    the 5-hour window).
-  - Hero-sm with `today.total` (compact), hero-label "tokens today".
-  - Status line: budget left through the mode's column of the status
-    table ("Light day. Nicely done." and so on). Above 100 %
-    (`usedPercent > 100`): "Over budget. The AI wins today." (the OS
-    notification body).
-  - Meta row: left "average day 52.1k" (`allowance`, compact, derived),
-    right the `tokenHistory` budget as in "Dashboard".
-  - No week block.
-- **No limit data, no budget** (`limits.status = unavailable`, any other
-  case): caption "Your Claude Code tokens, today" (derived); all beads
-  empty; hero-sm with `today.total` (compact) and "tokens today"; status
-  line "No limit data. Showing tokens only."; meta row left empty, right
-  tokens per minute; no week block.
-- **Stale** (`limits.status = stale`): values as usual; hero in `ink-2`;
-  full beads and the week bar fill at `--stale-opacity`; meta row left
-  "as of 14:05" (`fetchedAt`, local 24 h time, derived).
-- **No logs** (`data.state = noLogs`): token numbers are 0; beads and
-  status line follow the limits as usual; the note line explains it.
-- **History replay** (`GameState.retroDone = false`): the level card
-  reads "Counting old XP. Hold still." on the left, no XP figure, bar
-  track only (derived).
-
-All numbers and copy in examples are samples; real values come from
-`DashboardSnapshot` and `GameState`.
-
-### Onboarding
-
-Removed by TKM-287 (design history; the app, the contracts and the tokens no longer have it): there is no onboarding view, no `View` `onboarding` and no
-`complete_onboarding`.
-
-Was shown while `Settings.mode = noneYet` (`View = onboarding`). Since
-TKM-324 every install starts in `max`, so `noneYet` no longer happens; the
-popup opens by itself once, on the very first start, through a first-start
-flag in `app_state` (TKM-329), and shows the dashboard. Accent: saffron.
-
-Padding 20 on all sides like every screen.
-
-1. Top row: the brand "Tokenmonk" only (brand style, text only).
-2. Title "How do you want to vibe?" (onboard-title, margin 30 0 8).
-3. "Pick one. You can switch later." (`ink-2`, margin bottom 22).
-4. Two choice rows, full width, each filling half of the remaining height
-   (`flex: 1`), 1 px `line` on top, padding 22 0, gap 16, items centred:
-   the monk at 52 px (`--mark-lg-size`), its robe in the row's own mode
-   accent (Max it out saffron, Do it yourself jade; every other part as
-   in "Icon system"), then the name (choice-lg) over the description (14 px,
-   `ink-2`, margin top 2). Hover underlines the name (offset 4). Names
-   and descriptions as in "Modes".
-5. Note (margin top 18): "Mindful about your tokens. Or not."
-
-A click chooses at once: `complete_onboarding { mode }`; the following
-`settings-changed` switches to the dashboard. While the call runs both
-rows are disabled. On `CommandError` the note reads "Couldn’t save that.
-Try again." (derived) and the rows are enabled again.
-
-Fed by: `Settings`, `complete_onboarding`.
 
 ### Settings
 
 `View = settings`, opened by "Settings" on the dashboard or by the tray
-menu (`navigate`). Back: the "Back" link or Esc. The screen scrolls
-vertically when taller than the popup; the top row stays. Opened from the
-dashboard's limits hint, it scrolls to "Limits".
+menu (`navigate`). Back: the "Back" link or Esc. Scrolls vertically when
+taller than the popup; the top row stays. Opened from the dashboard's
+limits line, it scrolls to "Limits". No header band: background `pop`,
+padding 16 24 20.
 
-Padding 20 on all sides like every screen; no cards. Order (decision
-2026-11-17): Limits, Claude folder, switch rows, then update row and
-version note at the bottom.
+1. Top row: monk mark plus wordmark left, "Back" right.
+2. Title "Settings" (title style, margin 16 0 16).
+3. **Rows** (hairline list; rows padding 12 0, space-between, items
+   centred, gap 12). Left a column (gap 2): label (row size, weight 700)
+   over a sub-line (caption, `ink-2`); right one or two text links (gap
+   12).
+   - **Limits**. Sub-line and links by `LimitsConnection.state`. Every
+     state has one link except `outdated`, which has two, in the order
+     listed, in one line (gap 12):
 
-1. Top row: "Back".
-2. Title "Settings" (title style, margin 16 0 6).
-3. **Limits** (margin top 18; label, status, links and captions stacked
-   with gap 12). Label "Limits" (`ink-2`). Then the status (weight 500)
-   and its text links (note link style) below it, by
-   `LimitsConnection.state`. Every state has one link except `outdated`,
-   which has two, in the order listed. The links sit in one line (the
-   `.limit-data__actions` row):
+     | State | Sub-line | Links |
+     |---|---|---|
+     | `notConnected` | "Not connected." | "Connect limits" (`connect_limits`) |
+     | `connected`, `limits.status` not `unavailable` and `fetchedAt` set | "Connected, last reading 14:05" (`fetchedAt`, local 24 h, mono `tabular-nums`) | "Disconnect" (`disconnect_limits`) |
+     | `connected`, otherwise | "Connected. Limits after your next reply." | "Disconnect" |
+     | `outdated` | "Connected, but set up for another shell. Reconnect to fix it." | "Reconnect" (`connect_limits`), "Disconnect" (`disconnect_limits`) |
+     | `blocked`, `problem = noClaudeFolder` | "Can’t connect: the Claude folder isn’t there. Pick it below." | "Try again" (`connect_limits`) |
+     | `blocked`, `problem = settingsUnreadable` | "Can’t connect: Claude Code’s settings.json can’t be read." | "Try again" |
+     | `blocked`, `problem = settingsInvalid` | "Can’t connect: settings.json isn’t valid JSON. Fix it, then try again." | "Try again" |
+     | `blocked`, `problem` null | "Can’t connect right now." | "Try again" |
 
-   | State | Status | Links |
-   |---|---|---|
-   | `notConnected` | "Not connected." | "Connect limits" (`connect_limits`) |
-   | `connected`, `limits.status` not `unavailable` and `fetchedAt` set | "Connected. Last reading 14:05." (`fetchedAt`, local 24 h time, mono `tabular-nums`) | "Disconnect" (`disconnect_limits`) |
-   | `connected`, otherwise | "Connected. Limits after your next reply." | "Disconnect" |
-   | `outdated` | "Connected, but set up for another shell. Reconnect to fix it." | "Reconnect" (`connect_limits`), "Disconnect" (`disconnect_limits`) |
-   | `blocked`, `problem = noClaudeFolder` | "Can’t connect: the Claude folder isn’t there. Pick it below." | "Try again" (`connect_limits`) |
-   | `blocked`, `problem = settingsUnreadable` | "Can’t connect: Claude Code’s settings.json can’t be read." | "Try again" |
-   | `blocked`, `problem = settingsInvalid` | "Can’t connect: settings.json isn’t valid JSON. Fix it, then try again." | "Try again" |
-   | `blocked`, `problem` null | "Can’t connect right now." | "Try again" |
+     Captions (derived: not in the mockup; caption style, full row width
+     under the label row, margin top 8, gap 4), `LimitsConnection.detail`
+     never shows:
+     - `notConnected` only: "Limits come from Claude Code’s status line.
+       Connect adds it to settings.json, with a backup." The file name is
+       `LimitsConnection.settingsPath` (mono, `ink`), "settings.json"
+       while it is `null`. If `previousStatusLine`, it goes on: " Your
+       current status line keeps working, output unchanged."
+     - `connected` with `previousStatusLine`: "Your own status line runs
+       on, output unchanged. Disconnect restores it."
+     - `outdated` with `previousStatusLine`: "Your own status line stays
+       wrapped; Reconnect keeps it."
+     - Always: "Needs a Pro or Max plan. Numbers show up after the first
+       reply; the desktop app may not run the status line." (Hedged on
+       purpose: see DECISIONS.md, "Popup with log-only data".) Then "Limit
+       % includes claude.ai chats. Token stats are Claude Code only."
 
-   `LimitsConnection.detail` never shows. Captions below the links:
-   - `notConnected` only, status line caption: "Limits come from Claude
-     Code’s status line. Connect adds it to settings.json, with a
-     backup." The file name is `LimitsConnection.settingsPath` (mono,
-     `ink`), "settings.json" while it is `null`. If
-     `previousStatusLine`, it goes on: " Your current status line keeps
-     working, output unchanged."
-   - `connected` with `previousStatusLine`: "Your own status line runs
-     on, output unchanged. Disconnect restores it."
-   - `outdated` with `previousStatusLine`: "Your own status line stays
-     wrapped; Reconnect keeps it."
-   - Always, plan note: "Needs a Pro or Max plan. Numbers show up after
-     the first reply; the desktop app may not run the status line."
-     (Hedged on purpose: the docs say nothing about the desktop app; that
-     it did not run there was only observed once, not verified. See
-     DECISIONS.md, "Popup with log-only data".)
-
-   While a call runs the links are disabled. Connect and Disconnect only
-   ever run on that click (ARCHITECTURE.md, "Connect limits"). On a
-   `CommandError` the note "Couldn’t change that." (note, error style)
-   appears under the section until the next try; the state itself
-   follows `limits-connection-changed`.
-4. **Claude folder** (margin top 18; gap 4). Label "Claude folder"
-   (`ink-2`). Then the path (small, mono, `ink`, one line): a path longer
-   than 38 characters loses its middle to "…" so both ends stay; the full
-   path is the tooltip. "…" while `get_claude_folder` has not answered,
-   "Unknown" if `ClaudeFolder.path` is `null`. Below it a caption line
-   (space-between): the source on the left by `ClaudeFolder.source`
-   (`setting` "Set here", `env` "From CLAUDE_CONFIG_DIR", `default`
-   "Default"), text links on the right (gap 14): "Choose…" opens the
-   native folder picker (ARCHITECTURE.md, "Claude folder") and sends the
-   path as `update_settings { patch: { claudeFolder } }`, cancel does
-   nothing; "Reset" (only when the source is `setting`) sends
-   `claudeFolder: null`. If `ClaudeFolder.projectsFound` is false, the
-   caption "No logs here yet." follows (a hint, never an error). On a
-   rejected change: "Couldn’t save that. Try again." under the row
-   (derived).
-5. Gap 18, then switch rows (space-between, 1 px `line` on top, padding
-   14 0): label left, switch right (`role="switch"`):
+     While a call runs the links are disabled. Connect and Disconnect only
+     ever run on that click (ARCHITECTURE.md, "Connect limits"). On a
+     `CommandError` the caption "Couldn’t change that." appears under
+     the row until the next try; the state follows
+     `limits-connection-changed`.
+   - **Claude folder**. Sub-line: the path (meta style, mono 13,
+     `ink-2`, one line): longer than 38 characters loses its middle to
+     "…", the full path is the tooltip; "…" while `get_claude_folder`
+     has not answered, "Unknown" if `ClaudeFolder.path` is `null`. Link
+     "Change" opens the native folder picker (ARCHITECTURE.md, "Claude
+     folder") and sends `update_settings { patch: { claudeFolder } }`;
+     cancel does nothing. Derived (not in the mockup): when
+     `ClaudeFolder.source` is `setting` a second link "Reset" sends
+     `claudeFolder: null`; the source shows as a caption under the row
+     ("Set here", "From CLAUDE_CONFIG_DIR", "Default"); if
+     `ClaudeFolder.projectsFound` is false, the caption "No logs here
+     yet." follows (a hint, never an error). On a rejected change:
+     "Couldn’t save that. Try again." under the row.
+4. **Switches** (hairline list, margin top 20; rows padding 9 0,
+   space-between, items centred, label in row style left, switch right,
+   `role="switch"`), in this order:
    - "Start at login"
-   - "Check for updates automatically" (`Settings.updateCheck`, default
-     on). Off: no check at start; "Check now" still works. Turning it on
-     does not check at once.
-   - "10% Limits notification" (`Settings.notifyLimits`), with the
-     caption "Once per window, when 10% is left." under the label
-     (ARCHITECTURE.md, "Notifications").
+   - "Check for updates" (`Settings.updateCheck`, default on). Off: no
+     check at start; "Check now" still works. Turning it on does not
+     check at once.
+   - "Keep popup open" (`Settings.keepOpen`, default off). Off: the popup
+     hides when it loses focus. On: it stays visible and hides only via
+     the tray icon or the title bar "Close". Applies at once.
+   - "Warn at 10 % left" (`Settings.notifyLimits`; "10 %" mono): once per
+     window and reset cycle (ARCHITECTURE.md, "Notifications").
    - "Level-up notifications" (`Settings.notifyLevelUps`).
    - "Sound"
-   - "Keep popup open" (`Settings.keepOpen`, default off), with the
-     caption "Stays put until the tray icon or Close." under the label.
-     Off: the popup hides when it loses focus. On: it stays visible next
-     to other windows and hides only via the tray icon or the title bar
-     "Close". Applies at once.
-   - Switch: 42 x 24, radius 12, track `line`; knob 18, round, `pop`,
-     inset 3. On: track `--accent`, knob moved 18 px.
-   A final empty hairline row closes the list.
-6. **Update row** and note, pushed to the bottom together:
-   - Update row (note style, min height 16, margin bottom 4), directly
-     above the version note: status text, then text links styled like
-     the `noSource` note link (gap 12). Versions and times mono
-     (`tabular-nums`), times in local 24 h format. By
-     `UpdateStatus.kind`:
 
-     | Kind | Text | Links |
-     |---|---|---|
-     | `idle` | none | "Check now" |
-     | `checking` | "Checking for updates." | none |
-     | `upToDate` | "Up to date, checked at 14:05." (`checkedAt`) | "Check now" |
-     | `available` | "0.4.1 is out." | "Update", "Release notes" |
-     | `downloading`, `percent` set | "Downloading 0.4.1, 42%." (`percent` mono) | none |
-     | `downloading`, `percent` null | "Downloading 0.4.1." | none |
-     | `installing` | "Installing 0.4.1. Back in a moment." | none |
-     | `installFailed` | "0.4.1 didn’t install." | "Try again", "Release notes" |
-     | `checkFailed` | "Couldn’t check." | "Check now" |
-     | `unavailable` | "Updates aren’t set up in this build." | none |
+   No captions under the switches. Switch: 44 x 26 (`--switch-width`,
+   `--switch-height`), radius 13, 1.5 outline (`--switch-stroke`); knob
+   17 round (`--switch-knob`), inset 4.5, 1.5 outline. On: track
+   `--accent` outlined `ink`, knob `--switch-knob-on` outlined `ink`, on
+   the right. Off: track `surface` outlined `bead-string`, knob
+   `--switch-knob-off` outlined `bead-string`, on the left. The knob
+   moves 18 px.
+5. Spacer (`flex: 1`, min height 16).
+6. **Update row** (derived, not in the mockup; note style, margin bottom
+   4), directly above the footer: status text, then text links (gap 12).
+   Versions and times mono (`tabular-nums`), times local 24 h. By
+   `UpdateStatus.kind`:
 
-     "Check now" calls `check_for_updates`, "Update" and "Try again" call
-     `install_update`, "Release notes" opens `UpdateStatus.url` (the
-     version's GitHub release page) in the browser. No release notes in
-     the app. `downloading` follows the dashboard's update line rules
-     (Update line above): same copy, same null fallback, no bar. On a
-     `CommandError` from `check_for_updates` the row reads
-     "Couldn’t check." (derived). The tray item "Check for updates"
-     (Tray menu) lands here and fills the row the same way.
-   - Note: "Tokenmonk 0.3.1, MIT." followed by the text link "About"
-     (styled like the `noSource` note link, gap 12), which opens About.
-     The version is `AppInfo.version` ("0.3.1" is a sample, mono
-     `tabular-nums`); while it is still empty: "Tokenmonk, MIT." and the
-     same link. The issues hint moved to About (TKM-125).
+   | Kind | Text | Links |
+   |---|---|---|
+   | `idle` | none | "Check now" |
+   | `checking` | "Checking for updates." | none |
+   | `upToDate` | "Up to date, checked at 14:05." (`checkedAt`) | "Check now" |
+   | `available` | "0.4.1 is out." | "Update", "Release notes" |
+   | `downloading`, `percent` set | "Downloading 0.4.1, 42%." | none |
+   | `downloading`, `percent` null | "Downloading 0.4.1." | none |
+   | `installing` | "Installing 0.4.1. Back in a moment." | none |
+   | `installFailed` | "0.4.1 didn’t install." | "Try again", "Release notes" |
+   | `checkFailed` | "Couldn’t check." | "Check now" |
+   | `unavailable` | "Updates aren’t set up in this build." | none |
+
+   "Check now" calls `check_for_updates`, "Update" and "Try again" call
+   `install_update`, "Release notes" opens `UpdateStatus.url` in the
+   browser. `downloading` follows the dashboard's update line rules. On
+   a `CommandError` from `check_for_updates` the row reads "Couldn’t
+   check.". The tray item "Check for updates" lands here and fills the
+   row the same way.
+7. **Footer** (note style, row, baseline, gap 12): "Tokenmonk 0.6.0,
+   MIT." (`AppInfo.version` mono `tabular-nums`; while empty "Tokenmonk,
+   MIT.") then the text link "About" in `ink`, which opens About.
 
 Every switch applies at once through `update_settings { patch }`, no save
 button. While a call runs the control stays in its new position; on
-`CommandError` it flips back and the note "Couldn’t save that. Try
-again." appears under the switch list (derived).
+`CommandError` it flips back and "Couldn’t save that. Try again."
+(caption) appears under the switch list (derived).
 
 Fed by: `LimitsConnection` (`get_limits_connection`, `connect_limits`,
 `disconnect_limits`, `limits-connection-changed`; `state`,
@@ -706,134 +714,115 @@ Fed by: `LimitsConnection` (`get_limits_connection`, `connect_limits`,
 
 ### About
 
-Not in the prototype: derived from the Settings and Achievements parts,
-so all of its copy is derived. `View = about` (TKM-125), opened by the "About" link in the Settings
-footer note (Settings, item 6). No other entry point: no tray item, no
-link on the dashboard. Back: the "Back" link or Esc, both return to
-Settings (not the dashboard); Settings opens at the top as usual. A
-`navigate` event while About is open switches views like on any other
-screen. Scrolls vertically when taller than the popup; the top row stays.
-Padding 20 on all sides; rows, no cards.
+`View = about` (TKM-125), opened by the "About" link in the Settings
+footer. No other entry point. Back: the "Back" link or Esc, both return
+to Settings (opened at the top). A `navigate` event while About is open
+switches views like on any other screen.
 
-1. Top row: "Back".
-2. Monk at 52 px (`--mark-lg-size`), margin top 16.
-3. Title "Tokenmonk" (title style, margin 12 0 2).
-4. Version, the screen's number: `AppInfo.version` as is, for example
-   "0.4.0" (stat style, mono `tabular-nums`). While it is still empty:
-   "n/a" in the same style (derived).
-5. Caption under it (margin top 2, margin bottom 18): "Installed
-   version. Updates live in Settings."
-6. Hairline rows (space-between, 1 px `line` on top, padding 14 0):
-   label left (row style), value right; a final empty hairline row closes
-   the list.
+**Header band** (background `surface`, padding 16 24 24, column, items
+centred, text centred):
 
-   | Label | Value |
-   |---|---|
-   | "Licence" | "MIT" (`ink-2`, plain text, no link) |
-   | "Source" | text link "GitHub", opens `REPO_URL` |
-   | "Ideas and bugs" | text link "GitHub issues", opens `ISSUES_URL` |
+1. Top row (full width): wordmark alone left, "Back" right.
+2. Five-bead gauge at 112 px (`--gauge-size-sm`), margin top 12, all
+   beads full, the monk inside.
+3. Version, the screen's number: `AppInfo.version` as is ("0.6.0" is a
+   sample), stat style, margin top 16. While it is still empty: "n/a" in
+   the same style (derived).
+4. "Installed version. Updates live in Settings." (small, `ink-2`,
+   margin top 4).
 
-   Text links as everywhere (`ink-2`, hover `ink`, padding 6 px
-   vertical). They open in the browser through the opener plugin like
-   "Release notes"; a failed open shows nothing.
-7. Note, pushed to the bottom: "Made by Tokenmonk contributors. No
-   account, no telemetry."
+**Body** (padding 20 24, column):
+
+1. Hairline list, rows space-between, items centred, row size:
+
+   | Label | Value | Row padding |
+   |---|---|---|
+   | "Licence" | "MIT" (`ink-2`, plain text) | 12 0 |
+   | "Source" | text link "GitHub" (`ink`), opens `REPO_URL` | 8 0 |
+   | "Ideas and bugs" | text link "GitHub issues" (`ink`), opens `ISSUES_URL` | 8 0 |
+
+   The links open in the browser through the opener plugin; a failed
+   open shows nothing.
+2. Spacer (`flex: 1`).
+3. Note: "Made by Tokenmonk contributors. No account, no telemetry."
 
 Nothing else: no author, no email, no website, no credits list, no
-changelog, no update controls (those stay in Settings). Only the two
-GitHub links above leave the app.
-
-Tokens: shared ones only (`--mark-lg-size`, title, stat, row, caption
-and note text tokens, `line`, `ink`, `ink-2`). No new token.
+changelog, no update controls. Only the two GitHub links leave the app.
 
 Fed by: `AppInfo.version` (`get_app_info`, `app-info-changed`),
 `REPO_URL`, `ISSUES_URL`.
 
 ### Achievements
 
-`View = achievements`, opened by the dashboard's level card. Back: the
-"Back" link or Esc. Scrolls vertically when needed. Padding 20 on all
-sides; rows, no cards.
+Not in the row E mockups; derived from Settings (open point).
+`View = achievements`, opened by the rank block in the dashboard header.
+Back: the "Back" link or Esc. Scrolls vertically when needed. No header
+band: background `pop`, padding 16 24 20.
 
-1. Top row: "Back".
-2. `GameState.title` (ach-title, margin top 16, margin bottom 0).
-3. "Level 7, 340 of 920 XP" (mono-sm, margin top 2).
-4. Level bar, 4 px, margin 12 0 24.
-5. "Achievements, 2 of 5" (`ink-2`, margin bottom 6): unlocked count of
-   the listed rows, then the listed count.
-6. One row per listed achievement, in display order
-   (`GameState.achievements`): 1 px `line` on top, padding 11 0,
-   space-between, gap 12. Left: name (row style) over description
-   (caption). Right: "Unlocked" or "Locked" (small, no wrap, padding top
-   3). Locked rows show name and description at 50 % opacity.
-7. Removed by TKM-287 (design history; the app, the contracts and the tokens no longer have it): other-mode hint: a locked row whose achievement only counts in the
-   other mode (`AchievementProgress.mode` is set and differs from
-   `GameState.mode`) gets one more line under the description: "Max it
-   out only. Not on this mode's menu." or "Do it yourself only. Not on
-   this mode's menu." (the mode name from Modes). Style: small, `ink-2`,
-   margin top 2, full opacity (not dimmed with the row), may wrap. The
-   right side still reads "Locked". No accent colour, no icon.
-
-Other-mode hint rules (design history, as item 7): no hint on unlocked rows (earned is earned, the XP
-stays in the one pool), none for achievements with `mode = null`, none
-while `GameState.mode` is `noneYet`. The hint follows `game-updated`, so
-a mode switch in Settings updates it. It does not change the heading
-count, the row order or the dimming.
+1. Top row: monk mark plus wordmark left, "Back" right.
+2. `GameState.title` (title style, margin top 16).
+3. "Level 7, 340 of 920 XP" (meta, margin top 2).
+4. Level bar, margin 12 0 24.
+5. "Achievements, 2 of 5" (section style, margin bottom 8): unlocked
+   count of the listed rows, then the listed count.
+6. Hairline list, one row per listed achievement in display order
+   (`GameState.achievements`): padding 12 0, space-between, gap 12.
+   Left: name (row size, weight 700) over description (caption). Right:
+   "Unlocked" or "Locked" (caption, no wrap). Locked rows show name and
+   description at `--locked-opacity` 50 %.
 
 Listed: every achievement except secret ones that are still locked. Boo
 ("Halloween 2026") is a retired legacy badge: secret and no longer
 earnable, so it is listed only for players who already unlocked it.
 
-Fed by: `GameState` (`mode`, `title`, `level`, `xpIntoLevel`,
-`xpForLevel`, `progress`, `achievements`).
+Fed by: `GameState` (`title`, `level`, `xpIntoLevel`, `xpForLevel`,
+`progress`, `achievements`).
 
 ### Achievement toast
 
 Shown for every `achievement-unlocked` with `retroactive = false`, inside
-the popup on any screen.
+the popup on any screen (the mockup shows it over the dashboard).
 
-Layout: absolute, inset 16 from left, right and bottom; background `ink`,
-text `pop`, radius 8, padding 12 16 12 18. A 3 px `--accent` bar on the
-left edge, inset 8 top and bottom, radius 2. Content: the name
-(toast-title) over one line (12.5, 75 % opacity): `detail`, else the
-achievement's `description`, followed by " +N XP" (for example "Coding
-after midnight. +50 XP"). It slides in and out (see Motion).
+- **Scrim**: absolute, inset 0, `--scrim`, over the screen below the
+  toast.
+- **Toast**: a button, absolute, inset 16 (`--toast-inset`) from left,
+  right and bottom; background `ink`, text `pop`, radius 14, padding
+  16 18 16 16, `shadow-toast`; row, items centred, gap 14, text left.
+  1. One bead on a string: SVG 24 x 48 (`viewBox="0 0 24 48"`), string
+     `M12 0V48` in `--toast-string` 1.5, bead at (12, 24) r 10
+     (`--toast-bead-radius`), fill `--accent`, stroke `pop` 1.5.
+  2. Text column (`flex: 1`, gap 2): the name (toast-title) over one line
+     (small, `--toast-ink-2`): `detail`, else the achievement's
+     `description`.
+  3. "+50 XP" (mono 14, `tabular-nums`, `pop`).
 
 Rules:
 
-- One toast at a time, visible 3.4 s, click dismisses, pointer hover
-  pauses the timer.
+- One toast at a time, visible 3.4 s (`--toast-visible`), a click on the
+  toast or the scrim dismisses (scrim: derived), pointer hover pauses the
+  timer. It slides in and out (see Motion).
 - Queue: events that arrive while the popup is hidden are kept and shown
   on the next open, oldest first, in addition to the OS notification.
   Three or more waiting collapse into one toast: "3 achievements
-  unlocked", line "Newest: Night Owl. +150 XP" (summed XP).
+  unlocked", line "Newest: Night Owl.", right "+150 XP" (summed XP;
+  derived layout).
 - Boo can no longer be unlocked, so it never gets a toast.
-- Priority: level-up screen, then toasts. A toast waits while the level-up
-  screen is open.
+- Priority: level-up screen, then toasts. A toast waits while the
+  level-up screen is open.
 - Sound: the synthesized tone, only with `Settings.sound` on.
 
-While hidden: achievement unlocks and limit warnings also go out as OS
-notifications through the notification plugin. The in-popup queue still
-shows on the next open. No OS notification for `retroactive = true`. The
-notification is sent without its own sound where the plugin allows it, so
-the tone is not doubled.
+While hidden: achievement unlocks also go out as OS notifications
+through the notification plugin; the in-popup queue still shows on the
+next open. No OS notification for `retroactive = true`. The notification
+is sent without its own sound where the plugin allows it, so the tone is
+not doubled.
 
 | Notification | When | Title | Body |
 |---|---|---|---|
 | Unlock | `achievement-unlocked`, not retroactive | "Night Owl unlocked, +50 XP" | detail, else description |
-| Max it out, 90 % | `limits.fiveHour.utilization` crosses 90 | "5h limit at 90 %" | none |
-| Max it out, 100 % | crosses 100 | "5h limit at 100 %" | "Limit reached. Breathe." |
-| Do it yourself, over budget | `dailyBudget.usedPercent` crosses 100 | "Today’s budget at 100 %" | "Over budget. The AI wins today." |
 
-Each limit warning fires once per upward crossing: once per 5-hour window
-(`fiveHour.resetsAt`) and once per day for the budget. None while
-`limits.status` is not `ok` (Max it out), none for stale values, none while
-`fiveHour = null`. Level-ups get no OS notification; the level-up screen
-waits for the next open.
-
-Removed by TKM-287: the 90 % and 100 % warnings and the budget warning;
-one warning at 10 % left per window and reset cycle instead.
-Level-ups get a system notification, with a toggle ("Product line").
+Limit and level-up notifications: ARCHITECTURE.md, "Notifications"; copy
+and tone in "Product line".
 
 Fed by: `AchievementUnlocked`, `GameState.achievements`, `Settings.sound`;
 the limit notification from `DashboardSnapshot.limits` and
@@ -842,34 +831,34 @@ the limit notification from `DashboardSnapshot.limits` and
 ### Level-up screen
 
 Shown for every `level-up` with `retroactive = false`, over the current
-screen (background `pop`, padding 20), queued like toasts. Centred
-column; spacing between the items as on the current screen (derived).
+screen, queued like toasts. Background `pop`, padding 20 24 24, column,
+items centred, text centred.
 
-Top to bottom:
+1. Wordmark alone, top left (`align-self: flex-start`).
+2. Spacer (`flex: 1`).
+3. Five-bead gauge at 200 px (`--gauge-size-lg`), all beads full, the
+   monk inside. No bead motion.
+4. "Level 8" (levelup-title, margin top 24; "Level" sans 700, the number
+   mono 500 `tabular-nums`).
+5. Several levels at once (`level - previousLevel > 1`): "+2 levels"
+   (meta, margin top 4; derived, not in the mockup).
+6. Title line (levelup-line, margin top 8) from `LevelUp.title`:
+   `titleChanged = true` "Now a <title>." ("Now a Quiet Adept."),
+   `titleChanged = false` "Still a <title>.". The article is "an"
+   before a vowel sound ("Now an Abbot of Restraint.").
+7. "Keep burning." (body, `ink-2`, margin top 2).
+8. Spacer (`flex: 1`).
+9. "Level 8, 0 of 1,040 XP" (meta, full width, left aligned).
+10. Level bar, full width, margin top 8.
+11. Primary button "Back to work", full width, margin top 20.
 
-1. The bead gauge at 200 px (`--gauge-size-lg`) with all 20 beads full
-   and the monk inside, robe in `--accent` of the current mode. No bead
-   motion (derived).
-2. "Level 8" (onboard-title; "Level" sans, the number mono
-   `tabular-nums`).
-3. Several levels at once (`level - previousLevel > 1`): "+2 levels"
-   (mono-sm).
-4. Title line (caption: 13 px, `ink-2`) from `LevelUp.title`:
-   `titleChanged = false` "Still a <title>." ("Still a Quiet
-   Spender."), `titleChanged = true` "Now a <title>.". The article is
-   "an" before a vowel sound ("Now an Abbot of Restraint.").
-5. Mode line (status style): Max it out "Keep burning.", Do it yourself
-   "Well earned. Breathe.".
-6. "Level 8, 0 of 1,040 XP" (mono 12, small style).
-7. The level bar (4 px).
-8. The text link "Back to work".
-
-Esc and the link close it. Tone only with `Settings.sound` on.
+Esc and the button close it. Tone only with `Settings.sound` on.
 
 Retro summary: when `retroDone` turns from false to true in this run, the
 screen shows once with "Level 6", the line "Straight from your history."
-and "4 achievements, 2,640 XP" (unlocked count, `xpTotal`). Skipped at
-level 1 with no unlocks. No toasts for retroactive unlocks.
+and "4 achievements, 2,640 XP" (unlocked count, `xpTotal`) in the place
+of "Keep burning.". Skipped at level 1 with no unlocks. No toasts for
+retroactive unlocks.
 
 Fed by: `LevelUp`, `GameState`, `Settings.sound`.
 
@@ -883,13 +872,13 @@ opacities. A 32 x 32 unit box (`viewBox="0 0 32 32"`):
   12 o'clock, the rest follow clockwise. Count from the 5-hour percent
   left: 0 only at exactly 0 %, otherwise `ceil(percent / 20)`. Beads 1 to
   N are full, the rest empty: the string drains from the end, as in the
-  popup.
-  - Full: fill `--accent` of the current mode, no stroke (derived).
+  popup. The tray keeps whole beads; the popup fills partial beads.
+  - Full: fill `--tray-accent` #E39A0B, no stroke (derived).
   - Empty: same circle, fill `--tray-track` #8A8D8B at 35 %
     (`--tray-bead-empty-opacity`), no scale (derived).
 - **Monk**: robe and head of the monk drawing ("Icon system"), nested as
   `<svg x="10.25" y="9.5" width="11.5" height="13" viewBox="76 76 128 146">`.
-  Robe fills `--accent` of the current mode, head fills `--tray-track`
+  Robe fills `--tray-accent`, head fills `--tray-track`
   at full opacity; no strokes, no sash, hands or face (derived: below
   pixel size).
 - **No limit data** (no 5-hour value): all beads empty and the whole monk
@@ -900,7 +889,9 @@ opacities. A 32 x 32 unit box (`viewBox="0 0 32 32"`):
   (`--tray-head-opacity-template`). The no-data fade (0.45) applies to the
   monk here too.
 
-Value: 5-hour percent left. The accent is always saffron. The tray icon is not the app icon (role C in "Icon system"): it
+Value: 5-hour percent left. The tray keeps the earlier saffron #E39A0B
+(`--tray-accent`, unchanged by TKM-288); the popup uses `--saffron`
+#EE8A12. The tray icon is not the app icon (role C in "Icon system"): it
 is drawn from the monk paths, not from the app icon files.
 
 ## Tray menu
@@ -957,7 +948,9 @@ Platform icons are generated from these files by `node scripts/icons.mjs`
 ## Not covered by the design / out of scope
 
 Out of scope (TKM-287): usage per project or model, history, API cost,
-any estimated budget or forecast.
+any estimated budget or forecast. Out of scope (TKM-288): the app icon,
+the tray icon and the brand files; they keep the earlier palette
+(saffron #E39A0B).
 
 Open points from the product line (TKM-287):
 
@@ -965,34 +958,24 @@ Open points from the product line (TKM-287):
   "not yet", so the hint line can disappear for those users.
 - Whether the desktop app and IDE extensions run the status line
   (verified in TKM-242).
-- Header with level and title: look and space, decided by the TKM-288
-  mockup.
 
-Open points:
+Open points from row E (TKM-288). Each rule below is marked "derived"
+above and stands until the maintainer decides otherwise:
 
-- (Design history, the paste-only setup is gone.) Copy links in "Limit data" use the web Clipboard API
-  (`navigator.clipboard.writeText`). Verified manually on Windows (WebView2,
-  installed release build): the snippet lands on the clipboard. macOS
-  (WKWebView) is still unverified. If `writeText` rejects there, the
-  fallback applies: the caption "Couldn’t copy. Select it and copy by hand."
-  shows and the snippet text is selected.
-- Update UI (update line, Settings update row and switch) is not in the
-  prototype; it is derived from the TKM-41 decisions using existing
-  styles only. Download progress (TKM-212) is text in the same line, no
-  bar.
-
-Open points from the prayer-bead redesign (TKM-269). Each rule below is
-marked "derived" above and stands until the maintainer decides otherwise:
-
-- Text styles and spacing inside the week block ("This week" caption,
-  figure in meta style, margins 8), the week-low card padding (12, as the
-  level card) and the week reset copy under 24 h.
-- Dashboard without limit data: captions and "as of 14:05" in the meta
-  row (the token budget beads and "average day" are gone with the
-  budget).
-- Monk strokes: widths of sash, hands, eyes and mouth (1.5) and the
-  colour of the hands (`--monk-line`).
-- Height: the week-low state drops the extra card line and renders the
-  bead gauge at 220 px (TKM-282, maintainer decision after the #281
-  measurement at 680 px). TKM-273 checks the result with the real fonts.
-  No scrolling on the dashboard.
+- Note line and update line on the dashboard: not in the mockups; kept
+  under the closing line. The permanent limit note moved to Settings.
+- Low band: threshold under 10 % and the plain label at exactly 0 %.
+- Only one window set (fresh 5-hour window): the other section is left
+  out and the closing line reads "Fresh window. Numbers on your next
+  reply.".
+- Stale values: hero in `ink-2`, "as of 14:05" in the 5-hour meta.
+- The rank block in the header opens Achievements; the Achievements
+  screen layout follows Settings.
+- Settings: captions under Limits and Claude folder, "Reset", the update
+  row and the error captions are not in the mockup; they keep their
+  earlier content in row E styles. The switch captions are gone, as in
+  the mockup.
+- Toast: scrim click dismisses; the collapsed toast layout.
+- Level-up: the "+2 levels" line.
+- Motion and hover states: the mockups are still; the rules in
+  "Spacing, radius, motion" carry over from the earlier design.
