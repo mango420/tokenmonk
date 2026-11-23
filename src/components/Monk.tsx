@@ -7,12 +7,18 @@
 export function MonkFigure() {
   return (
     <g className="monk">
-      <path className="monk__robe" d="M82 216c2-46 26-74 58-74s56 28 58 74z" />
-      <path className="monk__line" d="M112 152c10 22 30 40 62 46" />
-      <path className="monk__line" d="M116 216c6-10 16-14 24-14s18 4 24 14" />
-      <circle className="monk__head" cx="140" cy="106" r="24" />
-      <path className="monk__line" d="M128 108c2 3 6 3 8 0M144 108c2 3 6 3 8 0" />
-      <path className="monk__line" d="M135 118c3 2 7 2 10 0" />
+      <circle className="monk__head" cx="108.3" cy="116.1" r="7.9" />
+      <circle className="monk__head" cx="171.7" cy="116.1" r="7.9" />
+      <circle className="monk__head" cx="140" cy="113.5" r="33" />
+      <path className="monk__eyes" d="M118.9 115.2a7.9 7.9 0 0 0 15.8 0zM145.3 115.2a7.9 7.9 0 0 0 15.8 0z" />
+      <path
+        className="monk__robe"
+        d="M85 184.3c0-23.7 23.1-33 55-33 9.6 0 18.3.9 25.9 2.7l14.8 47.1A63.8 63.8 0 0 1 85 184.3z"
+      />
+      <path
+        className="monk__shoulder"
+        d="M169.7 155c15.5 4.6 25.3 13.9 25.3 29.3a63.8 63.8 0 0 1-9.5 12.4z"
+      />
     </g>
   );
 }

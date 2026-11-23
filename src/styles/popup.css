@@ -353,19 +353,18 @@ html[data-maximized] .popup {
 
 /* ------------------------------------------------------------------- monk */
 
-/* Parts in gauge coordinates (Monk.tsx); the stroke width follows the size. */
+/* Parts in gauge coordinates (Monk.tsx); the stroke width follows the size.
+   Robe and shoulder are flat, only head and ears carry an outline. */
 .monk__robe {
   fill: var(--accent);
-  stroke: var(--ink);
-  stroke-width: var(--monk-stroke);
-  stroke-linejoin: round;
 }
 
-.monk__line {
-  fill: none;
-  stroke: var(--monk-line);
-  stroke-width: var(--monk-stroke);
-  stroke-linecap: round;
+.monk__shoulder {
+  fill: var(--monk-robe-shade);
+}
+
+.monk__eyes {
+  fill: var(--monk-line);
 }
 
 .monk__head {
@@ -378,8 +377,6 @@ html[data-maximized] .popup {
   fill: var(--monk-ground);
 }
 
-.corner__mark .monk__robe,
-.corner__mark .monk__line,
 .corner__mark .monk__head {
   stroke-width: var(--mark-stroke);
 }
@@ -567,8 +564,6 @@ html[data-maximized] .popup {
   stroke-width: var(--gauge-sm-track-stroke);
 }
 
-.five-gauge .monk__robe,
-.five-gauge .monk__line,
 .five-gauge .monk__head,
 .five-gauge__bead {
   stroke-width: var(--gauge-sm-stroke);

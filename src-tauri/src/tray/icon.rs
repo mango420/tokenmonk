@@ -21,13 +21,20 @@ const BEADS: [(f64, f64); 5] = [
 const PERCENT_PER_BEAD: f64 = 20.0;
 /// Placement of the monk drawing in the view box.
 const MONK_BOX: &str = r#"x="10.25" y="9.5" width="11.5" height="13" viewBox="76 76 128 146""#;
-/// Robe path of `assets/brand/tokenmonk-monk-mark.svg`.
-const ROBE_PATH: &str = "M82 216c2-46 26-74 58-74s56 28 58 74z";
-/// Head circle (cx, cy, r) of `assets/brand/tokenmonk-monk-mark.svg`.
-const HEAD_CIRCLE: (u32, u32, u32) = (140, 106, 24);
+/// Robe path of `assets/brand/tokenmonk-monk-light.svg`.
+const ROBE_PATH: &str =
+    "M85 184.3c0-23.7 23.1-33 55-33 9.6 0 18.3.9 25.9 2.7l14.8 47.1A63.8 63.8 0 0 1 85 184.3z";
+/// Shoulder path of `assets/brand/tokenmonk-monk-light.svg`.
+const SHOULDER_PATH: &str = "M169.7 155c15.5 4.6 25.3 13.9 25.3 29.3a63.8 63.8 0 0 1-9.5 12.4z";
+/// Head and ear circles (cx, cy, r) of `assets/brand/tokenmonk-monk-light.svg`.
+const HEAD_CIRCLES: [(f64, f64, f64); 3] = [
+    (108.3, 116.1, 7.9),
+    (171.7, 116.1, 7.9),
+    (140.0, 113.5, 33.0),
+];
 /// `--saffron`: the only accent.
 const SAFFRON: &str = "#e39a0b";
-/// `--tray-track`: monk head and empty beads.
+/// `--tray-track`: monk head, ears and empty beads.
 const TRACK: &str = "#8a8d8b";
 /// `--tray-bead-empty-opacity`.
 const BEAD_EMPTY_OPACITY: &str = "0.35";
@@ -135,9 +142,12 @@ pub fn halo_svg(style: IconStyle, percent: Option<f64>, mode: Mode) -> String {
     } else {
         format!(r#" opacity="{MONK_NODATA_OPACITY}""#)
     };
-    let (cx, cy, r) = HEAD_CIRCLE;
+    let head_parts: String = HEAD_CIRCLES
+        .iter()
+        .map(|(cx, cy, r)| format!(r#"<circle cx="{cx}" cy="{cy}" r="{r}"/>"#))
+        .collect();
     format!(
-        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">{beads}<svg {MONK_BOX}{monk_opacity}><path d="{ROBE_PATH}" fill="{accent}"/><circle cx="{cx}" cy="{cy}" r="{r}" fill="{head}" fill-opacity="{head_opacity}"/></svg></svg>"#
+        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">{beads}<svg {MONK_BOX}{monk_opacity}><path d="{ROBE_PATH}" fill="{accent}"/><path d="{SHOULDER_PATH}" fill="{accent}"/><g fill="{head}" opacity="{head_opacity}">{head_parts}</g></svg></svg>"#
     )
 }
 
@@ -235,8 +245,8 @@ mod tests {
         assert_eq!(svg.matches(r#"r="3.2""#).count(), 5, "{svg}");
         assert_eq!(
             svg.matches(r##"fill="#e39a0b"/>"##).count(),
-            4,
-            "3 full beads + robe"
+            5,
+            "3 full beads, robe and shoulder"
         );
         assert_eq!(svg.matches(r#"fill-opacity="0.35""#).count(), 2);
         assert!(svg.contains(MONK_BOX));
@@ -248,10 +258,12 @@ mod tests {
 
     #[test]
     fn monk_paths_match_brand_mark() {
-        let svg = include_str!("../../../assets/brand/tokenmonk-monk-mark.svg");
+        let svg = include_str!("../../../assets/brand/tokenmonk-monk-light.svg");
         assert!(svg.contains(&format!(r#"d="{ROBE_PATH}""#)));
-        let (cx, cy, r) = HEAD_CIRCLE;
-        assert!(svg.contains(&format!(r#"cx="{cx}" cy="{cy}" r="{r}""#)));
+        assert!(svg.contains(&format!(r#"d="{SHOULDER_PATH}""#)));
+        for (cx, cy, r) in HEAD_CIRCLES {
+            assert!(svg.contains(&format!(r#"cx="{cx}" cy="{cy}" r="{r}""#)));
+        }
         assert!(svg.contains(r#"viewBox="76 76 128 146""#));
     }
 

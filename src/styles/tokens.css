@@ -38,9 +38,10 @@
   --low-band: color-mix(in srgb, var(--accent) 18%, var(--pop));
 
   /* Monk figure */
-  --monk-face: #fbf6ee;
-  --monk-line: var(--ink); /* sash, hands, eyes, mouth */
-  --monk-head-stroke: var(--ink); /* head outline; none in dark */
+  --monk-face: #fbf6ee; /* head and ears */
+  --monk-line: var(--ink); /* eyes */
+  --monk-head-stroke: var(--ink); /* head and ear outline; none in dark */
+  --monk-robe-shade: color-mix(in srgb, var(--accent) 85%, #000); /* shoulder */
   --monk-ground: #e2d5bf; /* ground shadow under the large monk on --pop */
 
   /* Beads */
@@ -176,7 +177,6 @@
   /* Monk strokes (viewBox units) */
   --monk-stroke: 2; /* large monk */
   --mark-stroke: 5; /* corner mark at 26 x 30 */
-  --mark-sash-stroke: 3; /* single-colour brand mark file */
 
   /* Toast */
   --toast-inset: 16px;
