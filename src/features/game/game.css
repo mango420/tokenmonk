@@ -146,16 +146,14 @@
 
 .game-monk__robe {
   fill: var(--accent);
-  stroke: var(--ink);
-  stroke-width: var(--monk-stroke);
-  stroke-linejoin: round;
 }
 
-.game-monk__line {
-  fill: none;
-  stroke: var(--monk-line);
-  stroke-width: var(--monk-stroke);
-  stroke-linecap: round;
+.game-monk__shoulder {
+  fill: var(--monk-robe-shade);
+}
+
+.game-monk__eyes {
+  fill: var(--monk-line);
 }
 
 .game-monk__head {

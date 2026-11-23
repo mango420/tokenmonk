@@ -15,7 +15,8 @@ with limits, low limit, no limits yet, level-up, achievement toast,
 Settings, About (the onboarding mockup stays on the canvas only; there is
 no onboarding screen, see "Product line"). It replaces the prayer-bead
 round (TKM-269) everywhere except the tray icon and the app icon, which
-stay as they are.
+stay as they are. The monk drawing itself is the legacy monk since TKM-358
+(see "Icon system").
 Rules and copy the mockups do not show are derived from the shown parts
 and the earlier rules; they are marked "derived" and listed under "Not
 covered by the design / out of scope". Where an older rule and row E
@@ -158,9 +159,10 @@ and previews only). Warm paper and dark wood, one saffron accent.
 | `low-band` | `saffron` 18 % in `pop` | `saffron` 20 % in `pop` | Band behind the limit window that runs out (`color-mix(in srgb, ...)`) |
 | `bead-string` | #8C7A66 | #8A7A68 | Bead string line, gauge ring, empty bead outline, switch outline when off |
 | `bead-empty-fill` | #FBF6EE | #2A241E | Empty bead and the empty part of a partial bead |
-| `monk-face` | #FBF6EE | = `ink` | Monk head fill |
-| `monk-line` | = `ink` | = `pop` | Sash, hands, eyes and mouth strokes |
-| `monk-head-stroke` | = `ink` | none | Head outline |
+| `monk-face` | #FBF6EE | = `ink` | Monk head and ear fill |
+| `monk-line` | = `ink` | = `pop` | Monk eyes |
+| `monk-head-stroke` | = `ink` | none | Head and ear outline |
+| `monk-robe-shade` | `saffron` 85 % with black | same | Monk shoulder piece |
 | `monk-ground` | #E2D5BF | #2E2620 | Ground shadow under the large monk on `pop` |
 | `switch-knob-on` | #FBF6EE | = `pop` | Switch knob, on |
 | `switch-knob-off` | #FBF6EE | = `line` | Switch knob, off |
@@ -303,35 +305,37 @@ event, whether the popup is open or hidden.
 
 ## Icon system
 
-One monk everywhere: closed smiling eyes, a sash across the robe, hands
-resting at the hem. The monk and the beads are the only drawings in the
-app; no other icons.
+One monk everywhere: the legacy monk (TKM-358). Bald head with ears,
+half-closed eyes that look unimpressed, a robe thrown over one shoulder.
+The monk and the beads are the only drawings in the app; no other icons.
 
 ### The monk drawing
 
 All parts share one coordinate system: the 280 x 280 gauge viewBox
 (centre 140, 140), so the monk sits inside the bead gauge without a
 transform. The corner mark crops it with `viewBox="76 76 128 146"`; the
-large monk with its ground shadow uses `viewBox="60 76 160 160"`. Lines
-have round caps; the robe outline has a round join.
+large monk with its ground shadow uses `viewBox="60 76 160 160"`. The
+parts are the legacy mono mark scaled by 0.22 into this system (head top
+y 80.5, hem y 216, x 85 to 195).
 
 | Part, in drawing order | Path | Fill | Stroke |
 |---|---|---|---|
 | Ground (large monk only) | ellipse cx 140, cy 220, rx 74, ry 13 | `--monk-ground` on `pop`, `line` on `surface` | none |
-| Robe | `M82 216c2-46 26-74 58-74s56 28 58 74z` | `--accent` | `--ink` |
-| Sash | `M112 152c10 22 30 40 62 46` | none | `--monk-line` |
-| Hands | `M116 216c6-10 16-14 24-14s18 4 24 14` | none | `--monk-line` |
-| Head | circle cx 140, cy 106, r 24 | `--monk-face` | `--monk-head-stroke` (light `ink`, dark none) |
-| Eyes | `M128 108c2 3 6 3 8 0M144 108c2 3 6 3 8 0` | none | `--monk-line` |
-| Mouth | `M135 118c3 2 7 2 10 0` | none | `--monk-line` |
+| Ears | circles cx 108.3 and 171.7, cy 116.1, r 7.9 | `--monk-face` | `--monk-head-stroke` |
+| Head | circle cx 140, cy 113.5, r 33 | `--monk-face` | `--monk-head-stroke` (light `ink`, dark none) |
+| Eyes | `M118.9 115.2a7.9 7.9 0 0 0 15.8 0zM145.3 115.2a7.9 7.9 0 0 0 15.8 0z` | `--monk-line` | none |
+| Robe | `M85 184.3c0-23.7 23.1-33 55-33 9.6 0 18.3.9 25.9 2.7l14.8 47.1A63.8 63.8 0 0 1 85 184.3z` | `--accent` | none |
+| Shoulder | `M169.7 155c15.5 4.6 25.3 13.9 25.3 29.3a63.8 63.8 0 0 1-9.5 12.4z` | `--monk-robe-shade` | none |
 
-`--monk-line` is `ink` in light and `pop` in dark, so the sash and the
-face stay dark on the saffron robe and the light dark-theme head.
+The eyes are lower half discs with a flat lid: the legacy eyes, no
+pupils, no lid line. `--monk-line` is `ink` in light and `pop` in dark,
+so the eyes stay dark on the light head in both themes. The head is
+light in both themes. Robe and shoulder are flat; the gap between them
+is the background showing through.
 
-Stroke widths are viewBox units, chosen so every size draws about 1 to
-1.5 px lines: corner mark `--mark-stroke` 5, large monk and level-up
-gauge `--monk-stroke` / `--gauge-bead-stroke` 2, About gauge
-`--gauge-sm-stroke` 3.
+Stroke widths are viewBox units and apply to head and ears only: corner
+mark `--mark-stroke` 5, large monk and level-up gauge `--monk-stroke` /
+`--gauge-bead-stroke` 2, About gauge `--gauge-sm-stroke` 3.
 
 ### Corner rule
 
@@ -355,27 +359,24 @@ tile behind it.
 |---|---|---|---|---|
 | A. App icon | `tokenmonk-icon.svg`, `tokenmonk-icon-windows.svg` | Fixed in the files: dark tile, saffron robe | Only where the OS shows the app: taskbar, dock, Start menu, installer, notifications, the generated icon set. Never inside the popup. | Platform sizes from `node scripts/icons.mjs` |
 | B. Popup monk | The parts table above, drawn inline | Tokens: follows theme | Corner mark; large monk on the dashboard without limits; inside the five-bead gauge on level-up and About | Mark 26 x 30; large 120 (`--monk-lg-size`); gauge 200 (`--gauge-size-lg`), About 112 (`--gauge-size-sm`) |
-| C. Tray monk | Rendered in Rust from robe and head | Robe `--tray-accent`, head `--tray-track` | Inside the tray beads | 11.5 x 13 units in a 32-unit box |
+| C. Tray monk | Rendered in Rust from robe, shoulder, head and ears | Robe and shoulder `--tray-accent`, head and ears `--tray-track` | Inside the tray beads | 11.5 x 13 units in a 32-unit box |
 | Brand files | `tokenmonk-monk-light.svg`, `tokenmonk-monk-dark.svg`, `tokenmonk-monk-mark.svg` | Fixed in the files | README, docs, release pages | Any |
 
-Files in `assets/brand/` (unchanged by TKM-288; they keep the earlier
-palette, like the app icon and the tray), all with
-`viewBox="76 76 128 146"`:
+Files in `assets/brand/` (they keep the earlier palette, like the app icon
+and the tray), all with `viewBox="76 76 128 146"` and the parts above:
 
-- `tokenmonk-monk-light.svg`: colour on light. Robe #E39A0B stroked
-  #181A1B; sash, hands, eyes, mouth #181A1B; head #F4F3EF stroked #181A1B.
-- `tokenmonk-monk-dark.svg`: colour on dark. Robe #E39A0B stroked #E8E7E0;
-  sash, hands, eyes, mouth #1D2220; head #E8E7E0, no stroke.
-- `tokenmonk-monk-mark.svg`: single-colour mark. Robe and head #181A1B,
-  sash knocked out in #E4E3DD at stroke 3 (`--mark-sash-stroke`), no
-  hands and no face details.
-- `tokenmonk-mark-mono.svg`: the old monk, legacy, until a cleanup removes
-  it. Do not use it for anything new.
+- `tokenmonk-monk-light.svg`: colour on light. Robe #E39A0B, shoulder
+  #C98608; head and ears #F4F3EF stroked #181A1B (1.5); eyes #181A1B.
+- `tokenmonk-monk-dark.svg`: colour on dark. Robe #E39A0B, shoulder
+  #C98608; head and ears #E8E7E0, no stroke; eyes #1D2220.
+- `tokenmonk-monk-mark.svg`: single-colour mark, all #181A1B, the eyes
+  cut out of the head (`fill-rule="evenodd"`) and the gap between robe
+  and shoulder left open, so it works on any background.
 
 - **A. App icon**: the monk on the dark ink tile. Details in "App icon".
 - **B. Popup monk**: the parts above with token colours, no tile and no
   background (the ground shadow is part of the large monk).
-- **C. Tray monk**: robe and head only; sash, hands and face are below
+- **C. Tray monk**: robe, shoulder, head and ears; the eyes are below
   pixel size there. Details in "Tray icon".
 
 ## Popup layout (360 x 680)
@@ -903,16 +904,18 @@ opacities. A 32 x 32 unit box (`viewBox="0 0 32 32"`):
   - Full: fill `--tray-accent` #E39A0B, no stroke (derived).
   - Empty: same circle, fill `--tray-track` #8A8D8B at 35 %
     (`--tray-bead-empty-opacity`), no scale (derived).
-- **Monk**: robe and head of the monk drawing ("Icon system"), nested as
+- **Monk**: robe, shoulder, head and ears of the monk drawing ("Icon
+  system"), nested as
   `<svg x="10.25" y="9.5" width="11.5" height="13" viewBox="76 76 128 146">`.
-  Robe fills `--tray-accent`, head fills `--tray-track`
-  at full opacity; no strokes, no sash, hands or face (derived: below
-  pixel size).
+  Robe and shoulder fill `--tray-accent`, head and ears fill
+  `--tray-track` at full opacity (one group, so the ears do not darken
+  where they overlap the head); no strokes, no eyes (derived: below pixel
+  size).
 - **No limit data** (no 5-hour value): all beads empty and the whole monk
   at opacity 0.45 (`--tray-monk-nodata-opacity`).
 - **macOS**: a template image in black (alpha carries the shape; the menu
-  bar tints it). Full beads and robe black; empty beads at 30 %
-  (`--tray-bead-empty-opacity-template`); head at 40 %
+  bar tints it). Full beads, robe and shoulder black; empty beads at 30 %
+  (`--tray-bead-empty-opacity-template`); head and ears at 40 %
   (`--tray-head-opacity-template`). The no-data fade (0.45) applies to the
   monk here too.
 
@@ -944,7 +947,7 @@ Settings and the row keeps showing that state.
 
 ## App icon
 
-The new monk on the dark ink rounded-square tile (role A in "Icon
+The monk on the dark ink rounded-square tile (role A in "Icon
 system"). Used only where the OS shows the app (taskbar, dock, Start
 menu, installer, notifications, the generated icon set), never inside
 the popup. Files in `assets/brand/`:
@@ -953,8 +956,7 @@ the popup. Files in `assets/brand/`:
   1024 x 1024; body 824 x 824 at 100,100, rx 185, with a 16 px inner
   edge. The monk is the colour-on-dark drawing placed with
   `transform="translate(-48 -84) scale(4)"`: centred on x 512, head top
-  at y 244, hem at y 780, robe 464 wide (derived: about the size of the
-  old monk on the tile).
+  at y 238, hem at y 780, 440 wide from ear to shoulder.
 - `tokenmonk-icon-windows.svg`: the same artwork with viewBox
   `84 84 856 856` (tighter crop, so the body fills more of the small
   Windows sizes). Source of `icon.ico` only.
@@ -966,8 +968,9 @@ Colours (fixed in the files, not tokens, same in both themes):
 | Body | #181A1B |
 | Inner edge (16 px stroke) | #363E3A |
 | Robe | #E39A0B |
-| Robe outline, head | #E8E7E0 |
-| Sash, hands, eyes, mouth | #1D2220 |
+| Shoulder | #C98608 |
+| Head, ears | #E8E7E0 |
+| Eyes | #1D2220 |
 
 Platform icons are generated from these files by `node scripts/icons.mjs`
 (desktop sets only); the generated set is refreshed by TKM-276.

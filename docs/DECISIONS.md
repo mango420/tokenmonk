@@ -393,3 +393,22 @@ monk (2026-11-11, TKM-269)" in the popup; the header look left open in
   no onboarding screen (TKM-287 removed it).
 - Rules DESIGN.md marks "derived" are accepted as written.
 - Build follows in issues per owner.
+
+## Legacy monk (2026-11-23, TKM-358)
+
+Owner decision: the legacy monk (the old `tokenmonk-mark-mono.svg`) is the
+one monk again and replaces the monk of TKM-269 everywhere: popup, tray,
+app icon and brand files. Details: [DESIGN.md](DESIGN.md), "Icon system".
+
+- Shape: the legacy paths scaled by 0.22 into the 280 x 280 gauge system,
+  so viewBoxes, sizes and placements of row E stay as they are.
+- Eyes exactly as in the legacy mark: lower half discs with a flat lid, no
+  pupils, no lid line. The head stays light in both themes, so the eyes
+  are dark (`--monk-line`).
+- Robe and shoulder are flat (no outline) so the gap between them stays
+  open at small sizes; the shoulder gets a darker saffron
+  (`--monk-robe-shade`, #C98608 in the fixed-colour files). Only head and
+  ears keep the light-theme outline. `--mark-sash-stroke` is removed.
+- Tray: robe, shoulder, head and ears; no eyes (below pixel size).
+- `tokenmonk-mark-mono.svg` is removed; `tokenmonk-monk-mark.svg` is the
+  single-colour mark with eye cut-outs.
